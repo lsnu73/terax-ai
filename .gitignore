@@ -15,8 +15,6 @@ stats.html
 
 # Editor directories and files
 .vscode/*
-!.vscode/extensions.json
-!.vscode/settings.json
 .idea
 .DS_Store
 *.suo
@@ -34,3 +32,9 @@ src-tauri/binaries/
 
 # Python bytecode from the benchmark scripts
 __pycache__/
+
+# repowise
+.repowise/
+.mcp.json
+
+.zcode/
