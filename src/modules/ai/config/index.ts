@@ -36,7 +36,6 @@ export {
   resolveModel,
   selectSystemPromptForModel,
   setAiConfig,
-  STT_KEY_ACCOUNTS,
   subscribeAiConfig,
   systemPromptKind,
   toModelInfo,
@@ -62,14 +61,7 @@ export {
   writeAiConfig,
 } from "./persist";
 export { getAiConfigSnapshot, useAiConfigStore } from "./store";
-export {
-  DEFAULT_STT_PROVIDER,
-  MAX_AGENT_STEPS,
-  STT_PROVIDER_LABELS,
-  WHISPERCPP_DEFAULT_BASE_URL,
-  selectSystemPrompt,
-  type SttProvider,
-} from "./prompts";
+export { MAX_AGENT_STEPS, selectSystemPrompt } from "./prompts";
 
 /** 动态 ID 就是普通字符串；保留别名只为让调用处更易读。 */
 export type ModelId = string;

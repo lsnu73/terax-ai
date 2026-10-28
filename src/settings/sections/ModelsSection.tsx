@@ -27,17 +27,13 @@ import {
   builtinProviders,
   getAiConfigFilePath,
   providerSupportsKey,
-  STT_PROVIDER_LABELS,
   thinkingLevels,
   useAiConfigStore,
 } from "@/modules/ai/config";
 import {
   clearKey,
-  clearSttKey,
   getAllKeys,
-  getSttKey,
   setKey,
-  setSttKey,
   type ProviderKeys,
 } from "@/modules/ai/lib/keyring";
 import {
@@ -54,10 +50,7 @@ import {
   setAutocompleteProvider,
   setAutocompleteTrigger,
   setFavoriteModelIds,
-  setGroqSttModel,
   setRecentModelIds,
-  setSttProvider,
-  setWhispercppBaseURL,
   type AutocompleteTrigger,
 } from "@/modules/settings/store";
 import {
@@ -68,7 +61,6 @@ import {
   CheckmarkCircle02Icon,
   ChevronDown,
   Edit02Icon,
-  Mic01Icon,
   RefreshIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -365,8 +357,6 @@ export function ModelsSection() {
           await replace({ ...config, defaults: { modelId } });
         }}
       />
-
-      <VoiceBlock />
 
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
@@ -1685,175 +1675,6 @@ function AutocompleteRow({
         </FieldRow>
       ) : null}
     </>
-  );
-}
-
-function VoiceBlock() {
-  const sttProvider = usePreferencesStore((s) => s.sttProvider);
-  const groqSttModel = usePreferencesStore((s) => s.groqSttModel);
-  const whispercppBaseURL = usePreferencesStore((s) => s.whispercppBaseURL);
-  const [urlDraft, setUrlDraft] = useState(whispercppBaseURL);
-  const [groqModelDraft, setGroqModelDraft] = useState(groqSttModel);
-  const [openaiKey, setOpenaiKey] = useState<string | null>(null);
-  const [groqKey, setGroqKey] = useState<string | null>(null);
-  const [keyDraft, setKeyDraft] = useState("");
-
-  useEffect(() => setUrlDraft(whispercppBaseURL), [whispercppBaseURL]);
-  useEffect(() => setGroqModelDraft(groqSttModel), [groqSttModel]);
-  useEffect(() => {
-    void getSttKey("openai").then(setOpenaiKey);
-    void getSttKey("groq").then(setGroqKey);
-  }, []);
-
-  const currentKey = sttProvider === "openai" ? openaiKey : groqKey;
-  const account = sttProvider === "openai" ? "openai" : "groq";
-
-  return (
-    <div className="flex flex-col gap-3 rounded-lg border border-border/60 bg-card/60 px-3 py-2.5">
-      <div className="flex items-center gap-2">
-        <HugeiconsIcon icon={Mic01Icon} size={15} strokeWidth={1.5} />
-        <span className="text-[12.5px] font-medium">Voice input</span>
-      </div>
-
-      <FieldRow
-        label="Provider"
-        info="语音转写服务。OpenAI/Groq 使用独立于模型 Provider 的钥匙串账户；Whisper.cpp 完全离线运行。"
-      >
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              className="h-8 flex-1 justify-between gap-2 px-2.5 text-[11.5px]"
-            >
-              <span>{STT_PROVIDER_LABELS[sttProvider]}</span>
-              <HugeiconsIcon
-                icon={ArrowDown01Icon}
-                size={11}
-                strokeWidth={2}
-                className="opacity-70"
-              />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="min-w-44 p-1">
-            {(Object.keys(STT_PROVIDER_LABELS) as (keyof typeof STT_PROVIDER_LABELS)[]).map((p) => (
-              <DropdownMenuItem
-                key={p}
-                onSelect={() => void setSttProvider(p)}
-                className={cn(
-                  "flex items-center gap-2 text-[12px]",
-                  p === sttProvider && "bg-accent/50",
-                )}
-              >
-                <span>{STT_PROVIDER_LABELS[p]}</span>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </FieldRow>
-
-      {sttProvider !== "whispercpp" ? (
-        <FieldRow
-          label="API key"
-          info="语音转写专用 Key，只保存到钥匙串。它不属于任何模型 Provider，删除模型 Provider 不会影响它。"
-        >
-          {currentKey ? (
-            <div className="flex flex-1 items-center gap-1.5">
-              <code className="flex-1 truncate rounded bg-muted/40 px-2 py-1 font-mono text-[11px] text-muted-foreground">
-                {`${currentKey.slice(0, 4)}${"•".repeat(8)}${currentKey.slice(-4)}`}
-              </code>
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={async () => {
-                  await clearSttKey(account);
-                  if (account === "openai") setOpenaiKey(null);
-                  else setGroqKey(null);
-                  await emitKeysChanged();
-                }}
-                title="Remove key"
-                className="size-7 text-muted-foreground hover:text-destructive"
-              >
-                <HugeiconsIcon icon={Cancel01Icon} size={12} strokeWidth={1.75} />
-              </Button>
-            </div>
-          ) : (
-            <div className="flex flex-1 gap-1.5">
-              <Input
-                type="password"
-                value={keyDraft}
-                onChange={(e) => setKeyDraft(e.target.value)}
-                placeholder="Speech-to-text API key"
-                spellCheck={false}
-                className="h-8 flex-1 font-mono text-[11.5px]"
-              />
-              <Button
-                size="sm"
-                onClick={async () => {
-                  const value = keyDraft.trim();
-                  if (!value) return;
-                  await setSttKey(account, value);
-                  if (account === "openai") setOpenaiKey(value);
-                  else setGroqKey(value);
-                  setKeyDraft("");
-                  await emitKeysChanged();
-                }}
-                disabled={!keyDraft.trim()}
-                className="h-8 px-3 text-[11px]"
-              >
-                Save
-              </Button>
-            </div>
-          )}
-        </FieldRow>
-      ) : null}
-
-      {sttProvider === "groq" ? (
-        <FieldRow
-          label="Model"
-          info="Groq 的转写模型名称，通常为 whisper-large-v3-turbo。必须与 Groq 控制台中的模型 ID 一致。"
-        >
-          <Input
-            value={groqModelDraft}
-            onChange={(e) => setGroqModelDraft(e.target.value)}
-            onBlur={() => {
-              const value = groqModelDraft.trim();
-              if (value !== groqSttModel) void setGroqSttModel(value);
-            }}
-            placeholder="whisper-large-v3-turbo"
-            spellCheck={false}
-            className="h-8 font-mono text-[11.5px]"
-          />
-        </FieldRow>
-      ) : null}
-
-      {sttProvider === "whispercpp" ? (
-        <FieldRow
-          label="Base URL"
-          info="本地 Whisper.cpp 服务地址，必须指向本机回环地址（localhost / 127.x.x.x），否则会被拒绝以防音频外传。"
-        >
-          <Input
-            value={urlDraft}
-            onChange={(e) => setUrlDraft(e.target.value)}
-            onBlur={() => {
-              const value = urlDraft.trim();
-              if (value !== whispercppBaseURL) void setWhispercppBaseURL(value);
-            }}
-            placeholder="http://127.0.0.1:8080"
-            spellCheck={false}
-            className="h-8 font-mono text-[11.5px]"
-          />
-        </FieldRow>
-      ) : null}
-
-      <p className="text-[10.5px] leading-relaxed text-muted-foreground">
-        {sttProvider === "openai" &&
-          "Uses an OpenAI Whisper key for transcription. This key is separate from model providers and is stored in your OS keychain."}
-        {sttProvider === "groq" &&
-          "Uses a Groq Whisper key for transcription. Stored in your OS keychain, never in the JSON file."}
-        {sttProvider === "whispercpp" &&
-          "Connects to a local Whisper.cpp server for fully offline transcription."}
-      </p>
-    </div>
   );
 }
 

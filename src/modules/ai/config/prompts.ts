@@ -68,13 +68,3 @@ Rules:
 export function selectSystemPrompt(kind: "full" | "lite"): string {
   return kind === "lite" ? SYSTEM_PROMPT_LITE : SYSTEM_PROMPT;
 }
-
-export const STT_PROVIDER_LABELS = {
-  openai: "OpenAI Whisper",
-  groq: "Groq Whisper",
-  whispercpp: "Whisper.cpp (local)",
-} as const;
-
-export type SttProvider = keyof typeof STT_PROVIDER_LABELS;
-export const DEFAULT_STT_PROVIDER: SttProvider = "openai";
-export const WHISPERCPP_DEFAULT_BASE_URL = "http://127.0.0.1:8080";

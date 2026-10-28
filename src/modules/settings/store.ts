@@ -1,9 +1,4 @@
-import {
-  type AutocompleteProviderId,
-  DEFAULT_STT_PROVIDER,
-  type SttProvider,
-  WHISPERCPP_DEFAULT_BASE_URL,
-} from "@/modules/ai/config";
+import type { AutocompleteProviderId } from "@/modules/ai/config";
 import {
   type AgentLaunchCommands,
   DEFAULT_AGENT_LAUNCH_COMMANDS,
@@ -131,9 +126,6 @@ export type Preferences = {
   autocompleteModelId: string;
   /** 每个模型的思考滑块位置（档位 id）。缺省时使用模型默认档位。 */
   thinkingLevelByModel: Record<string, string>;
-  sttProvider: SttProvider;
-  groqSttModel: string;
-  whispercppBaseURL: string;
   favoriteModelIds: string[];
   recentModelIds: string[];
   vimMode: boolean;
@@ -215,9 +207,6 @@ const KEY_AUTOCOMPLETE_TRIGGER = "autocompleteTrigger";
 const KEY_AUTOCOMPLETE_PROVIDER = "autocompleteProvider";
 const KEY_AUTOCOMPLETE_MODEL = "autocompleteModelId";
 const KEY_THINKING_LEVELS = "thinkingLevelByModel";
-const KEY_STT_PROVIDER = "sttProvider";
-const KEY_GROQ_STT_MODEL = "groqSttModel";
-const KEY_WHISPERCPP_BASE_URL = "whispercppBaseURL";
 const KEY_FAVORITE_MODELS = "favoriteModelIds";
 const KEY_RECENT_MODELS = "recentModelIds";
 const KEY_VIM_MODE = "vimMode";
@@ -299,9 +288,6 @@ export const DEFAULT_PREFERENCES: Preferences = {
   autocompleteProvider: "",
   autocompleteModelId: "",
   thinkingLevelByModel: {},
-  sttProvider: DEFAULT_STT_PROVIDER,
-  groqSttModel: "whisper-large-v3-turbo",
-  whispercppBaseURL: WHISPERCPP_DEFAULT_BASE_URL,
   favoriteModelIds: [],
   recentModelIds: [],
   vimMode: false,
@@ -403,13 +389,6 @@ export async function loadPreferences(): Promise<Preferences> {
     thinkingLevelByModel:
       get<Record<string, string>>(KEY_THINKING_LEVELS) ??
       DEFAULT_PREFERENCES.thinkingLevelByModel,
-    sttProvider:
-      get<SttProvider>(KEY_STT_PROVIDER) ?? DEFAULT_PREFERENCES.sttProvider,
-    groqSttModel:
-      get<string>(KEY_GROQ_STT_MODEL) ?? DEFAULT_PREFERENCES.groqSttModel,
-    whispercppBaseURL:
-      get<string>(KEY_WHISPERCPP_BASE_URL) ??
-      DEFAULT_PREFERENCES.whispercppBaseURL,
     favoriteModelIds: (
       get<string[]>(KEY_FAVORITE_MODELS) ?? DEFAULT_PREFERENCES.favoriteModelIds
     ).filter((id): id is string => typeof id === "string"),
@@ -638,18 +617,6 @@ export async function setThinkingLevel(
   await writePref(KEY_THINKING_LEVELS, next);
 }
 
-export async function setSttProvider(value: SttProvider): Promise<void> {
-  await writePref(KEY_STT_PROVIDER, value);
-}
-
-export async function setGroqSttModel(value: string): Promise<void> {
-  await writePref(KEY_GROQ_STT_MODEL, value.trim());
-}
-
-export async function setWhispercppBaseURL(value: string): Promise<void> {
-  await writePref(KEY_WHISPERCPP_BASE_URL, value.trim());
-}
-
 export async function setFavoriteModelIds(value: string[]): Promise<void> {
   await writePref(KEY_FAVORITE_MODELS, value);
 }
@@ -867,9 +834,6 @@ export async function onPreferencesChange(
     [KEY_AUTOCOMPLETE_TRIGGER]: "autocompleteTrigger",
     [KEY_AUTOCOMPLETE_PROVIDER]: "autocompleteProvider",
     [KEY_AUTOCOMPLETE_MODEL]: "autocompleteModelId",
-    [KEY_STT_PROVIDER]: "sttProvider",
-    [KEY_GROQ_STT_MODEL]: "groqSttModel",
-    [KEY_WHISPERCPP_BASE_URL]: "whispercppBaseURL",
     [KEY_FAVORITE_MODELS]: "favoriteModelIds",
     [KEY_RECENT_MODELS]: "recentModelIds",
     [KEY_VIM_MODE]: "vimMode",

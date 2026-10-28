@@ -4,7 +4,7 @@
 
 ## 项目是什么
 
-Terax 是一个开源的 AI 原生终端模拟器（Tauri 2 + React/TypeScript 前端 + Rust 后端），带多标签、文件管理器、代码编辑器、网页预览、语音输入和 AI Agent。桌面端打包为 Windows（MSI/NSIS）、macOS、Linux 安装包。
+Terax 是一个开源的 AI 原生终端模拟器（Tauri 2 + React/TypeScript 前端 + Rust 后端），带多标签、文件管理器、代码编辑器、网页预览和 AI Agent。桌面端打包为 Windows（MSI/NSIS）、macOS、Linux 安装包。
 
 ## 四个核心业务概念
 

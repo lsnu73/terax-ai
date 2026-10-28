@@ -3,7 +3,6 @@ import {
   allKeyringAccounts,
   findProvider,
   providerSupportsKey,
-  STT_KEY_ACCOUNTS,
 } from "../config";
 
 /**
@@ -88,53 +87,13 @@ export async function clearKey(providerId: string): Promise<void> {
   }
 }
 
-/** 所有已配置 Provider 的密钥，外加固定的语音转写账户。 */
+/** 所有已配置 Provider 的密钥。 */
 export async function getAllKeys(): Promise<ProviderKeys> {
   const providers = allKeyringAccounts();
-  const stt = Object.entries(STT_KEY_ACCOUNTS);
-  const accounts = [
-    ...stt.map(([, account]) => account),
-    ...providers.map((p) => p.account),
-  ];
-  const values = await getAllByAccount(accounts);
+  const values = await getAllByAccount(providers.map((p) => p.account));
   const out: ProviderKeys = {};
-  for (const [providerId, account] of stt) {
-    out[providerId] = values.get(account) ?? null;
-  }
   for (const { providerId, account } of providers) {
     out[providerId] = values.get(account) ?? null;
   }
   return out;
-}
-
-type SttAccountId = keyof typeof STT_KEY_ACCOUNTS;
-
-export async function getSttKey(
-  provider: SttAccountId,
-): Promise<string | null> {
-  return getByAccount(STT_KEY_ACCOUNTS[provider]);
-}
-
-export async function setSttKey(
-  provider: SttAccountId,
-  key: string,
-): Promise<void> {
-  const trimmed = key.trim();
-  if (!trimmed) throw new Error("API key is empty");
-  await invoke("secrets_set", {
-    service: KEYRING_SERVICE,
-    account: STT_KEY_ACCOUNTS[provider],
-    password: trimmed,
-  });
-}
-
-export async function clearSttKey(provider: SttAccountId): Promise<void> {
-  try {
-    await invoke("secrets_delete", {
-      service: KEYRING_SERVICE,
-      account: STT_KEY_ACCOUNTS[provider],
-    });
-  } catch {
-    // 本来就不存在——忽略
-  }
 }

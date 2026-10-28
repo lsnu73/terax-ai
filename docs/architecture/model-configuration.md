@@ -53,10 +53,10 @@
 | `src/modules/ai/config/params.ts` | 参数合并、映射、路径写入、保护键 | `resolveRequestParams()` |
 | `src/modules/ai/config/persist.ts` | `terax-ai-models.json` 读写、重新加载、跨窗口事件 | `readAiConfig` / `writeAiConfig` |
 | `src/modules/ai/config/store.ts` | React 状态（Zustand）+ 启动 hydration | `useAiConfigStore` |
-| `src/modules/ai/config/prompts.ts` | 系统提示词、STT 常量 | `selectSystemPrompt()` |
+| `src/modules/ai/config/prompts.ts` | 系统提示词 | `selectSystemPrompt()` |
 | `src/modules/ai/lib/agent.ts` | **唯一**的协议分支；模型缓存；参数注入；`streamText` | `buildLanguageModel` |
 | `src/modules/ai/lib/providerHttp.ts` | 连通性测试、模型列表拉取、鉴权头 | `testProviderConnection` / `fetchProviderModels` |
-| `src/modules/ai/lib/keyring.ts` | 钥匙串读写；STT 独立账户 | `getAllKeys` / `setKey` |
+| `src/modules/ai/lib/keyring.ts` | 钥匙串读写 | `getAllKeys` / `setKey` |
 | `src/settings/sections/ModelsSection.tsx` | 设置页：增删改、测试、拉取、JSON 编辑 | React 组件 |
 | `src/modules/ai/components/AiStatusBarControls.tsx` | Ctrl+I 模型选择窗 + 思考滑块 | React 组件 |
 
@@ -353,5 +353,4 @@ GLM-5.2（`low/medium → high`，`xhigh → max`，`none/minimal → 放弃思�
 | 手工改 JSON 的生效时机 | 显式 Reload，不监听文件 | 监听会与设置页未保存草稿竞争，造成“编辑被覆盖” |
 | 参数优先级 | 档位 > 模型默认 > Provider 默认 > extra 最后 | 用户当下选择必须生效；`extra` 作为最终逃生口 |
 | 默认模型存放 | JSON 的 `defaults.modelId` | 满足“全部配置落盘”；旧 `terax-settings.json` 字段已移除 |
-| 语音转写 Key | 独立钥匙串账户（`openai-api-key` / `groq-api-key`），不进入模型 Provider 列表 | 语音不是模型厂商；删掉国外模型 Provider 不应破坏语音 |
 | 配置存储实现 | Tauri `LazyStore`，三个顶层键 | 文件本身就是干净、可手改的 JSON；跨窗口用 Tauri 事件同步 |

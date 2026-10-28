@@ -5,6 +5,7 @@ import { terminalWindowPresentation } from "@/modules/terminal/ghostty/windowPre
 import type { TerminalSurface } from "@/modules/terminal/backend/contracts";
 import { smoothHooks } from "@/bench/smoothHooks";
 import { noteTerminalHostResize } from "@/modules/terminal/lib/terminalResizeGesture";
+import { linkModifierHeld } from "@/modules/terminal/lib/terminalLinks";
 import {
   subscribeTerminalResizeInteraction,
   terminalResizeInteractionActive,
@@ -300,9 +301,13 @@ export class WebGpuTerminalSurface
     );
     this.root.addEventListener("pointerdown", this.handlePointerDown);
     this.root.addEventListener("mousemove", this.handleLinkMouseMove);
-    this.root.addEventListener("mousedown", this.handleLinkMouseDown);
-    this.root.addEventListener("mouseup", this.handleLinkMouseUp);
+    // 链接点击必须走 pointer 事件：选区控制器会 preventDefault pointerdown，
+    // 这会抑制兼容性 mousedown/mouseup，挂在 mouse 事件上永远收不到。
+    this.root.addEventListener("pointerdown", this.handleLinkPointerDown);
+    this.root.addEventListener("pointerup", this.handleLinkPointerUp);
     this.root.addEventListener("mouseleave", this.handleLinkMouseLeave);
+    window.addEventListener("keydown", this.handleLinkModifierKey);
+    window.addEventListener("keyup", this.handleLinkModifierKey);
     this.scrollbar.addEventListener("scroll", this.handleScroll);
   }
 
@@ -796,9 +801,11 @@ export class WebGpuTerminalSurface
     this.unsubscribeInteraction();
     this.root.removeEventListener("pointerdown", this.handlePointerDown);
     this.root.removeEventListener("mousemove", this.handleLinkMouseMove);
-    this.root.removeEventListener("mousedown", this.handleLinkMouseDown);
-    this.root.removeEventListener("mouseup", this.handleLinkMouseUp);
+    this.root.removeEventListener("pointerdown", this.handleLinkPointerDown);
+    this.root.removeEventListener("pointerup", this.handleLinkPointerUp);
     this.root.removeEventListener("mouseleave", this.handleLinkMouseLeave);
+    window.removeEventListener("keydown", this.handleLinkModifierKey);
+    window.removeEventListener("keyup", this.handleLinkModifierKey);
     this.scrollbar.removeEventListener("scroll", this.handleScroll);
   }
 
@@ -811,22 +818,37 @@ export class WebGpuTerminalSurface
     this.updateHoveredLink(event);
   };
 
-  private readonly handleLinkMouseDown = (event: MouseEvent): void => {
-    if (event.button !== 0) return;
+  private readonly handleLinkPointerDown = (event: PointerEvent): void => {
+    if (event.button !== 0 || !linkModifierHeld(event)) return;
     this.updateHoveredLink(event);
     this.mouseDownLink = this.hoveredLink;
   };
 
-  private readonly handleLinkMouseUp = (event: MouseEvent): void => {
+  private readonly handleLinkPointerUp = (event: PointerEvent): void => {
     if (event.button !== 0) return;
-    this.updateHoveredLink(event);
+    if (linkModifierHeld(event)) this.updateHoveredLink(event);
     const uri = this.hoveredLink;
-    const activate = uri !== null && uri === this.mouseDownLink;
+    const activate =
+      linkModifierHeld(event) && uri !== null && uri === this.mouseDownLink;
     this.mouseDownLink = null;
     if (!activate) return;
     event.preventDefault();
     this.options.onOpenLink?.(uri);
   };
+
+  // 按住 Ctrl/Cmd 时给链接手型光标；松开立即还原，无需等待鼠标移动。
+  private linkModifierActive = false;
+  private readonly handleLinkModifierKey = (event: KeyboardEvent): void => {
+    const held = linkModifierHeld(event);
+    if (held === this.linkModifierActive) return;
+    this.linkModifierActive = held;
+    this.applyLinkCursor();
+  };
+
+  private applyLinkCursor(): void {
+    this.root.style.cursor =
+      this.hoveredLink && this.linkModifierActive ? "pointer" : "text";
+  }
 
   private readonly handleLinkMouseLeave = (): void => {
     this.mouseDownLink = null;
@@ -880,6 +902,7 @@ export class WebGpuTerminalSurface
       this.clearHoveredLink();
       return;
     }
+    this.linkModifierActive = linkModifierHeld(event);
     const rect = this.root.getBoundingClientRect();
     const column = Math.floor(
       (event.clientX - rect.left) / this.metrics.cellWidth,
@@ -900,13 +923,13 @@ export class WebGpuTerminalSurface
     if (cell === this.hoveredCell) return;
     this.hoveredCell = cell;
     this.hoveredLink = this.options.model.hyperlinkAtViewportCell(row, column);
-    this.root.style.cursor = this.hoveredLink ? "pointer" : "text";
+    this.applyLinkCursor();
   }
 
   private clearHoveredLink(): void {
     this.hoveredCell = -1;
     this.hoveredLink = null;
-    this.root.style.cursor = "text";
+    this.applyLinkCursor();
   }
 
   private initializeGpuResources(resources: WebGpuSharedResources): void {

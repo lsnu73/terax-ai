@@ -46,7 +46,7 @@
 - 易错点：模型缓存键包含密钥与完整参数 JSON；参数变化会新建实例，改缓存键时必须保留这两个维度。
 
 ### 密钥存储  `src/modules/ai/lib/keyring.ts`
-- 职责：API Key 只进操作系统钥匙串；Provider 配置里仅有 `keyringAccount` 账户名。语音转写使用独立账户（`openai-api-key` / `groq-api-key`），不依赖模型 Provider 目录。
+- 职责：API Key 只进操作系统钥匙串；Provider 配置里仅有 `keyringAccount` 账户名。
 - 关键依赖：[keyring.ts] →（`secrets_get` / `secrets_set` / `secrets_get_all`）→ [Rust secrets 模块]。
 - 易错点：钥匙串账户列表来自当前配置快照；配置未 hydrate 时读取会得到空列表（见对应 pitfall）。
 

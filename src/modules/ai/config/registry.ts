@@ -145,13 +145,6 @@ export function selectSystemPromptForModel(modelId: string): string {
   return selectSystemPrompt(systemPromptKind(modelId));
 }
 
-/** 语音转写使用的 API Key 账户。它们独立于模型 Provider 目录，
- *  删除某个 Provider 不会破坏语音输入。 */
-export const STT_KEY_ACCOUNTS = {
-  openai: "openai-api-key",
-  groq: "groq-api-key",
-} as const;
-
 export function allKeyringAccounts(): { providerId: string; account: string }[] {
   return current.providers
     .filter((p) => providerSupportsKey(p))
