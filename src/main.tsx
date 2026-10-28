@@ -7,6 +7,7 @@ import App from "./app/App";
 import { disableNativeContextMenu } from "./lib/disableNativeContextMenu";
 import { initLaunchDir } from "./lib/launchDir";
 import { USE_CUSTOM_WINDOW_CONTROLS } from "./lib/platform";
+import { initI18n } from "./modules/i18n";
 import { terminalDiagnosticsEnabled } from "@/modules/terminal/lib/terminalDiagnosticsEnabled";
 
 if (USE_CUSTOM_WINDOW_CONTROLS) {
@@ -34,6 +35,9 @@ await invoke("pty_close_all").catch(() => {});
 
 // Seed before first paint so default tab mounts at target cwd (no flicker).
 await initLaunchDir();
+
+// i18n must be ready before first render: useTranslation suspends otherwise.
+await initI18n();
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <App />,

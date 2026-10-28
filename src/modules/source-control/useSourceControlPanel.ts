@@ -16,6 +16,7 @@ import {
   invalidateRepoDiffs,
   workingDiffKey,
 } from "@/modules/editor/lib/diffCache";
+import { t } from "@/modules/i18n";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SourceControlSummary } from "./useSourceControl";
@@ -120,7 +121,7 @@ function normalizeError(error: unknown): string {
     const message = (error as { message?: unknown }).message;
     if (typeof message === "string") return message;
   }
-  return "Unknown source control error";
+  return t("sourceControl.unknownError");
 }
 
 function normalizeStatusCode(status: string): string {
@@ -262,7 +263,8 @@ function optimisticStage(
     if (!paths.has(file.path)) return file;
     if (file.staged && !file.unstaged) return file;
     changed = true;
-    const wt = file.worktreeStatus !== " " ? file.worktreeStatus : file.indexStatus;
+    const wt =
+      file.worktreeStatus !== " " ? file.worktreeStatus : file.indexStatus;
     return {
       ...file,
       indexStatus: wt,
@@ -292,7 +294,8 @@ function optimisticUnstage(
       continue;
     }
     changed = true;
-    const idx = file.indexStatus !== " " ? file.indexStatus : file.worktreeStatus;
+    const idx =
+      file.indexStatus !== " " ? file.indexStatus : file.worktreeStatus;
     if (idx === "R" && file.originalPath) {
       next.push({
         path: file.originalPath,
@@ -376,8 +379,7 @@ export function useSourceControlPanel(
     const model = tryResolveModel(state.selectedModelId);
     if (!model) return false;
     return (
-      !providerNeedsKey(model.providerEntry) ||
-      !!state.apiKeys[model.provider]
+      !providerNeedsKey(model.providerEntry) || !!state.apiKeys[model.provider]
     );
   });
   const [panelState, setPanelState] = useState<PanelState>("closed");
@@ -466,10 +468,10 @@ export function useSourceControlPanel(
   const anyActionBusy = localActionBusy !== null || summary.busyAction !== null;
   const aiUnavailableReason = useMemo(() => {
     if (stagedEntries.length === 0) {
-      return "Stage changes to generate a commit message";
+      return t("sourceControl.actions.generateStageFirst");
     }
     if (!selectedModel || !hasApiKeyForSelected) {
-      return "Connect an AI provider to generate commit messages";
+      return t("sourceControl.actions.generateConnectProvider");
     }
     return null;
   }, [hasApiKeyForSelected, selectedModel, stagedEntries.length]);
@@ -478,23 +480,25 @@ export function useSourceControlPanel(
   const generateCommitMessageHint = aiUnavailableReason
     ? aiUnavailableReason
     : aiBusy
-      ? "Wait for the current AI action to finish"
-      : "Generate commit message";
+      ? t("sourceControl.actions.aiWaitFinish")
+      : t("sourceControl.actions.generateCommitMessage");
   const pushHint = useMemo(() => {
     if (!status) return null;
     if (!status.upstream) {
-      return "Configure or publish this branch in the terminal to enable push in this iteration.";
+      return t("sourceControl.actions.pushConfigureBranch");
     }
     if (status.behind > 0) {
-      return "Pull remote changes before pushing local commits.";
+      return t("sourceControl.actions.pushPullFirst");
     }
     if (status.ahead === 0) {
-      return `No local commits to push to ${status.upstream}.`;
+      return t("sourceControl.actions.pushNoLocalCommits", {
+        upstream: status.upstream,
+      });
     }
-    return `Pushes to ${status.upstream}.`;
+    return t("sourceControl.actions.pushesTo", { upstream: status.upstream });
   }, [status]);
-  const stagedEmptyText = "No staged changes";
-  const unstagedEmptyText = "No unstaged changes";
+  const stagedEmptyText = t("sourceControl.actions.noStagedChanges");
+  const unstagedEmptyText = t("sourceControl.actions.noUnstagedChanges");
 
   const cancelReconcile = useCallback(() => {
     if (reconcileTimerRef.current) {
@@ -514,7 +518,11 @@ export function useSourceControlPanel(
   useEffect(() => () => cancelReconcile(), [cancelReconcile]);
 
   const openSelection = useCallback(
-    (sel: DiffSelection, repoRoot: string, file: GitChangedFile | undefined) => {
+    (
+      sel: DiffSelection,
+      repoRoot: string,
+      file: GitChangedFile | undefined,
+    ) => {
       onOpenDiff?.({
         path: sel.path,
         repoRoot,
@@ -612,7 +620,10 @@ export function useSourceControlPanel(
   const selectEntry = useCallback(
     async (entry: SourceControlEntry) => {
       if (!repo) return;
-      const nextSelection: DiffSelection = { path: entry.path, mode: entry.mode };
+      const nextSelection: DiffSelection = {
+        path: entry.path,
+        mode: entry.mode,
+      };
       if (sameSelection(selected, nextSelection)) {
         setActionError(null);
         setActionMessage(null);
@@ -821,7 +832,7 @@ export function useSourceControlPanel(
   const generateCommitMessage = useCallback(async () => {
     if (!repo || stagedEntries.length === 0) return;
     if (aiBusy) {
-      setActionError("Wait for the current AI action to finish");
+      setActionError(t("sourceControl.actions.aiWaitFinish"));
       return;
     }
     if (aiUnavailableReason) {
@@ -869,9 +880,7 @@ export function useSourceControlPanel(
         message = cleanCommitMessage(repair.text);
       }
       if (!isValidCommitMessage(message)) {
-        throw new Error(
-          "AI returned an invalid commit message. Try again or switch models.",
-        );
+        throw new Error(t("sourceControl.actions.generateInvalid"));
       }
       setCommitMessage(message);
       setActionMessage(null);
@@ -898,7 +907,10 @@ export function useSourceControlPanel(
       const result = await native.gitCommit(repo.repoRoot, commitMessage);
       setCommitMessage("");
       setActionMessage(
-        `Committed ${result.commitSha.slice(0, 7)} ${result.summary}`,
+        t("sourceControl.actions.committed", {
+          sha: result.commitSha.slice(0, 7),
+          summary: result.summary,
+        }),
       );
       invalidateRepoDiffs(repo.repoRoot);
       await summary.refresh({ remote: "never" });
@@ -916,7 +928,11 @@ export function useSourceControlPanel(
     const result = await summary.runRemoteAction("push");
     if (result.ok) {
       setActionMessage(
-        status?.upstream ? `Pushed to ${status.upstream}` : "Push completed",
+        status?.upstream
+          ? t("sourceControl.actions.pushedTo", {
+              upstream: status.upstream,
+            })
+          : t("sourceControl.actions.pushCompleted"),
       );
       return;
     }
@@ -937,9 +953,9 @@ export function useSourceControlPanel(
     return {
       scope: "all",
       count: pendingDiscard.entries.length,
-      label: `${pendingDiscard.entries.length} unstaged ${
-        pendingDiscard.entries.length === 1 ? "file" : "files"
-      }`,
+      label: t("sourceControl.actions.unstagedFiles", {
+        count: pendingDiscard.entries.length,
+      }),
     };
   }, [pendingDiscard]);
 

@@ -5,6 +5,7 @@ import {
 } from "@/components/ui/resizable";
 import type { TerminalSearchController } from "@/modules/terminal/search/TerminalSearchController";
 import { Fragment, useCallback, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { useTerminalDropStore } from "./lib/dropStore";
 import { firstLeafSlotId, type PaneNode } from "./lib/panes";
 import {
@@ -136,11 +137,12 @@ function TerminalResizableHandle() {
 }
 
 function DropOverlay({ leafId }: { leafId: number }) {
+  const { t } = useTranslation();
   const active = useTerminalDropStore((s) => s.targetLeafId === leafId);
   if (!active) return null;
   return (
     <div className="pointer-events-none absolute inset-2 grid place-items-center rounded-lg border border-primary/45 bg-background/70 text-xs font-medium text-foreground shadow-lg backdrop-blur-sm">
-      Drop file path here
+      {t("terminal.drop.overlay")}
     </div>
   );
 }

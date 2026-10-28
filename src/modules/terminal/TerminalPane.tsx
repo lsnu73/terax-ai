@@ -11,6 +11,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useTranslation } from "react-i18next";
 import type { TerminalBackendKind } from "./backend/contracts";
 import { resolvedTerminalBackend } from "./backend/selection";
 import {
@@ -69,6 +70,7 @@ const GhosttyTerminalPane = memo(
     const screenReader = usePreferencesStore(
       (state) => state.terminalScreenReader,
     );
+    const { t } = useTranslation();
     const containerRef = useRef<HTMLDivElement>(null);
     const down = useRef<{ x: number; y: number } | null>(null);
     const { resolvedMode, activeTheme } = useTheme();
@@ -180,16 +182,15 @@ const GhosttyTerminalPane = memo(
           >
             <strong>
               {session.error.kind === "renderer"
-                ? "Unable to display terminal"
-                : "Unable to start terminal"}
+                ? t("terminal.pane.unableToDisplay")
+                : t("terminal.pane.unableToStart")}
             </strong>
             <p className="max-w-md break-words text-muted-foreground">
               {session.error.message}
             </p>
             {session.error.kind === "renderer" && (
               <p className="text-muted-foreground">
-                Your terminal session is preserved. Retry to restore its
-                display.
+                {t("terminal.pane.sessionPreserved")}
               </p>
             )}
             <button
@@ -197,7 +198,9 @@ const GhosttyTerminalPane = memo(
               className="rounded-md border px-3 py-1.5 hover:bg-accent focus-visible:outline-2"
               onClick={session.retry}
             >
-              {session.error.kind === "renderer" ? "Retry display" : "Retry"}
+              {session.error.kind === "renderer"
+                ? t("terminal.pane.retryDisplay")
+                : t("terminal.pane.retry")}
             </button>
           </div>
         )}

@@ -1,17 +1,11 @@
 import type { Chat, UIMessage } from "@ai-sdk/react";
 import { toast } from "sonner";
 import { create } from "zustand";
-import {
-  getDefaultModelId,
-  tryResolveModel,
-  type ProviderId,
-} from "../config";
+import { t } from "@/modules/i18n";
+import { getDefaultModelId, tryResolveModel, type ProviderId } from "../config";
 import { useTodosStore } from "./todoStore";
 import type { AgentUsage } from "../lib/agent";
-import {
-  EMPTY_PROVIDER_KEYS,
-  type ProviderKeys,
-} from "../lib/keyring";
+import { EMPTY_PROVIDER_KEYS, type ProviderKeys } from "../lib/keyring";
 import {
   deleteSessionData,
   deriveTitle,
@@ -88,10 +82,7 @@ type PendingSelection = {
   source: "terminal" | "editor";
 };
 
-type ApprovalResponder = (
-  approvalId: string,
-  approved: boolean,
-) => void;
+type ApprovalResponder = (approvalId: string, approved: boolean) => void;
 
 type StoreState = {
   live: Live;
@@ -278,7 +269,10 @@ export const useChatStore = create<StoreState>((set, get) => ({
     set((s) => ({
       panelOpen: true,
       focusSignal: s.focusSignal + 1,
-      pendingSelections: [...s.pendingSelections, { id, text: trimmed, source }],
+      pendingSelections: [
+        ...s.pendingSelections,
+        { id, text: trimmed, source },
+      ],
     }));
   },
   consumeSelections: () => {
@@ -366,7 +360,7 @@ export const useChatStore = create<StoreState>((set, get) => ({
       .catch((error) => {
         // 留在当前会话：以空内容打开这个会话，可能在稍后覆盖掉
         // 只是暂时读不到的完好文件。
-        toast.error("Could not open conversation", {
+        toast.error(t("ai.sessions.openFailed"), {
           id: `conversation-open:${id}`,
           description: String(error),
         });

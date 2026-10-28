@@ -18,6 +18,7 @@ import {
   type ProviderEntry,
   type ResolvedRequestParams,
 } from "../config";
+import { t } from "@/modules/i18n";
 import { buildTools, type ToolContext } from "../tools/tools";
 import type { ProviderKeys } from "./keyring";
 import { compactModelMessagesDetailed } from "./compact";
@@ -26,25 +27,42 @@ import { authHeaders, resolveProviderFetch } from "./providerHttp";
 
 const TOOL_LABELS: Record<string, (input: Record<string, unknown>) => string> =
   {
-    read_file: (i) => `Reading ${shortPath(i.path)}`,
-    list_directory: (i) => `Listing ${shortPath(i.path)}`,
-    grep: (i) => `Grepping ${ellipsize(String(i.pattern ?? ""), 40)}`,
-    glob: (i) => `Globbing ${ellipsize(String(i.pattern ?? ""), 40)}`,
-    edit: (i) => `Editing ${shortPath(i.path)}`,
-    multi_edit: (i) => `Editing ${shortPath(i.path)}`,
-    write_file: (i) => `Writing ${shortPath(i.path)}`,
-    create_directory: (i) => `Creating ${shortPath(i.path)}`,
-    bash_run: (i) => `Running ${ellipsize(String(i.command ?? ""), 60)}`,
+    read_file: (i) => t("ai.steps.reading", { path: shortPath(i.path) }),
+    list_directory: (i) => t("ai.steps.listing", { path: shortPath(i.path) }),
+    grep: (i) =>
+      t("ai.steps.grepping", {
+        pattern: ellipsize(String(i.pattern ?? ""), 40),
+      }),
+    glob: (i) =>
+      t("ai.steps.globbing", {
+        pattern: ellipsize(String(i.pattern ?? ""), 40),
+      }),
+    edit: (i) => t("ai.steps.editing", { path: shortPath(i.path) }),
+    multi_edit: (i) => t("ai.steps.editing", { path: shortPath(i.path) }),
+    write_file: (i) => t("ai.steps.writingFile", { path: shortPath(i.path) }),
+    create_directory: (i) =>
+      t("ai.steps.creating", { path: shortPath(i.path) }),
+    bash_run: (i) =>
+      t("ai.steps.running", {
+        command: ellipsize(String(i.command ?? ""), 60),
+      }),
     bash_background: (i) =>
-      `Spawning ${ellipsize(String(i.command ?? ""), 60)}`,
-    bash_logs: () => `Reading logs`,
-    bash_list: () => `Listing background processes`,
-    bash_kill: () => `Stopping background process`,
+      t("ai.steps.spawning", {
+        command: ellipsize(String(i.command ?? ""), 60),
+      }),
+    bash_logs: () => t("ai.steps.readingLogs"),
+    bash_list: () => t("ai.steps.listingProcesses"),
+    bash_kill: () => t("ai.steps.stoppingProcess"),
     suggest_command: (i) =>
-      `Suggesting ${ellipsize(String(i.command ?? ""), 60)}`,
+      t("ai.steps.suggesting", {
+        command: ellipsize(String(i.command ?? ""), 60),
+      }),
     todo_write: (i) =>
-      `Updating plan (${Array.isArray(i.todos) ? i.todos.length : 0} items)`,
-    run_subagent: (i) => `Spawning ${String(i.type ?? "subagent")} subagent`,
+      t("ai.steps.updatingPlan", {
+        count: Array.isArray(i.todos) ? i.todos.length : 0,
+      }),
+    run_subagent: (i) =>
+      t("ai.steps.spawningSubagent", { type: String(i.type ?? "subagent") }),
   };
 
 function shortPath(p: unknown): string {
@@ -188,13 +206,11 @@ export async function buildLanguageModel(
 ): Promise<LanguageModel> {
   const apiKey = keys[provider.id] ?? null;
   if (providerNeedsKey(provider) && !apiKey) {
-    throw new Error(
-      `No API key configured for ${provider.label}. Open Settings → Models to add one.`,
-    );
+    throw new Error(t("ai.agentErrors.noApiKey", { provider: provider.label }));
   }
   if (!provider.baseURL.trim()) {
     throw new Error(
-      `${provider.label}: base URL is empty. Open Settings → Models to fill it in.`,
+      t("ai.agentErrors.emptyBaseUrl", { provider: provider.label }),
     );
   }
   const params = resolveRequestParams(provider, model, thinkingLevelId);
@@ -217,7 +233,11 @@ export async function buildLanguageModel(
 
   const adapter = ADAPTERS[provider.protocol];
   if (!adapter) {
-    throw new Error(`Unsupported provider protocol: ${provider.protocol}`);
+    throw new Error(
+      t("ai.agentErrors.unsupportedProtocol", {
+        protocol: provider.protocol,
+      }),
+    );
   }
   const built = await adapter({
     provider,
@@ -303,9 +323,7 @@ export type RunAgentOptions = {
 export async function runAgentStream(opts: RunAgentOptions) {
   const modelId = opts.modelId || getDefaultModelId();
   if (!modelId) {
-    throw new Error(
-      "No model configured. Open Settings → Models, add a provider and a model.",
-    );
+    throw new Error(t("ai.agentErrors.noModelConfigured"));
   }
   const info = resolveModel(modelId);
   const model = await buildLanguageModel(
@@ -329,10 +347,7 @@ export async function runAgentStream(opts: RunAgentOptions) {
     reasoning: keepsReasoning ? "none" : "before-last-message",
     emptyMessages: "remove",
   });
-  const compact = compactModelMessagesDetailed(
-    prunedHistory,
-    info.inputTokens,
-  );
+  const compact = compactModelMessagesDetailed(prunedHistory, info.inputTokens);
   const compactedHistory = compact.messages;
   if (compact.compacted) {
     opts.onCompact?.({ droppedCount: compact.droppedCount });
@@ -364,10 +379,10 @@ export async function runAgentStream(opts: RunAgentOptions) {
           opts.onStep(
             label
               ? label((last.input ?? {}) as Record<string, unknown>)
-              : `Calling ${last.toolName}`,
+              : t("ai.steps.calling", { tool: last.toolName }),
           );
         } else if (step.text) {
-          opts.onStep("Writing");
+          opts.onStep(t("ai.common.writing"));
         }
       }
       if (opts.onUsage && step.usage) {

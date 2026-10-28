@@ -1,4 +1,5 @@
 import { native } from "@/modules/ai/lib/native";
+import { t } from "@/modules/i18n";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import type { Tab } from "@/modules/tabs";
 import { DEFAULT_SPACE_ID } from "@/modules/tabs/lib/useTabs";
@@ -63,7 +64,7 @@ export function useSpacesBoot({
             .catch(() => {});
           const meta: SpaceMeta = {
             id: DEFAULT_SPACE_ID,
-            name: "Default",
+            name: t("spaces.defaultSpaceName"),
             root,
             env: parseWorkspaceScopeKey(
               usePreferencesStore.getState().defaultWorkspaceEnv,

@@ -77,17 +77,17 @@ export function createCommandItems(
   const onlyOneTab = ctx.tabs.length < 2;
   const noWorkspaceRoot = !ctx.explorerRoot && !ctx.home;
   const splitDisabled = !activeTerminalTab
-    ? "No terminal tab"
+    ? "commands.disabled.noTerminalTab"
     : activePaneCount >= MAX_PANES_PER_TAB
-      ? "Pane limit"
+      ? "commands.disabled.paneLimit"
       : undefined;
   const closeDisabled =
-    onlyOneTab && activePaneCount < 2 ? "Last tab" : undefined;
+    onlyOneTab && activePaneCount < 2 ? "commands.disabled.lastTab" : undefined;
 
   return [
     {
       id: "settings.open",
-      title: "Open settings",
+      titleKey: "commands.general.openSettings",
       group: "General",
       keywords: ["preferences", "config"],
       icon: Settings01Icon,
@@ -96,7 +96,7 @@ export function createCommandItems(
     },
     {
       id: "theme.pick",
-      title: "Change theme...",
+      titleKey: "commands.general.changeTheme",
       group: "General",
       keywords: ["theme", "appearance", "color", "dark", "light"],
       icon: PaintBoardIcon,
@@ -104,7 +104,7 @@ export function createCommandItems(
     },
     {
       id: "shortcuts.open",
-      title: "Keyboard shortcuts",
+      titleKey: "commands.general.keyboardShortcuts",
       group: "General",
       keywords: ["keys", "keybindings", "settings"],
       icon: KeyboardIcon,
@@ -112,15 +112,22 @@ export function createCommandItems(
     },
     {
       id: "spaces.overview",
-      title: "Spaces: Overview",
+      titleKey: "commands.spaces.overview",
       group: "Spaces",
-      keywords: ["spaces", "sessions", "overview", "organize", "manage", "move"],
+      keywords: [
+        "spaces",
+        "sessions",
+        "overview",
+        "organize",
+        "manage",
+        "move",
+      ],
       icon: DashboardSquare01Icon,
       run: ctx.openSpacesOverview,
     },
     {
       id: "spaces.new",
-      title: "New Space",
+      titleKey: "commands.spaces.new",
       group: "Spaces",
       keywords: ["space", "session", "workspace", "group", "create"],
       icon: DashboardSquare01Icon,
@@ -128,17 +135,20 @@ export function createCommandItems(
     },
     ...ctx.spaces.map((sp) => ({
       id: `spaces.switch.${sp.id}`,
-      title: `Switch to ${sp.name}`,
+      titleKey: "commands.spaces.switchTo",
+      titleParams: { name: sp.name },
       group: "Spaces" as const,
       keywords: ["space", "switch", "session", sp.name],
       icon: DashboardSquare01Icon,
-      disabledReason:
-        sp.id === ctx.activeSpaceId ? "Current space" : undefined,
+      disabledReasonKey:
+        sp.id === ctx.activeSpaceId
+          ? "commands.disabled.currentSpace"
+          : undefined,
       run: () => ctx.switchSpace(sp.id),
     })),
     {
       id: "tab.new",
-      title: "New terminal",
+      titleKey: "commands.tabs.newTerminal",
       group: "Tabs",
       keywords: ["shell", "terminal", "new tab"],
       icon: TerminalIcon,
@@ -147,7 +157,7 @@ export function createCommandItems(
     },
     {
       id: "tab.newBlock",
-      title: "New block terminal",
+      titleKey: "commands.tabs.newBlockTerminal",
       group: "Tabs",
       keywords: ["blocks", "warp", "command blocks", "terminal"],
       icon: DashboardSquare01Icon,
@@ -155,7 +165,7 @@ export function createCommandItems(
     },
     {
       id: "tab.newPrivate",
-      title: "New private terminal",
+      titleKey: "commands.tabs.newPrivateTerminal",
       group: "Tabs",
       keywords: ["privacy", "private", "incognito", "hidden from ai"],
       icon: IncognitoIcon,
@@ -164,17 +174,19 @@ export function createCommandItems(
     },
     {
       id: "tab.newEditor",
-      title: "New editor tab",
+      titleKey: "commands.tabs.newEditorTab",
       group: "Tabs",
       keywords: ["file", "editor", "create"],
       icon: FileEditIcon,
       shortcutId: "tab.newEditor",
-      disabledReason: noWorkspaceRoot ? "No workspace root" : undefined,
+      disabledReasonKey: noWorkspaceRoot
+        ? "commands.disabled.noWorkspaceRoot"
+        : undefined,
       run: ctx.openNewEditor,
     },
     {
       id: "tab.newPreview",
-      title: "New web preview",
+      titleKey: "commands.tabs.newWebPreview",
       group: "Tabs",
       keywords: ["browser", "web", "localhost", "preview"],
       icon: Globe02Icon,
@@ -183,37 +195,37 @@ export function createCommandItems(
     },
     {
       id: "tab.close",
-      title: "Close tab or pane",
+      titleKey: "commands.tabs.closeTabOrPane",
       group: "Tabs",
       keywords: ["close", "remove", "pane"],
       icon: Cancel01Icon,
       shortcutId: "tab.close",
-      disabledReason: closeDisabled,
+      disabledReasonKey: closeDisabled,
       run: ctx.closeActiveTabOrPane,
     },
     {
       id: "pane.splitRight",
-      title: "Split pane right",
+      titleKey: "commands.panes.splitRight",
       group: "Panes",
       keywords: ["terminal", "pane", "split", "right", "column"],
       icon: LayoutTwoColumnIcon,
       shortcutId: "pane.splitRight",
-      disabledReason: splitDisabled,
+      disabledReasonKey: splitDisabled,
       run: ctx.splitPaneRight,
     },
     {
       id: "pane.splitDown",
-      title: "Split pane down",
+      titleKey: "commands.panes.splitDown",
       group: "Panes",
       keywords: ["terminal", "pane", "split", "down", "row"],
       icon: LayoutTwoRowIcon,
       shortcutId: "pane.splitDown",
-      disabledReason: splitDisabled,
+      disabledReasonKey: splitDisabled,
       run: ctx.splitPaneDown,
     },
     {
       id: "git.graph",
-      title: "Open git graph",
+      titleKey: "commands.git.openGraph",
       group: "Git",
       keywords: ["git", "graph", "history", "log", "commits"],
       icon: SourceCodeIcon,
@@ -221,7 +233,7 @@ export function createCommandItems(
     },
     {
       id: "git.source",
-      title: "Toggle source control",
+      titleKey: "commands.git.toggleSourceControl",
       group: "Git",
       keywords: ["git", "source control", "changes", "staging", "diff"],
       icon: SourceCodeIcon,
@@ -230,7 +242,7 @@ export function createCommandItems(
     },
     {
       id: "search.content",
-      title: "Find content in files",
+      titleKey: "commands.search.findContent",
       group: "Search",
       keywords: ["grep", "ripgrep", "text", "contents", "search in files"],
       icon: FileSearchIcon,
@@ -239,7 +251,7 @@ export function createCommandItems(
     },
     {
       id: "history.open",
-      title: "Search command history",
+      titleKey: "commands.search.commandHistory",
       group: "Search",
       keywords: ["history", "shell", "rerun", "previous commands"],
       icon: TerminalIcon,
@@ -248,27 +260,31 @@ export function createCommandItems(
     },
     {
       id: "search.focus",
-      title: "Find in current tab",
+      titleKey: "commands.search.findInTab",
       group: "Search",
       keywords: ["find", "terminal", "editor", "current"],
       icon: Search01Icon,
       shortcutId: "search.focus",
-      disabledReason: ctx.searchTarget ? undefined : "No searchable view",
+      disabledReasonKey: ctx.searchTarget
+        ? undefined
+        : "commands.disabled.noSearchableView",
       run: ctx.focusSearch,
     },
     {
       id: "explorer.search",
-      title: "Search files by name",
+      titleKey: "commands.search.searchFiles",
       group: "Search",
       keywords: ["explorer", "workspace", "file", "open"],
       icon: Search01Icon,
       shortcutId: "explorer.search",
-      disabledReason: ctx.explorerRoot ? undefined : "No workspace root",
+      disabledReasonKey: ctx.explorerRoot
+        ? undefined
+        : "commands.disabled.noWorkspaceRoot",
       run: ctx.focusExplorerSearch,
     },
     {
       id: "sidebar.toggle",
-      title: "Toggle file explorer",
+      titleKey: "commands.view.toggleFileExplorer",
       group: "View",
       keywords: ["sidebar", "files", "explorer"],
       icon: SidebarLeftIcon,
@@ -277,7 +293,7 @@ export function createCommandItems(
     },
     {
       id: "explorer.toggleHidden",
-      title: "Toggle hidden files",
+      titleKey: "commands.view.toggleHiddenFiles",
       group: "View",
       keywords: ["dotfiles", "hidden", "explorer", "gitignore", "env"],
       icon: ViewIcon,
@@ -286,7 +302,7 @@ export function createCommandItems(
     },
     {
       id: "ai.toggle",
-      title: "Toggle AI agent",
+      titleKey: "commands.ai.toggleAgent",
       group: "AI",
       keywords: ["assistant", "chat", "agent"],
       icon: SparklesIcon,
@@ -295,7 +311,7 @@ export function createCommandItems(
     },
     {
       id: "ai.askSelection",
-      title: "Ask AI about selection",
+      titleKey: "commands.ai.askAboutSelection",
       group: "AI",
       keywords: ["selection", "explain", "assistant", "chat"],
       icon: SparklesIcon,

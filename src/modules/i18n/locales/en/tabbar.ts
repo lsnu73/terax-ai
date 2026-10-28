@@ -1,0 +1,20 @@
+/** 标签栏：标签上下文菜单、新建标签菜单、语言覆盖下拉。 */
+export const tabbar = {
+  closeTab: "Close tab",
+  renameTab: "Rename tab",
+  unsavedChanges: "Unsaved changes",
+  closeTabsToRight: "Close tabs to the right",
+  closeOtherTabs: "Close other tabs",
+  languageAutoDetect: "Auto Detect",
+  languageMode: "Mode: {{name}}",
+  fewerLanguages: "↑ Fewer languages",
+  allLanguages: "↓ All languages",
+  newTab: "New tab",
+  kindTerminal: "Terminal",
+  kindBlocks: "Blocks",
+  kindAgents: "Agents",
+  kindPrivacy: "Privacy",
+  kindEditor: "Editor",
+  kindPreview: "Preview",
+  kindGitGraph: "Git Graph",
+};

@@ -20,7 +20,8 @@ import {
   Tick02Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import type { AgentIconId } from "../lib/agents";
+import { useTranslation } from "react-i18next";
+import type { Agent, AgentIconId } from "../lib/agents";
 import { useAgentsStore } from "../store/agentsStore";
 
 const ICONS: Record<AgentIconId, typeof CodeIcon> = {
@@ -32,7 +33,31 @@ const ICONS: Record<AgentIconId, typeof CodeIcon> = {
   spark: SparklesIcon,
 };
 
+/**
+ * 内置 agent 的原始 name/description 保持英文：name 会拼进 system prompt
+ * （lib/agent.ts 的 `## ACTIVE AGENT — <name>`），改动会影响模型行为。
+ * 这里只在展示层做本地化；自定义 agent 显示用户原文。
+ */
+export function agentDisplay(
+  a: Agent,
+  t: (key: string) => string,
+): { name: string; description: string } {
+  if (!a.builtIn || !a.id.startsWith("builtin:")) {
+    return { name: a.name, description: a.description };
+  }
+  const short = a.id.slice("builtin:".length);
+  const nameKey = `ai.agents.builtin.${short}.name`;
+  const descKey = `ai.agents.builtin.${short}.description`;
+  const name = t(nameKey);
+  const description = t(descKey);
+  return {
+    name: name === nameKey ? a.name : name,
+    description: description === descKey ? a.description : description,
+  };
+}
+
 export function AgentSwitcher({ isMiniWindow }: { isMiniWindow?: boolean }) {
+  const { t } = useTranslation();
   // Subscribe to customAgents + activeId so the trigger updates live.
   const customAgents = useAgentsStore((s) => s.customAgents);
   const activeId = useAgentsStore((s) => s.activeId);
@@ -45,6 +70,7 @@ export function AgentSwitcher({ isMiniWindow }: { isMiniWindow?: boolean }) {
   const builtIn = list.filter((a) => a.builtIn);
   const custom = list.filter((a) => !a.builtIn);
   const ActiveIcon = ICONS[active.icon] ?? SparklesIcon;
+  const activeDisplay = agentDisplay(active, t);
 
   return (
     <DropdownMenu>
@@ -57,10 +83,10 @@ export function AgentSwitcher({ isMiniWindow }: { isMiniWindow?: boolean }) {
               ? "flex h-6 items-center gap-1 rounded-md border border-border/60 bg-card px-1.5 text-[10.5px] text-muted-foreground transition-colors hover:border-border hover:bg-accent hover:text-foreground"
               : "text-xs mr-1",
           )}
-          title={`Agent: ${active.name}`}
+          title={t("ai.agents.title", { name: activeDisplay.name })}
         >
           <HugeiconsIcon icon={ActiveIcon} size={11} strokeWidth={1.75} />
-          <span className="max-w-[7rem] truncate">{active.name}</span>
+          <span className="max-w-[7rem] truncate">{activeDisplay.name}</span>
           <HugeiconsIcon
             icon={ArrowDown01Icon}
             size={10}
@@ -71,10 +97,11 @@ export function AgentSwitcher({ isMiniWindow }: { isMiniWindow?: boolean }) {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="min-w-60">
         <div className="px-2 pt-1.5 pb-1 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
-          Built-in
+          {t("ai.agents.builtIn")}
         </div>
         {builtIn.map((a) => {
           const Icon = ICONS[a.icon] ?? SparklesIcon;
+          const display = agentDisplay(a, t);
           return (
             <DropdownMenuItem
               key={a.id}
@@ -96,9 +123,9 @@ export function AgentSwitcher({ isMiniWindow }: { isMiniWindow?: boolean }) {
                 )}
               />
               <span className="flex min-w-0 flex-1 flex-col">
-                <span>{a.name}</span>
+                <span>{display.name}</span>
                 <span className="line-clamp-1 text-[10.5px] text-muted-foreground">
-                  {a.description}
+                  {display.description}
                 </span>
               </span>
               {a.id === activeId ? (
@@ -116,7 +143,7 @@ export function AgentSwitcher({ isMiniWindow }: { isMiniWindow?: boolean }) {
           <>
             <DropdownMenuSeparator />
             <div className="px-2 pt-1 pb-1 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
-              Custom
+              {t("ai.agents.custom")}
             </div>
             {custom.map((a) => {
               const Icon = ICONS[a.icon] ?? SparklesIcon;
@@ -162,7 +189,7 @@ export function AgentSwitcher({ isMiniWindow }: { isMiniWindow?: boolean }) {
           className="gap-2 text-[12px] text-muted-foreground"
         >
           <HugeiconsIcon icon={Settings01Icon} size={12} strokeWidth={1.75} />
-          Manage agents…
+          {t("ai.agents.manage")}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

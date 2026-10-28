@@ -42,6 +42,7 @@ import {
   type FetchedModel,
 } from "@/modules/ai/lib/providerHttp";
 import { useChatStore } from "@/modules/ai/store/chatStore";
+import { currentLocale, t as i18nT } from "@/modules/i18n";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import {
   emitKeysChanged,
@@ -66,6 +67,7 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { SectionHeader } from "../components/SectionHeader";
 import {
   ExtraForm,
@@ -115,7 +117,9 @@ function validateParamKeys(params: ParamDef[] | undefined): string | null {
   const list = params ?? [];
   for (let i = 0; i < list.length; i++) {
     if (!list[i]?.key?.trim()) {
-      return `Params 第 ${i + 1} 项的 Key 不能为空（没有 Key 的参数会被丢弃）。`;
+      return i18nT("settings.models.validation.paramKeyRequired", {
+        index: i + 1,
+      });
     }
   }
   return null;
@@ -126,13 +130,19 @@ function validateThinkingLevels(
 ): string | null {
   const levels = thinking?.levels ?? [];
   if (thinking && levels.length === 0) {
-    return "Thinking 至少需要一个档位，或者设为 null 表示不显示滑块。";
+    return i18nT("settings.models.validation.thinkingNeedsLevel");
   }
   const seen = new Set<string>();
   for (let i = 0; i < levels.length; i++) {
     const id = levels[i]?.id?.trim();
-    if (!id) return `Thinking 第 ${i + 1} 个档位缺少 ID。`;
-    if (seen.has(id)) return `Thinking 档位 ID 重复：${id}。`;
+    if (!id)
+      return i18nT("settings.models.validation.thinkingLevelMissingId", {
+        index: i + 1,
+      });
+    if (seen.has(id))
+      return i18nT("settings.models.validation.thinkingLevelDuplicateId", {
+        id,
+      });
     seen.add(id);
   }
   return null;
@@ -143,6 +153,7 @@ function validateThinkingLevels(
  * 该文档也可以手工编辑；唯一不会进入该文件的是 API Key（存入操作系统钥匙串）。
  */
 export function ModelsSection() {
+  const { t } = useTranslation();
   const config = useAiConfigStore((s) => s.config);
   const warnings = useAiConfigStore((s) => s.warnings);
   const hydrated = useAiConfigStore((s) => s.hydrated);
@@ -200,7 +211,10 @@ export function ModelsSection() {
     const duplicate = config.providers.some((p) =>
       p.models.some((m) => m.id === model.id),
     );
-    if (duplicate) throw new Error(`模型 ID 已存在：${model.id}`);
+    if (duplicate)
+      throw new Error(
+        t("settings.models.modelEditor.duplicateId", { id: model.id }),
+      );
     const defaultModelId = config.defaults.modelId || model.id;
     await replace({
       ...config,
@@ -223,8 +237,7 @@ export function ModelsSection() {
       remainingProviders.flatMap((p) => p.models.map((m) => m.id)),
     );
     const nextDefault =
-      config.defaults.modelId &&
-      remainingModelIds.has(config.defaults.modelId)
+      config.defaults.modelId && remainingModelIds.has(config.defaults.modelId)
         ? config.defaults.modelId
         : (remainingProviders.flatMap((p) => p.models)[0]?.id ?? "");
 
@@ -307,21 +320,25 @@ export function ModelsSection() {
   }, [config.providers]);
 
   if (!hydrated) {
-    return <div className="text-[12px] text-muted-foreground">Loading…</div>;
+    return (
+      <div className="text-[12px] text-muted-foreground">
+        {t("settings.models.loading")}
+      </div>
+    );
   }
 
   return (
     <div className="flex flex-col gap-7">
       <SectionHeader
-        title="Models"
-        description="Providers and models are data-driven. Edit them here or in the JSON file below — both write the same configuration. API keys stay in your OS keychain."
+        title={t("settings.models.header.title")}
+        description={t("settings.models.header.description")}
       />
 
       <div className="flex flex-col gap-2 rounded-lg border border-border/60 bg-card/60 px-3 py-2.5">
         <div className="flex items-center justify-between gap-2">
           <span className="flex items-center gap-1 text-[11px] font-medium tracking-tight text-muted-foreground">
-            Configuration file
-            <InfoHint text="Provider、模型、请求参数与思考档位都保存在这个文件里。可以直接用编辑器修改，但修改后需要点击 Reload from disk 才会生效。" />
+            {t("settings.models.configFile.label")}
+            <InfoHint text={t("settings.models.configFile.info")} />
           </span>
           <span className="flex items-center gap-1">
             <Button
@@ -331,9 +348,9 @@ export function ModelsSection() {
               className="h-7 gap-1.5 px-2.5 text-[11px]"
             >
               <HugeiconsIcon icon={RefreshIcon} size={12} strokeWidth={2} />
-              Reload from disk
+              {t("settings.models.configFile.reload")}
             </Button>
-            <InfoHint text="从磁盘重新读取 JSON。设置页里尚未保存的修改会被丢弃；如果文件刚被外部编辑过，必须先点这里才能看到新配置。" />
+            <InfoHint text={t("settings.models.configFile.reloadInfo")} />
           </span>
         </div>
         <code className="truncate font-mono text-[10.5px] text-muted-foreground">
@@ -342,7 +359,10 @@ export function ModelsSection() {
         {warnings.length > 0 ? (
           <div className="flex flex-col gap-0.5 rounded-md border border-amber-500/30 bg-amber-500/5 px-2 py-1.5">
             {warnings.map((warning) => (
-              <span key={warning} className="text-[10.5px] text-amber-600 dark:text-amber-400">
+              <span
+                key={warning}
+                className="text-[10.5px] text-amber-600 dark:text-amber-400"
+              >
                 {warning}
               </span>
             ))}
@@ -360,7 +380,7 @@ export function ModelsSection() {
 
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <Label>Providers</Label>
+          <Label>{t("settings.models.providers.label")}</Label>
           <DropdownMenu open={addOpen} onOpenChange={setAddOpen}>
             <DropdownMenuTrigger asChild>
               <Button
@@ -369,12 +389,12 @@ export function ModelsSection() {
                 className="h-7 gap-1.5 px-2.5 text-[11px]"
               >
                 <HugeiconsIcon icon={Add01Icon} size={12} strokeWidth={2} />
-                Add provider
+                {t("settings.models.providers.add")}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="min-w-60 p-1">
               <DropdownMenuLabel className="px-2 text-[10px] tracking-wide text-muted-foreground uppercase">
-                国内厂商
+                {t("settings.models.providers.domesticGroup")}
               </DropdownMenuLabel>
               {catalog.map((template) => (
                 <DropdownMenuItem
@@ -382,7 +402,11 @@ export function ModelsSection() {
                   onSelect={() => void addProvider(template)}
                   className="flex items-center gap-2 text-[12px]"
                 >
-                  <ProviderIcon provider={template.id} icon={template.icon} size={13} />
+                  <ProviderIcon
+                    provider={template.id}
+                    icon={template.icon}
+                    size={13}
+                  />
                   <span>{template.label}</span>
                 </DropdownMenuItem>
               ))}
@@ -396,7 +420,7 @@ export function ModelsSection() {
                 className="flex items-center gap-2 text-[12px]"
               >
                 <ProviderIcon provider="custom" icon="plug" size={13} />
-                <span>自定义 Provider</span>
+                <span>{t("settings.models.providers.custom")}</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -405,11 +429,10 @@ export function ModelsSection() {
         {config.providers.length === 0 ? (
           <div className="rounded-lg border border-dashed border-border/60 bg-card/40 px-4 py-8 text-center">
             <p className="text-[12px] text-muted-foreground">
-              No providers configured yet.
+              {t("settings.models.providers.emptyTitle")}
             </p>
             <p className="mt-0.5 text-[10.5px] text-muted-foreground/70">
-              Click "Add provider" to connect a domestic model provider or a
-              custom OpenAI-compatible endpoint.
+              {t("settings.models.providers.emptyHint")}
             </p>
           </div>
         ) : (
@@ -458,6 +481,7 @@ function ProviderCard({
   onUpdateModel: (modelId: string, model: ModelEntry) => Promise<void>;
   onRemoveModel: (modelId: string) => Promise<void>;
 }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(provider.models.length === 0);
   const [baseURLDraft, setBaseURLDraft] = useState(provider.baseURL);
   const [keyDraft, setKeyDraft] = useState("");
@@ -496,7 +520,9 @@ function ProviderCard({
       setFetched(models);
       setTest({
         status: "ok",
-        message: `发现 ${models.length} 个模型，点击下方条目添加。`,
+        message: t("settings.models.provider.fetchedCount", {
+          count: models.length,
+        }),
       });
     } catch (error) {
       setTest({
@@ -542,7 +568,7 @@ function ProviderCard({
                 size={9}
                 strokeWidth={2}
               />
-              Configured
+              {t("settings.models.provider.configured")}
             </Badge>
           ) : null}
         </button>
@@ -552,7 +578,7 @@ function ProviderCard({
             onClick={() => void openUrl(provider.consoleUrl as string)}
             className="inline-flex items-center gap-0.5 text-[10.5px] text-muted-foreground transition-colors hover:text-foreground"
           >
-            Console
+            {t("settings.models.provider.console")}
             <HugeiconsIcon
               icon={ArrowUpRight01Icon}
               size={11}
@@ -564,7 +590,7 @@ function ProviderCard({
           size="icon"
           variant="ghost"
           onClick={onRemove}
-          title="Remove provider"
+          title={t("settings.models.provider.remove")}
           className="size-7 text-muted-foreground hover:text-destructive"
         >
           <HugeiconsIcon icon={Cancel01Icon} size={12} strokeWidth={1.75} />
@@ -574,8 +600,8 @@ function ProviderCard({
       {expanded ? (
         <div className="flex flex-col gap-2.5 border-t border-border/40 px-3 py-2.5">
           <FieldRow
-            label="Base URL"
-            info="厂商 OpenAI 兼容接口的根地址，通常以 /v1 或 /v4 结尾。地址错误会导致 Test 失败或请求 404。"
+            label={t("settings.models.provider.baseUrl.label")}
+            info={t("settings.models.provider.baseUrl.info")}
           >
             <div className="flex flex-1 gap-1.5">
               <Input
@@ -583,7 +609,8 @@ function ProviderCard({
                 onChange={(e) => setBaseURLDraft(e.target.value)}
                 onBlur={() => {
                   const value = baseURLDraft.trim();
-                  if (value !== provider.baseURL) void onUpdate({ baseURL: value });
+                  if (value !== provider.baseURL)
+                    void onUpdate({ baseURL: value });
                 }}
                 placeholder="https://api.example.com/v1"
                 spellCheck={false}
@@ -596,16 +623,16 @@ function ProviderCard({
                 disabled={!baseURLDraft.trim() || test.status === "testing"}
                 className="h-8 px-3 text-[11px]"
               >
-                Test
+                {t("settings.models.provider.test")}
               </Button>
-              <InfoHint text="请求 /models 验证地址、网络与鉴权。401/403 表示 Key 有问题；404 表示端点可达但厂商不提供模型列表。" />
+              <InfoHint text={t("settings.models.provider.testInfo")} />
             </div>
           </FieldRow>
 
           {providerSupportsKey(provider) ? (
             <FieldRow
-              label="API key"
-              info="只保存到操作系统钥匙串，不会写入 JSON 文件。端点不需要鉴权时可以留空。"
+              label={t("settings.models.provider.apiKey.label")}
+              info={t("settings.models.provider.apiKey.info")}
             >
               {apiKey ? (
                 <div className="flex flex-1 items-center gap-1.5">
@@ -616,7 +643,7 @@ function ProviderCard({
                     size="icon"
                     variant="ghost"
                     onClick={() => void onClearKey()}
-                    title="Remove key"
+                    title={t("settings.models.provider.apiKey.remove")}
                     className="size-7 text-muted-foreground hover:text-destructive"
                   >
                     <HugeiconsIcon
@@ -634,8 +661,12 @@ function ProviderCard({
                     onChange={(e) => setKeyDraft(e.target.value)}
                     placeholder={
                       provider.auth.required
-                        ? "Paste the provider API key"
-                        : "Optional for unauthenticated endpoints"
+                        ? t(
+                            "settings.models.provider.apiKey.placeholderRequired",
+                          )
+                        : t(
+                            "settings.models.provider.apiKey.placeholderOptional",
+                          )
                     }
                     spellCheck={false}
                     className="h-8 flex-1 font-mono text-[11.5px]"
@@ -651,7 +682,7 @@ function ProviderCard({
                     disabled={!keyDraft.trim()}
                     className="h-8 px-3 text-[11px]"
                   >
-                    Save
+                    {t("settings.models.provider.apiKey.save")}
                   </Button>
                 </div>
               )}
@@ -669,16 +700,18 @@ function ProviderCard({
                   className="h-7 gap-1.5 px-2.5 text-[11px]"
                 >
                   <HugeiconsIcon icon={RefreshIcon} size={12} strokeWidth={2} />
-                  Fetch model list
+                  {t("settings.models.provider.fetchModels")}
                 </Button>
                 <span className="font-mono text-[10.5px] text-muted-foreground">
                   GET {provider.modelsApi.path}
                 </span>
-                <InfoHint text="调用厂商的模型列表接口，把返回的模型 ID 列出来供你逐个添加。没有列表接口的厂商请手动填写模型 ID。" />
+                <InfoHint
+                  text={t("settings.models.provider.fetchModelsInfo")}
+                />
               </>
             ) : (
               <span className="text-[10.5px] text-muted-foreground">
-                该厂商未配置模型列表接口 — 请手动添加模型
+                {t("settings.models.provider.noModelsApi")}
               </span>
             )}
           </div>
@@ -689,7 +722,7 @@ function ProviderCard({
             <div className="flex flex-col gap-1 rounded-md border border-border/50 bg-muted/20 p-1.5">
               <div className="flex items-center justify-between px-1">
                 <span className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
-                  Fetched models
+                  {t("settings.models.provider.fetchedLabel")}
                 </span>
                 <Button
                   size="sm"
@@ -697,7 +730,7 @@ function ProviderCard({
                   onClick={() => setFetched(null)}
                   className="h-6 px-2 text-[10.5px]"
                 >
-                  Dismiss
+                  {t("settings.models.provider.dismiss")}
                 </Button>
               </div>
               <div className="max-h-44 overflow-y-auto">
@@ -720,7 +753,9 @@ function ProviderCard({
                         }
                         className="h-6 px-2 text-[10.5px]"
                       >
-                        {exists ? "Added" : "Add"}
+                        {exists
+                          ? t("settings.models.provider.added")
+                          : t("settings.models.provider.add")}
                       </Button>
                     </div>
                   );
@@ -731,8 +766,12 @@ function ProviderCard({
 
           <div className="flex items-center justify-between">
             <span className="flex items-center gap-1">
-              <Label>Models ({provider.models.length})</Label>
-              <InfoHint text="这里列出该 Provider 下可选择的模型。每个模型都需要单独填写 ID、输入/输出 token 上限与参数配置。" />
+              <Label>
+                {t("settings.models.provider.modelsLabel", {
+                  count: provider.models.length,
+                })}
+              </Label>
+              <InfoHint text={t("settings.models.provider.modelsInfo")} />
             </span>
             <Button
               size="sm"
@@ -741,13 +780,13 @@ function ProviderCard({
               className="h-7 gap-1.5 px-2.5 text-[11px]"
             >
               <HugeiconsIcon icon={Add01Icon} size={12} strokeWidth={2} />
-              Add model
+              {t("settings.models.provider.addModel")}
             </Button>
           </div>
 
           {provider.models.length === 0 && !adding ? (
             <p className="text-[10.5px] leading-relaxed text-muted-foreground">
-              暂无模型。可点击 “Fetch model list” 从厂商拉取，或手动添加模型 ID。
+              {t("settings.models.provider.noModelsYet")}
             </p>
           ) : null}
 
@@ -765,7 +804,7 @@ function ProviderCard({
 
           {adding ? (
             <ModelEditor
-              title="New model"
+              title={t("settings.models.modelEditor.newTitle")}
               initial={defaultModelFor("", provider)}
               onCancel={() => setAdding(false)}
               onSave={async (model) => {
@@ -785,11 +824,14 @@ function ProviderCard({
                 icon={ChevronDown}
                 size={11}
                 strokeWidth={2}
-                className={cn("transition-transform", !advanced && "-rotate-90")}
+                className={cn(
+                  "transition-transform",
+                  !advanced && "-rotate-90",
+                )}
               />
-              高级：请求参数 / 思考档位 / 模型列表接口
+              {t("settings.models.provider.advancedToggle")}
             </button>
-            <InfoHint text="展开 Provider 级的高级配置：传输协议、鉴权方式、钥匙串账户、静态请求头、共享参数、兜底思考档位与模型列表接口。" />
+            <InfoHint text={t("settings.models.provider.advancedInfo")} />
           </div>
           {advanced ? (
             <ProviderAdvancedEditor provider={provider} onSave={onUpdate} />
@@ -827,6 +869,7 @@ function ModelRow({
   onSave: (model: ModelEntry) => Promise<void>;
   onRemove: () => void;
 }) {
+  const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
   const levels = thinkingLevels(provider, model);
 
@@ -840,22 +883,22 @@ function ModelRow({
           {model.id}
         </span>
         <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
-          {model.inputTokens.toLocaleString()} in /{" "}
-          {model.outputTokens.toLocaleString()} out
+          {model.inputTokens.toLocaleString(currentLocale())} in /{" "}
+          {model.outputTokens.toLocaleString(currentLocale())} out
         </span>
         {levels.length > 0 ? (
           <Badge
             variant="outline"
             className="h-4 shrink-0 border-border/60 bg-muted/40 px-1.5 text-[9.5px] font-normal text-muted-foreground"
           >
-            思考 {levels.length} 档
+            {t("settings.models.modelRow.levels", { count: levels.length })}
           </Badge>
         ) : null}
         <Button
           size="icon"
           variant="ghost"
           onClick={() => setEditing((v) => !v)}
-          title="Edit model"
+          title={t("settings.models.modelRow.edit")}
           className="size-6 text-muted-foreground hover:text-foreground"
         >
           <HugeiconsIcon icon={Edit02Icon} size={11} strokeWidth={1.75} />
@@ -864,7 +907,7 @@ function ModelRow({
           size="icon"
           variant="ghost"
           onClick={onRemove}
-          title="Remove model"
+          title={t("settings.models.modelRow.remove")}
           className="size-6 text-muted-foreground hover:text-destructive"
         >
           <HugeiconsIcon icon={Cancel01Icon} size={11} strokeWidth={1.75} />
@@ -873,7 +916,7 @@ function ModelRow({
       {editing ? (
         <div className="border-t border-border/40 p-2">
           <ModelEditor
-            title="Edit model"
+            title={t("settings.models.modelEditor.editTitle")}
             initial={model}
             onCancel={() => setEditing(false)}
             onSave={async (next) => {
@@ -898,10 +941,13 @@ function ModelEditor({
   onSave: (model: ModelEntry) => Promise<void>;
   onCancel: () => void;
 }) {
+  const { t } = useTranslation();
   const [id, setId] = useState(initial.id);
   const [label, setLabel] = useState(initial.label);
   const [inputTokens, setInputTokens] = useState(String(initial.inputTokens));
-  const [outputTokens, setOutputTokens] = useState(String(initial.outputTokens));
+  const [outputTokens, setOutputTokens] = useState(
+    String(initial.outputTokens),
+  );
   const [temperature, setTemperature] = useState(initial.supportsTemperature);
   const [autocomplete, setAutocomplete] = useState(
     initial.supportsAutocomplete,
@@ -924,22 +970,26 @@ function ModelEditor({
     setError(null);
     const trimmedId = id.trim();
     if (!trimmedId) {
-      setError("模型 ID 不能为空。");
+      setError(t("settings.models.modelEditor.errorIdRequired"));
       return;
     }
     const input = parseInt(inputTokens, 10);
     const output = parseInt(outputTokens, 10);
     if (!Number.isFinite(input) || input < 1_000) {
-      setError("输入 token 必须是 ≥ 1000 的数字。");
+      setError(t("settings.models.modelEditor.errorInput"));
       return;
     }
     if (!Number.isFinite(output) || output < 1) {
-      setError("输出 token 必须是正数。");
+      setError(t("settings.models.modelEditor.errorOutput"));
       return;
     }
     const params = parseJson<ParamDef[]>(paramsText);
     if (params.error) {
-      setError(`参数 JSON 无效：${params.error}`);
+      setError(
+        t("settings.models.modelEditor.errorParamsJson", {
+          error: params.error,
+        }),
+      );
       return;
     }
     const paramsError = validateParamKeys(params.value);
@@ -949,7 +999,11 @@ function ModelEditor({
     }
     const thinking = parseJson<ThinkingConfig>(thinkingText);
     if (thinking.error) {
-      setError(`思考档位 JSON 无效：${thinking.error}`);
+      setError(
+        t("settings.models.modelEditor.errorThinkingJson", {
+          error: thinking.error,
+        }),
+      );
       return;
     }
     const thinkingError = validateThinkingLevels(thinking.value);
@@ -959,7 +1013,11 @@ function ModelEditor({
     }
     const extra = parseJson<JsonObject>(extraText);
     if (extra.error) {
-      setError(`额外 JSON 无效：${extra.error}`);
+      setError(
+        t("settings.models.modelEditor.errorExtraJson", {
+          error: extra.error,
+        }),
+      );
       return;
     }
     setSaving(true);
@@ -993,8 +1051,8 @@ function ModelEditor({
         {title}
       </span>
       <FieldRow
-        label="Model ID"
-        info="厂商 API 使用的真实模型 ID（如 glm-5.3 / deepseek-chat）。必须与厂商文档完全一致，否则请求会失败；整个配置内不能与其他模型重复。"
+        label={t("settings.models.modelEditor.modelId.label")}
+        info={t("settings.models.modelEditor.modelId.info")}
       >
         <Input
           value={id}
@@ -1005,20 +1063,20 @@ function ModelEditor({
         />
       </FieldRow>
       <FieldRow
-        label="Label"
-        info="仅用于界面显示，不会发送给厂商。建议填写能一眼区分数量的名称。"
+        label={t("settings.models.modelEditor.label.label")}
+        info={t("settings.models.modelEditor.label.info")}
       >
         <Input
           value={label}
           onChange={(e) => setLabel(e.target.value)}
-          placeholder="Display name"
+          placeholder={t("settings.models.modelEditor.label.placeholder")}
           spellCheck={false}
           className="h-8 text-[11.5px]"
         />
       </FieldRow>
       <FieldRow
-        label="Input"
-        info="上下文窗口（输入 token 预算）。设得过大会让超长请求被厂商拒绝；过小会触发上下文压缩、丢失早期对话。"
+        label={t("settings.models.modelEditor.input.label")}
+        info={t("settings.models.modelEditor.input.info")}
       >
         <div className="flex flex-1 items-center gap-1.5">
           <Input
@@ -1029,13 +1087,13 @@ function ModelEditor({
             className="h-8 w-32 font-mono text-[11.5px]"
           />
           <span className="text-[10.5px] text-muted-foreground">
-            tokens (context window)
+            {t("settings.models.modelEditor.input.unit")}
           </span>
         </div>
       </FieldRow>
       <FieldRow
-        label="Output"
-        info="单次响应的最大输出 token，会作为 max_tokens 发送。过小会截断回答；过大会被部分厂商拒绝或增加费用。"
+        label={t("settings.models.modelEditor.output.label")}
+        info={t("settings.models.modelEditor.output.info")}
       >
         <div className="flex flex-1 items-center gap-1.5">
           <Input
@@ -1046,24 +1104,28 @@ function ModelEditor({
             className="h-8 w-32 font-mono text-[11.5px]"
           />
           <span className="text-[10.5px] text-muted-foreground">
-            tokens (per response)
+            {t("settings.models.modelEditor.output.unit")}
           </span>
         </div>
       </FieldRow>
       <FieldRow
-        label="Sampling"
-        info="控制采样行为、补全可用性与系统提示词长度。修改前请确认模型是否支持 temperature。"
+        label={t("settings.models.modelEditor.sampling.label")}
+        info={t("settings.models.modelEditor.sampling.info")}
       >
         <div className="flex flex-1 items-center gap-3">
           <span className="flex items-center gap-1.5 text-[10.5px] text-muted-foreground">
             <Switch checked={temperature} onCheckedChange={setTemperature} />
             temperature
-            <InfoHint text="开启后会按调用方传入的 temperature 采样；推理模型通常应关闭，否则请求可能被拒绝。" />
+            <InfoHint
+              text={t("settings.models.modelEditor.sampling.temperatureInfo")}
+            />
           </span>
           <span className="flex items-center gap-1.5 text-[10.5px] text-muted-foreground">
             <Switch checked={autocomplete} onCheckedChange={setAutocomplete} />
             autocomplete
-            <InfoHint text="关闭后该模型不会出现在编辑器的行内补全选择器中；云端旗舰模型通常不适合做补全。" />
+            <InfoHint
+              text={t("settings.models.modelEditor.sampling.autocompleteInfo")}
+            />
           </span>
           <span className="flex items-center gap-1">
             <Select
@@ -1078,13 +1140,15 @@ function ModelEditor({
                 <SelectItem value="lite">lite prompt</SelectItem>
               </SelectContent>
             </Select>
-            <InfoHint text="full 使用完整系统提示词（工具规范、路径规则等）；lite 更短、更省 token，适合小模型，但会丢失部分工具使用约束。" />
+            <InfoHint
+              text={t("settings.models.modelEditor.sampling.promptInfo")}
+            />
           </span>
         </div>
       </FieldRow>
       <FieldRow
-        label="Tags"
-        info="逗号分隔的标记。reasoning 表示跨工具调用轮次保留推理内容（推理模型通常需要）；lite 仅作标记，系统提示词长度由 Sampling 右侧的 full/lite 决定。"
+        label={t("settings.models.modelEditor.tags.label")}
+        info={t("settings.models.modelEditor.tags.info")}
       >
         <Input
           value={tags}
@@ -1095,8 +1159,8 @@ function ModelEditor({
         />
       </FieldRow>
       <StructuredJsonField
-        label="Params（请求参数）"
-        info="声明该模型额外发送的请求参数。表单模式适合大多数情况；JSON 模式可编辑全部字段。留空（[]）表示不额外发送参数。"
+        label={t("settings.models.modelEditor.params.label")}
+        info={t("settings.models.modelEditor.params.info")}
         valueText={paramsText}
         onChangeText={setParamsText}
         parse={parseParamsArray}
@@ -1120,8 +1184,8 @@ function ModelEditor({
 ]`}
       />
       <StructuredJsonField
-        label="Thinking（思考档位）"
-        info="控制 Ctrl+I 模型选择窗底部的滑条。null 表示不显示滑条；每个档位把参数 key 映射到逻辑值，值为 null 表示该档位省略此参数。"
+        label={t("settings.models.modelEditor.thinking.label")}
+        info={t("settings.models.modelEditor.thinking.info")}
         valueText={thinkingText}
         onChangeText={setThinkingText}
         parse={parseThinking}
@@ -1153,8 +1217,8 @@ function ModelEditor({
 }`}
       />
       <StructuredJsonField
-        label="Extra（原始覆盖）"
-        info="最后合并进请求体的原始 JSON，用于厂商专有字段。优先级最高，但 model、messages、stream、tools 等传输键会被忽略。"
+        label={t("settings.models.modelEditor.extra.label")}
+        info={t("settings.models.modelEditor.extra.info")}
         valueText={extraText}
         onChangeText={setExtraText}
         parse={parseExtra}
@@ -1178,7 +1242,7 @@ function ModelEditor({
           onClick={onCancel}
           className="h-7 px-2.5 text-[11px]"
         >
-          Cancel
+          {t("settings.models.modelEditor.cancel")}
         </Button>
         <Button
           size="sm"
@@ -1186,7 +1250,9 @@ function ModelEditor({
           disabled={saving}
           className="h-7 px-3 text-[11px]"
         >
-          {saving ? "Saving…" : "Save model"}
+          {saving
+            ? t("settings.models.modelEditor.saving")
+            : t("settings.models.modelEditor.save")}
         </Button>
       </div>
     </div>
@@ -1200,6 +1266,7 @@ function ProviderAdvancedEditor({
   provider: ProviderEntry;
   onSave: (patch: Partial<ProviderEntry>) => Promise<void>;
 }) {
+  const { t } = useTranslation();
   const [label, setLabel] = useState(provider.label);
   const [protocol, setProtocol] = useState(provider.protocol);
   const [authMode, setAuthMode] = useState(provider.auth.mode);
@@ -1215,9 +1282,7 @@ function ProviderAdvancedEditor({
     provider.thinking ? stringify(provider.thinking) : "",
   );
   const [headersText, setHeadersText] = useState(
-    Object.keys(provider.headers).length > 0
-      ? stringify(provider.headers)
-      : "",
+    Object.keys(provider.headers).length > 0 ? stringify(provider.headers) : "",
   );
   const [apiText, setApiText] = useState(
     provider.modelsApi ? stringify(provider.modelsApi) : "",
@@ -1234,7 +1299,7 @@ function ProviderAdvancedEditor({
     const failure =
       params.error ?? thinking.error ?? headers.error ?? api.error;
     if (failure) {
-      setError(`JSON 无效：${failure}`);
+      setError(t("settings.models.advanced.errorJson", { error: failure }));
       return;
     }
     const paramsError = validateParamKeys(params.value);
@@ -1275,8 +1340,8 @@ function ProviderAdvancedEditor({
   return (
     <div className="flex flex-col gap-2 rounded-md border border-border/60 bg-muted/20 p-2.5">
       <FieldRow
-        label="Label"
-        info="Provider 在设置页与模型选择窗中的显示名；不参与请求。"
+        label={t("settings.models.advanced.label.label")}
+        info={t("settings.models.advanced.label.info")}
       >
         <Input
           value={label}
@@ -1285,8 +1350,8 @@ function ProviderAdvancedEditor({
         />
       </FieldRow>
       <FieldRow
-        label="Protocol"
-        info="传输协议。国内厂商几乎都使用 openai-compatible；切换协议不会删除已有模型或密钥，但请求格式会随之改变。"
+        label={t("settings.models.advanced.protocol.label")}
+        info={t("settings.models.advanced.protocol.info")}
       >
         <Select
           value={protocol}
@@ -1297,7 +1362,7 @@ function ProviderAdvancedEditor({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="openai-compatible">
-              openai-compatible (国内厂商通用)
+              {t("settings.models.advanced.protocol.openaiCompatible")}
             </SelectItem>
             <SelectItem value="anthropic">anthropic</SelectItem>
             <SelectItem value="google">google</SelectItem>
@@ -1305,8 +1370,8 @@ function ProviderAdvancedEditor({
         </Select>
       </FieldRow>
       <FieldRow
-        label="Auth"
-        info="鉴权方式：bearer 发送 Authorization: Bearer <key>；x-api-key 发送自定义头；none 表示不发送密钥（本地或匿名网关）。required 关闭后允许不填 Key 调用。"
+        label={t("settings.models.advanced.auth.label")}
+        info={t("settings.models.advanced.auth.info")}
       >
         <div className="flex flex-1 items-center gap-2">
           <Select
@@ -1344,8 +1409,8 @@ function ProviderAdvancedEditor({
         </div>
       </FieldRow>
       <FieldRow
-        label="Keyring"
-        info="操作系统钥匙串中的账户名。这里只存名字，不存密钥；修改后需要重新保存该 Provider 的 API Key。"
+        label={t("settings.models.advanced.keyring.label")}
+        info={t("settings.models.advanced.keyring.info")}
       >
         <Input
           value={keyringAccount}
@@ -1356,8 +1421,8 @@ function ProviderAdvancedEditor({
         />
       </FieldRow>
       <FieldRow
-        label="Console"
-        info="厂商控制台链接，仅用于卡片右上角的跳转；留空则不显示链接。"
+        label={t("settings.models.advanced.console.label")}
+        info={t("settings.models.advanced.console.info")}
       >
         <Input
           value={consoleUrl}
@@ -1368,8 +1433,8 @@ function ProviderAdvancedEditor({
         />
       </FieldRow>
       <FieldRow
-        label="Icon"
-        info="图标键：brain / cpu / globe / flash / server / plug。未知值会回退为插头图标。"
+        label={t("settings.models.advanced.icon.label")}
+        info={t("settings.models.advanced.icon.info")}
       >
         <Input
           value={icon}
@@ -1380,8 +1445,8 @@ function ProviderAdvancedEditor({
         />
       </FieldRow>
       <StructuredJsonField
-        label="Params（Provider 共享参数）"
-        info="该 Provider 下所有模型共享的参数定义；模型重新声明同一 key 时会覆盖这里的定义。留空（[]）表示不额外发送参数。"
+        label={t("settings.models.advanced.params.label")}
+        info={t("settings.models.advanced.params.info")}
         valueText={paramsText}
         onChangeText={setParamsText}
         parse={parseParamsArray}
@@ -1401,8 +1466,8 @@ function ProviderAdvancedEditor({
 ]`}
       />
       <StructuredJsonField
-        label="Thinking（Provider 兜底档位）"
-        info="模型没有声明自己的 thinking 时使用这里的档位。null 表示默认不显示思考滑条；具体映射写法见“表单”模式或文档。"
+        label={t("settings.models.advanced.thinking.label")}
+        info={t("settings.models.advanced.thinking.info")}
         valueText={thinkingText}
         onChangeText={setThinkingText}
         parse={parseThinking}
@@ -1433,8 +1498,8 @@ function ProviderAdvancedEditor({
 }`}
       />
       <StructuredJsonField
-        label="Headers（静态请求头）"
-        info="每次请求都会附带的固定请求头。不要在这里放 API Key（会被自动移除并告警）；适合 HTTP-Referer、X-Title 等非密钥头。"
+        label={t("settings.models.advanced.headers.label")}
+        info={t("settings.models.advanced.headers.info")}
         valueText={headersText}
         onChangeText={setHeadersText}
         parse={parseHeaders}
@@ -1448,8 +1513,8 @@ function ProviderAdvancedEditor({
 }`}
       />
       <StructuredJsonField
-        label="Models API（模型列表接口）"
-        info="描述厂商的模型列表接口。关闭（null）后该 Provider 只能手动添加模型；path 是接口路径，itemsPath 是响应中数组的位置，idPath 是数组中模型 ID 的字段。"
+        label={t("settings.models.advanced.modelsApi.label")}
+        info={t("settings.models.advanced.modelsApi.info")}
         valueText={apiText}
         onChangeText={setApiText}
         parse={parseModelsApi}
@@ -1474,7 +1539,9 @@ function ProviderAdvancedEditor({
           disabled={saving}
           className="h-7 px-3 text-[11px]"
         >
-          {saving ? "Saving…" : "Save provider settings"}
+          {saving
+            ? t("settings.models.advanced.saving")
+            : t("settings.models.advanced.save")}
         </Button>
       </div>
     </div>
@@ -1490,6 +1557,7 @@ function DefaultsBlock({
   defaultModelId: string;
   onPickDefault: (modelId: string) => Promise<void>;
 }) {
+  const { t } = useTranslation();
   const models = providers.flatMap((p) =>
     p.models.map((m) => ({ provider: p, model: m })),
   );
@@ -1497,11 +1565,11 @@ function DefaultsBlock({
 
   return (
     <div className="flex flex-col gap-3">
-      <Label>Defaults</Label>
+      <Label>{t("settings.models.defaults.label")}</Label>
       <div className="flex flex-col gap-2.5 rounded-lg border border-border/60 bg-card/60 px-3 py-2.5">
         <FieldRow
-          label="Chat model"
-          info="新会话默认使用的模型。删除该模型后会自动回退到配置中的第一个可用模型。"
+          label={t("settings.models.defaults.chatModel.label")}
+          info={t("settings.models.defaults.chatModel.info")}
         >
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -1516,7 +1584,9 @@ function DefaultsBlock({
                   ) : null}
                   <span className="truncate">
                     {current?.model.label ??
-                      (models.length === 0 ? "No models configured" : "Select model")}
+                      (models.length === 0
+                        ? t("settings.models.defaults.chatModel.noModels")
+                        : t("settings.models.defaults.chatModel.selectModel"))}
                   </span>
                   {current ? (
                     <span className="truncate font-mono text-[10px] text-muted-foreground">
@@ -1583,6 +1653,7 @@ function AutocompleteRow({
 }: {
   providers: readonly ProviderEntry[];
 }) {
+  const { t } = useTranslation();
   const enabled = usePreferencesStore((s) => s.autocompleteEnabled);
   const trigger = usePreferencesStore((s) => s.autocompleteTrigger);
   const providerId = usePreferencesStore((s) => s.autocompleteProvider);
@@ -1591,8 +1662,7 @@ function AutocompleteRow({
   const eligible = (provider?.models ?? []).filter(
     (m) => m.supportsAutocomplete,
   );
-  const currentModel =
-    eligible.find((m) => m.id === modelId) ?? eligible[0];
+  const currentModel = eligible.find((m) => m.id === modelId) ?? eligible[0];
 
   useEffect(() => {
     if (providerId || !provider) return;
@@ -1603,8 +1673,8 @@ function AutocompleteRow({
   return (
     <>
       <FieldRow
-        label="Autocomplete"
-        info="编辑器行内补全使用的模型与触发方式。建议选择低延迟、便宜的模型；关闭后不会发起任何补全请求。"
+        label={t("settings.models.defaults.autocomplete.label")}
+        info={t("settings.models.defaults.autocomplete.info")}
       >
         <div className="flex flex-1 items-center gap-2">
           <Switch
@@ -1623,7 +1693,11 @@ function AutocompleteRow({
               disabled={!enabled || providers.length === 0}
               className="h-8 w-44 text-[11.5px]"
             >
-              <SelectValue placeholder="Provider" />
+              <SelectValue
+                placeholder={t(
+                  "settings.models.defaults.autocomplete.providerPlaceholder",
+                )}
+              />
             </SelectTrigger>
             <SelectContent>
               {providers.map((p) => (
@@ -1641,7 +1715,11 @@ function AutocompleteRow({
               disabled={!enabled || !provider || provider.models.length === 0}
               className="h-8 flex-1 text-[11.5px]"
             >
-              <SelectValue placeholder="Model" />
+              <SelectValue
+                placeholder={t(
+                  "settings.models.defaults.autocomplete.modelPlaceholder",
+                )}
+              />
             </SelectTrigger>
             <SelectContent>
               {eligible.map((m) => (
@@ -1655,8 +1733,8 @@ function AutocompleteRow({
       </FieldRow>
       {enabled ? (
         <FieldRow
-          label="Trigger"
-          info="Automatic：输入时自动请求补全，可能增加延迟与费用；Manual：只在快捷键触发时请求。"
+          label={t("settings.models.defaults.trigger.label")}
+          info={t("settings.models.defaults.trigger.info")}
         >
           <Select
             value={trigger}
@@ -1668,8 +1746,12 @@ function AutocompleteRow({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="auto">Automatic (as you type)</SelectItem>
-              <SelectItem value="manual">Manual (shortcut)</SelectItem>
+              <SelectItem value="auto">
+                {t("settings.models.defaults.trigger.auto")}
+              </SelectItem>
+              <SelectItem value="manual">
+                {t("settings.models.defaults.trigger.manual")}
+              </SelectItem>
             </SelectContent>
           </Select>
         </FieldRow>
@@ -1679,10 +1761,13 @@ function AutocompleteRow({
 }
 
 function StatusLine({ test }: { test: TestState }) {
+  const { t } = useTranslation();
   if (test.status === "idle") return null;
   if (test.status === "testing") {
     return (
-      <span className="text-[10.5px] text-muted-foreground">Testing…</span>
+      <span className="text-[10.5px] text-muted-foreground">
+        {t("settings.models.provider.testing")}
+      </span>
     );
   }
   if (test.status === "ok") {

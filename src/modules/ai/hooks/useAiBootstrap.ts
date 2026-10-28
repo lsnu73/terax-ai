@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { t } from "@/modules/i18n";
 import {
   getDefaultModelId,
   listModels,
@@ -38,18 +39,17 @@ export function useAiBootstrap(): {
   const config = useAiConfigStore((s) => s.config);
   const initConfig = useAiConfigStore((s) => s.init);
 
-  const hasComposer = listProviders().some(
-    (p) =>
-      p.models.length > 0 &&
-      (!providerNeedsKey(p) || !!apiKeys[p.id]),
-  ) && listModels().length > 0;
+  const hasComposer =
+    listProviders().some(
+      (p) => p.models.length > 0 && (!providerNeedsKey(p) || !!apiKeys[p.id]),
+    ) && listModels().length > 0;
 
   const prefsHydrated = usePreferencesStore((s) => s.hydrated);
   const [keysLoaded, setKeysLoaded] = useState(false);
 
   useEffect(() => {
     void initConfig().catch((error: unknown) => {
-      toast.error("Could not load model configuration", {
+      toast.error(t("ai.sessions.configLoadFailed"), {
         id: "ai-config-load",
         description: String(error),
       });
@@ -90,7 +90,7 @@ export function useAiBootstrap(): {
 
   useEffect(() => {
     void hydrateSessions().catch((error: unknown) => {
-      toast.error("Could not load chat history", {
+      toast.error(t("ai.sessions.loadFailed"), {
         id: "chat-history-load",
         description: String(error),
       });

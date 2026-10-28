@@ -17,6 +17,7 @@ import {
   unbindLeafPty,
 } from "@/modules/terminal/lib/ptyPresentation";
 import { tokenBytes } from "@/modules/terminal/lib/ptyWire";
+import { t } from "@/modules/i18n";
 import { currentWorkspaceEnv } from "@/modules/workspace";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
@@ -121,17 +122,20 @@ export async function openPty(
         if (notice !== undefined) toast.dismiss(notice);
         notice = undefined;
       } else if (status === "stalled" || status === "failed") {
-        notice = toast.error("Terminal output paused", {
+        notice = toast.error(t("terminal.pty.outputPaused"), {
           id: notice,
           duration: Number.POSITIVE_INFINITY,
           description:
             status === "failed"
-              ? "The terminal could not process output. Reopen this terminal to recover."
-              : "Waiting for the terminal connection. Delivery will resume automatically.",
+              ? t("terminal.pty.outputFailedDescription")
+              : t("terminal.pty.outputStalledDescription"),
           action:
             status === "failed"
               ? undefined
-              : { label: "Retry", onClick: () => stream.retry() },
+              : {
+                  label: t("terminal.pty.retry"),
+                  onClick: () => stream.retry(),
+                },
         });
       }
     },

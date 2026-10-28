@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { t } from "@/modules/i18n";
 import {
   allKeyringAccounts,
   findProvider,
@@ -45,7 +46,8 @@ async function getAllByAccount(
     });
     return out;
   } catch {
-    for (const account of accounts) out.set(account, await getByAccount(account));
+    for (const account of accounts)
+      out.set(account, await getByAccount(account));
     return out;
   }
 }
@@ -56,17 +58,14 @@ export async function getKey(providerId: string): Promise<string | null> {
   return getByAccount(provider.keyringAccount);
 }
 
-export async function setKey(
-  providerId: string,
-  key: string,
-): Promise<void> {
+export async function setKey(providerId: string, key: string): Promise<void> {
   const provider = findProvider(providerId);
   if (!provider) throw new Error(`Unknown provider: ${providerId}`);
   if (!providerSupportsKey(provider)) {
-    throw new Error(`${provider.label} does not use an API key`);
+    throw new Error(t("ai.keyring.noKeyUsed", { provider: provider.label }));
   }
   const trimmed = key.trim();
-  if (!trimmed) throw new Error("API key is empty");
+  if (!trimmed) throw new Error(t("ai.keyring.emptyKey"));
   await invoke("secrets_set", {
     service: KEYRING_SERVICE,
     account: provider.keyringAccount,

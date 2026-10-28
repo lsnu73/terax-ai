@@ -27,6 +27,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { homeDir } from "@tauri-apps/api/path";
 import { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import type {
   BlockMatch,
@@ -218,6 +219,7 @@ function Meta({ block }: { block: PositionedBlock }) {
 }
 
 function StickyHeader({ block, all, onSearch }: ChromeProps) {
+  const { t } = useTranslation();
   return (
     <div className="bt-sticky">
       <HugeiconsIcon
@@ -226,25 +228,32 @@ function StickyHeader({ block, all, onSearch }: ChromeProps) {
         size={12}
         strokeWidth={1.75}
       />
-      <span className="bt-sticky-cmd">{block.command || "command"}</span>
+      <span className="bt-sticky-cmd">
+        {block.command || t("terminal.block.commandFallback")}
+      </span>
       <Toolbar block={block} all={all} onSearch={onSearch} />
     </div>
   );
 }
 
 function Toolbar({ block, all, onSearch }: ChromeProps) {
+  const { t } = useTranslation();
   const duration = block.running
     ? null
     : fmtDuration(block.finishedAt - block.startedAt);
   const failed = !block.running && !block.ok && block.exitCode !== null;
   return (
     <div className="bt-tools">
-      {failed && <span className="bt-exit">exit {block.exitCode}</span>}
+      {failed && (
+        <span className="bt-exit">
+          {t("terminal.block.exitCode", { code: block.exitCode })}
+        </span>
+      )}
       {duration && <span className="bt-dur">{duration}</span>}
       {!block.running && block.canRerun && (
         <button
           type="button"
-          title="Run again"
+          title={t("terminal.block.runAgain")}
           className="bt-btn"
           disabled={!all.promptReady}
           onClick={() => all.onRunAgain(block.command)}
@@ -258,6 +267,7 @@ function Toolbar({ block, all, onSearch }: ChromeProps) {
 }
 
 function BlockMenu({ block, all, onSearch }: ChromeProps) {
+  const { t } = useTranslation();
   const output = () => all.readOutput(block.id) ?? "";
   const attach = () => {
     const out = capAttachOutput(output());
@@ -267,7 +277,11 @@ function BlockMenu({ block, all, onSearch }: ChromeProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button type="button" title="Block actions" className="bt-btn">
+        <button
+          type="button"
+          title={t("terminal.block.actions")}
+          className="bt-btn"
+        >
           <HugeiconsIcon
             icon={MoreHorizontalIcon}
             size={14}
@@ -285,40 +299,40 @@ function BlockMenu({ block, all, onSearch }: ChromeProps) {
       >
         <MenuItem
           icon={Refresh01Icon}
-          label="Run again"
+          label={t("terminal.block.runAgain")}
           disabled={block.running || !all.promptReady || !block.canRerun}
           onClick={() => all.onRunAgain(block.command)}
         />
         <MenuItem
           icon={Copy01Icon}
-          label="Copy command"
+          label={t("terminal.block.copyCommand")}
           disabled={!block.command}
-          onClick={() => copy(block.command, "Command copied")}
+          onClick={() => copy(block.command, t("terminal.block.commandCopied"))}
         />
         <MenuItem
           icon={ComputerTerminal02Icon}
-          label="Copy output"
+          label={t("terminal.block.copyOutput")}
           onClick={() => {
             const o = output();
-            if (o) copy(o, "Output copied");
+            if (o) copy(o, t("terminal.block.outputCopied"));
           }}
         />
         <MenuItem
           icon={Copy01Icon}
-          label="Copy command and output"
+          label={t("terminal.block.copyCommandAndOutput")}
           onClick={() => {
             const text = `$ ${block.command}\n${output()}`;
-            copy(text, "Block copied");
+            copy(text, t("terminal.block.blockCopied"));
           }}
         />
         <MenuItem
           icon={SparklesIcon}
-          label="Attach to AI chat"
+          label={t("terminal.block.attachToAi")}
           onClick={attach}
         />
         <MenuItem
           icon={Search01Icon}
-          label="Find in block"
+          label={t("terminal.block.findInBlock")}
           onClick={() => onSearch(block.id)}
         />
       </DropdownMenuContent>
@@ -368,6 +382,7 @@ function SearchBar({
   revealMatch: (m: BlockMatch) => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [matches, setMatches] = useState<BlockMatch[]>([]);
   const [idx, setIdx] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -397,7 +412,7 @@ function SearchBar({
       () => {
         if (controller.signal.aborted) return;
         setPending(false);
-        toast.error("Could not search this block");
+        toast.error(t("terminal.block.searchFailed"));
       },
     );
   };
@@ -414,7 +429,7 @@ function SearchBar({
       <input
         ref={inputRef}
         className="bt-search-input"
-        placeholder="Find in block"
+        placeholder={t("terminal.block.findInBlock")}
         onChange={(e) => run(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === "Enter") {
@@ -428,18 +443,26 @@ function SearchBar({
       />
       <span className="bt-search-count">
         {pending
-          ? "Searching"
+          ? t("terminal.block.searching")
           : matches.length
             ? `${idx + 1}/${matches.length}`
             : "0"}
       </span>
       <SearchBtn
-        title="Previous"
+        title={t("terminal.block.previous")}
         icon={ArrowUp01Icon}
         onClick={() => nav(-1)}
       />
-      <SearchBtn title="Next" icon={ArrowDown01Icon} onClick={() => nav(1)} />
-      <SearchBtn title="Close" icon={Cancel01Icon} onClick={onClose} />
+      <SearchBtn
+        title={t("terminal.block.next")}
+        icon={ArrowDown01Icon}
+        onClick={() => nav(1)}
+      />
+      <SearchBtn
+        title={t("terminal.block.close")}
+        icon={Cancel01Icon}
+        onClick={onClose}
+      />
     </div>
   );
 }

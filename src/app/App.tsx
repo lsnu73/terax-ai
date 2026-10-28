@@ -45,6 +45,7 @@ import {
   type SearchInlineHandle,
   type SearchTarget,
 } from "@/modules/header";
+import { t } from "@/modules/i18n";
 import { setLspNavigator } from "@/modules/lsp";
 import type { PreviewPaneHandle } from "@/modules/preview";
 import { openSettingsWindow } from "@/modules/settings/openSettingsWindow";
@@ -1176,7 +1177,7 @@ export default function App() {
   const handleNewSpace = useCallback(() => {
     const { spaces, create, setActive } = useSpaces.getState();
     const meta = create({
-      name: `Space ${spaces.length + 1}`,
+      name: t("spaces.defaultName", { index: spaces.length + 1 }),
       root: activeCwd ?? home ?? null,
       env: workspaceEnv,
     });

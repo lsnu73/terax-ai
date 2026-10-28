@@ -1,6 +1,7 @@
 import { PopoverContent } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { useTranslation } from "react-i18next";
 import type { SlashCommandMeta } from "../lib/slashCommands";
 import type { Snippet } from "../lib/snippets";
 
@@ -21,6 +22,7 @@ export function SnippetPickerContent({
   onPick,
   onHover,
 }: Props) {
+  const { t } = useTranslation();
   const commands = items.filter((it) => it.kind === "command");
   const snippets = items.filter((it) => it.kind === "snippet");
   let cursor = -1;
@@ -37,13 +39,13 @@ export function SnippetPickerContent({
     >
       {items.length === 0 ? (
         <div className="px-3 py-2.5 text-[11px] text-muted-foreground">
-          No matches. Add snippets in Settings → Agents.
+          {t("ai.pickers.noSnippetMatches")}
         </div>
       ) : (
         <div className="max-h-64 overflow-y-auto py-1">
           {commands.length > 0 && (
             <>
-              <SectionHeader label="Pre-built snippets" />
+              <SectionHeader label={t("ai.pickers.prebuiltSnippets")} />
               <ul>
                 {commands.map((it) => {
                   cursor += 1;
@@ -74,7 +76,7 @@ export function SnippetPickerContent({
                             <span className="font-mono text-muted-foreground">
                               #{c.name}
                             </span>
-                            <span className="font-medium">{c.label}</span>
+                            <span className="font-medium">{t(c.labelKey)}</span>
                           </span>
                         </span>
                       </button>
@@ -86,7 +88,7 @@ export function SnippetPickerContent({
           )}
           {snippets.length > 0 && (
             <>
-              <SectionHeader label="Snippets" />
+              <SectionHeader label={t("ai.pickers.snippets")} />
               <ul>
                 {snippets.map((it) => {
                   cursor += 1;

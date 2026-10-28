@@ -1,4 +1,5 @@
 import { notifyDocumentSaved } from "@/modules/lsp";
+import { t } from "@/modules/i18n";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import { currentWorkspaceEnv } from "@/modules/workspace";
 import { invoke } from "@tauri-apps/api/core";
@@ -84,10 +85,13 @@ export function useDocument({ path, onDirtyChange }: Options) {
       }).catch(() => null);
       if (stat && stat.mtime !== known) {
         const name = path.split(/[\\/]/).pop() ?? path;
-        toast.warning("File changed on disk", {
+        toast.warning(t("editor.save.conflictTitle"), {
           id: `save-conflict:${path}`,
-          description: `${name} was modified by another program while you had unsaved changes. Overwrite to keep your version.`,
-          action: { label: "Overwrite", onClick: () => void writeToDisk() },
+          description: t("editor.save.conflictDescription", { name }),
+          action: {
+            label: t("editor.save.overwrite"),
+            onClick: () => void writeToDisk(),
+          },
         });
         return false;
       }

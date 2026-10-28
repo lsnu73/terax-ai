@@ -36,3 +36,8 @@
   - 违反代价：用户面对 `Thinking (JSON) = null` 这类正常但无解释的取值时无从下手（2026-10-28 实际反馈）。
   - 强制点：`src/settings/sections/models/StructuredFields.tsx` 的 `InfoHint` 组件；`ModelsSection.tsx` 的 `FieldRow` 接受 `info` 参数。
   - ⚠️ 此条暂无代码强制，属口头约定，靠新增设置项时的评审把关。
+
+- **INV-009** `src/modules/i18n/` 是底层模块，禁止静态 import 任何上层模块（尤其是 `settings/preferences`、`settings/store` 方向）；组件外取文案用运行期 `t()`，不允许为了取值给 i18n 加静态依赖。
+  - 违反代价：闭合 `settings/store → … → i18n → preferences → store` 这类循环，入口顶层 await 模块 TDZ 崩溃，窗口永不显示且无任何报错输出（见 pitfalls/2026-10-28-i18n-circular-import-tdz.md）。
+  - 强制点：`i18n/index.ts` 对 preferences 的引用是 `initI18n()` 内的动态 `await import`；反向（上层模块 import i18n 用 `t()`）合法且鼓励。
+  - ⚠️ 此条暂无自动化强制，靠代码评审把关。

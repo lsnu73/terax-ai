@@ -1,4 +1,5 @@
 import { terminalWindowFocused } from "@/modules/terminal/ghostty/renderScheduling";
+import { t } from "@/modules/i18n";
 import { bindTerminalInteraction } from "@/modules/terminal/ghostty/input/terminalInteraction";
 import { TerminalScrollbarSync } from "@/modules/terminal/ghostty/gpu/terminalScrollbar";
 import {
@@ -174,13 +175,13 @@ export class WebGlTerminalSurface
     this.updateRootBackground();
     this.root.setAttribute("data-terax-ghostty-surface", "webgl");
     this.root.setAttribute("data-terax-terminal-surface", "");
-    this.input.setAttribute("aria-label", "Terminal input");
+    this.input.setAttribute("aria-label", t("terminal.a11y.input"));
     this.input.setAttribute("autocapitalize", "off");
     this.input.setAttribute("autocomplete", "off");
     this.input.setAttribute("spellcheck", "false");
     this.input.style.cssText =
       "position:absolute;left:0;top:0;width:1px;height:1px;opacity:0;resize:none;pointer-events:none;";
-    this.scrollbar.setAttribute("aria-label", "Terminal scrollback");
+    this.scrollbar.setAttribute("aria-label", t("terminal.a11y.scrollback"));
     this.scrollbar.setAttribute("role", "scrollbar");
     this.scrollbar.style.cssText =
       "position:absolute;inset:0 0 0 auto;z-index:10;width:11px;overflow-x:hidden;overflow-y:scroll;overscroll-behavior:contain;visibility:hidden;";

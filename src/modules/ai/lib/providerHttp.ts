@@ -1,3 +1,4 @@
+import { t } from "@/modules/i18n";
 import type { ModelsApiConfig, ProviderEntry } from "../config";
 import { createProxyFetch, proxyFetch } from "./proxyFetch";
 
@@ -5,7 +6,9 @@ const localProxyFetch = createProxyFetch({ allowPrivateNetwork: true });
 
 export function isLoopbackLike(baseURL: string): boolean {
   try {
-    const host = new URL(baseURL).hostname.toLowerCase().replace(/^\[|\]$/g, "");
+    const host = new URL(baseURL).hostname
+      .toLowerCase()
+      .replace(/^\[|\]$/g, "");
     return (
       host === "localhost" ||
       host === "::1" ||
@@ -65,7 +68,7 @@ export type ProviderTestResult = {
 
 function networkMessage(error: unknown): string {
   const text = error instanceof Error ? error.message : String(error);
-  return `无法连接：${text}`;
+  return t("ai.providerTest.networkError", { message: text });
 }
 
 /**
@@ -81,21 +84,24 @@ export async function testProviderConnection(
     return {
       ok: false,
       status: null,
-      message: "Base URL 为空，请先填写接口地址。",
+      message: t("ai.providerTest.emptyBaseUrl"),
       modelIds: [],
     };
   }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 15_000);
   try {
-    const response = await resolveProviderFetch(provider.baseURL)(modelsUrl(provider), {
-      method: "GET",
-      headers: {
-        ...provider.headers,
-        ...authHeaders(provider, apiKey),
+    const response = await resolveProviderFetch(provider.baseURL)(
+      modelsUrl(provider),
+      {
+        method: "GET",
+        headers: {
+          ...provider.headers,
+          ...authHeaders(provider, apiKey),
+        },
+        signal: controller.signal,
       },
-      signal: controller.signal,
-    });
+    );
     const bodyText = await response.text().catch(() => "");
     if (response.ok) {
       const ids = parseModelIds(bodyText, provider.modelsApi);
@@ -104,8 +110,8 @@ export async function testProviderConnection(
         status: response.status,
         message:
           ids.length > 0
-            ? `连接成功，发现 ${ids.length} 个模型。`
-            : "连接成功（接口未返回可识别的模型列表）。",
+            ? t("ai.providerTest.successWithModels", { count: ids.length })
+            : t("ai.providerTest.successNoModels"),
         modelIds: ids,
       };
     }
@@ -113,7 +119,7 @@ export async function testProviderConnection(
       return {
         ok: false,
         status: response.status,
-        message: `鉴权失败（HTTP ${response.status}），请检查 API Key。`,
+        message: t("ai.providerTest.authFailed", { status: response.status }),
         modelIds: [],
       };
     }
@@ -121,8 +127,7 @@ export async function testProviderConnection(
       return {
         ok: true,
         status: response.status,
-        message:
-          "端点可达，但该厂商不提供模型列表接口（HTTP 404）——请手动添加模型。",
+        message: t("ai.providerTest.noModelsApi"),
         modelIds: [],
       };
     }
@@ -130,7 +135,10 @@ export async function testProviderConnection(
     return {
       ok: false,
       status: response.status,
-      message: `请求失败（HTTP ${response.status}）${snippet ? `：${snippet}` : ""}`,
+      message: t("ai.providerTest.requestFailed", {
+        status: response.status,
+        detail: snippet ? `: ${snippet}` : "",
+      }),
       modelIds: [],
     };
   } catch (error) {

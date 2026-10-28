@@ -15,6 +15,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { OsIcon } from "./OsIcon";
 import { useGitBranch } from "./useGitBranch";
 import { useSystemInfo } from "./useSystemInfo";
@@ -52,6 +53,7 @@ export function WorkspaceInputBar({
   onConnect,
 }: Props) {
   const c = useComposer();
+  const { t } = useTranslation();
   const { os, shell } = useSystemInfo();
 
   const controller = useBlockController(isBlockTab ? activeLeafId : null);
@@ -112,7 +114,11 @@ export function WorkspaceInputBar({
         </Chip>
       )}
       {branch && (
-        <Chip tone="violet" icon={GitBranchIcon} title={`Branch: ${branch}`}>
+        <Chip
+          tone="violet"
+          icon={GitBranchIcon}
+          title={t("app.workspaceInput.branchTooltip", { branch })}
+        >
           {branch}
         </Chip>
       )}
@@ -156,7 +162,7 @@ export function WorkspaceInputBar({
                       className="text-sm text-muted-foreground hover:text-foreground"
                       onClick={() => focusLeafInput(activeLeafId)}
                     >
-                      Type directly in the terminal
+                      {t("app.workspaceInput.typeInTerminal")}
                     </button>
                   ) : (
                     <Suspense fallback={null}>
@@ -209,6 +215,7 @@ function ModeToggle({
   mode: "shell" | "ai";
   onChange: (next: "shell" | "ai") => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="relative grid shrink-0 grid-cols-2 rounded-md p-0.5 text-[10.5px] ring-1 ring-inset ring-border/35">
       <span
@@ -221,13 +228,13 @@ function ModeToggle({
       <SegButton
         active={mode === "shell"}
         icon={TerminalIcon}
-        label="Shell"
+        label={t("app.workspaceInput.modeShell")}
         onClick={() => onChange("shell")}
       />
       <SegButton
         active={mode === "ai"}
         icon={AiContentGenerator02Icon}
-        label="AI"
+        label={t("app.workspaceInput.modeAi")}
         onClick={() => onChange("ai")}
       />
     </div>

@@ -40,11 +40,13 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ACCEPTED_FILES, useComposer } from "../lib/composer";
 import { toggleFavoriteModel } from "../lib/modelPrefs";
 import { useChatStore } from "../store/chatStore";
 
 export function AiOpenButton({ onOpen }: { onOpen: () => void }) {
+  const { t } = useTranslation();
   return (
     <button
       type="button"
@@ -54,15 +56,16 @@ export function AiOpenButton({ onOpen }: { onOpen: () => void }) {
         "text-muted-foreground transition-colors hover:border-border hover:bg-accent hover:text-foreground",
         "animate-in slide-in-from-top-2 duration-200 ease-out",
       )}
-      title="Open AI agent"
+      title={t("ai.statusbar.openAiAgent")}
     >
-      <span>Open AI agent</span>
+      <span>{t("ai.statusbar.openAiAgent")}</span>
       <Kbd className="h-4 min-w-4 px-1">{fmtShortcut(MOD_KEY, "I")}</Kbd>
     </button>
   );
 }
 
 export function AiStatusBarControls() {
+  const { t } = useTranslation();
   const c = useComposer();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const toggleMini = useChatStore((s) => s.toggleMini);
@@ -84,7 +87,7 @@ export function AiStatusBarControls() {
       />
 
       <IconBtn
-        title="Attach file or image"
+        title={t("ai.statusbar.attachFile")}
         onClick={() => fileInputRef.current?.click()}
         disabled={c.isBusy}
       >
@@ -96,10 +99,10 @@ export function AiStatusBarControls() {
       <span className="mx-1 h-8 w-px bg-border" aria-hidden />
       <Button
         onClick={closePanel}
-        title="Close AI panel"
+        title={t("ai.statusbar.closePanel")}
         size="xs"
         variant="ghost"
-        aria-label="Close AI panel"
+        aria-label={t("ai.statusbar.closePanel")}
         className="text-[11px] text-foreground/85 px-1"
       >
         <Kbd className="h-4 gap-px px-2 font-mono text-[11px]">
@@ -107,7 +110,12 @@ export function AiStatusBarControls() {
         </Kbd>
       </Button>
       <IconBtn
-        title={`${miniOpen ? "Close" : "Open"} AI chat window (${fmtShortcut("⇧", MOD_KEY, "I")})`}
+        title={t(
+          miniOpen
+            ? "ai.statusbar.closeChatWindow"
+            : "ai.statusbar.openChatWindow",
+          { shortcut: fmtShortcut("⇧", MOD_KEY, "I") },
+        )}
         onClick={toggleMini}
       >
         <HugeiconsIcon icon={Message01Icon} size={13} strokeWidth={1.75} />
@@ -120,8 +128,8 @@ export function AiStatusBarControls() {
           variant="ghost"
           onClick={c.stop}
           className="size-6"
-          aria-label="Stop"
-          title="Stop"
+          aria-label={t("ai.statusbar.stop")}
+          title={t("ai.statusbar.stop")}
         >
           <HugeiconsIcon icon={StopCircleIcon} size={13} strokeWidth={1.75} />
         </Button>
@@ -132,8 +140,8 @@ export function AiStatusBarControls() {
           onClick={c.submit}
           disabled={!c.canSend}
           className="h-5.5 w-7.5 ml-1"
-          aria-label="Send"
-          title="Send (Enter)"
+          aria-label={t("ai.statusbar.send")}
+          title={t("ai.statusbar.sendEnter")}
         >
           <HugeiconsIcon icon={ArrowUpIcon} size={13} strokeWidth={1.75} />
         </Button>
@@ -149,6 +157,7 @@ type Tab = "all" | "favorites" | "recent";
  * 底部是该模型的思考滑块，档位来自所选模型自己的阶梯声明。
  */
 function ModelDropdown() {
+  const { t } = useTranslation();
   const selected = useChatStore((s) => s.selectedModelId);
   const apiKeys = useChatStore((s) => s.apiKeys);
   const setSelected = useChatStore((s) => s.setSelectedModelId);
@@ -168,7 +177,8 @@ function ModelDropdown() {
   );
 
   const allModels = useMemo(
-    () => config.providers.flatMap((p) => p.models.map((m) => toModelInfo(p, m))),
+    () =>
+      config.providers.flatMap((p) => p.models.map((m) => toModelInfo(p, m))),
     [config],
   );
 
@@ -221,7 +231,7 @@ function ModelDropdown() {
   const offLabel =
     current?.model.thinking?.offLabel ??
     current?.providerEntry.thinking?.offLabel ??
-    "关闭";
+    t("ai.modelPicker.thinkingOff");
 
   return (
     <DropdownMenu>
@@ -238,13 +248,15 @@ function ModelDropdown() {
           )}
           title={
             !current
-              ? "No model configured — open Settings → Models"
+              ? t("ai.modelPicker.noModelConfigured")
               : currentProviderHasKey
-                ? `Model: ${current.label}`
-                : `${current.label} — no key configured`
+                ? t("ai.modelPicker.modelTitle", { label: current.label })
+                : t("ai.modelPicker.noKeyConfigured", {
+                    label: current.label,
+                  })
           }
         >
-          {current?.label ?? "Select model"}
+          {current?.label ?? t("ai.modelPicker.selectModel")}
           <HugeiconsIcon
             icon={ArrowDown01Icon}
             size={11}
@@ -273,27 +285,27 @@ function ModelDropdown() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={(e) => e.stopPropagation()}
-            placeholder="Search models and providers…"
+            placeholder={t("ai.modelPicker.searchPlaceholder")}
             className="w-full bg-transparent text-xs outline-none placeholder:text-muted-foreground/60"
           />
         </div>
 
         <div className="flex items-center gap-0.5 border-b border-border/70 px-2 py-1.5">
           <TabButton
-            label="All"
+            label={t("ai.modelPicker.tabAll")}
             icon={AiBookIcon}
             active={tab === "all"}
             onClick={() => setTab("all")}
           />
           <TabButton
-            label="Favorites"
+            label={t("ai.modelPicker.tabFavorites")}
             icon={FavouriteIcon}
             active={tab === "favorites"}
             onClick={() => setTab("favorites")}
             count={favoriteIds.length || undefined}
           />
           <TabButton
-            label="Recent"
+            label={t("ai.modelPicker.tabRecent")}
             icon={Clock01Icon}
             active={tab === "recent"}
             onClick={() => setTab("recent")}
@@ -305,7 +317,7 @@ function ModelDropdown() {
           <div className="flex w-11 shrink-0 flex-col gap-0.5 overflow-y-auto border-r border-border/70 bg-muted/20 py-1.5">
             <ProviderPill
               icon={AiBookIcon}
-              title="All providers"
+              title={t("ai.modelPicker.allProviders")}
               active={activeProvider === null}
               onClick={() => setActiveProvider(null)}
             />
@@ -315,7 +327,13 @@ function ModelDropdown() {
                 <button
                   key={p.id}
                   type="button"
-                  title={connected ? p.label : `${p.label} — not configured`}
+                  title={
+                    connected
+                      ? p.label
+                      : t("ai.modelPicker.providerNotConfigured", {
+                          label: p.label,
+                        })
+                  }
                   onClick={() => setActiveProvider(p.id)}
                   className={cn(
                     "relative mx-auto flex size-8 items-center justify-center rounded-md transition-colors",
@@ -348,18 +366,22 @@ function ModelDropdown() {
                 onClick={() => void openSettingsWindow("models")}
                 className="group mx-2 my-2 flex w-[calc(100%-1rem)] items-center gap-2 rounded-md border border-dashed border-border/70 bg-muted/20 px-3 py-2 text-left text-[11px] text-muted-foreground transition-colors hover:border-border hover:bg-accent/40 hover:text-foreground"
               >
-                <HugeiconsIcon icon={Settings01Icon} size={13} strokeWidth={1.75} />
+                <HugeiconsIcon
+                  icon={Settings01Icon}
+                  size={13}
+                  strokeWidth={1.75}
+                />
                 <span className="flex-1">
-                  No models yet — add a provider and a model in Settings.
+                  {t("ai.modelPicker.noModelsYet")}
                 </span>
               </button>
             ) : filtered.length === 0 ? (
               <div className="flex items-center justify-center px-4 py-10 text-xs text-muted-foreground/70">
                 {tab === "favorites"
-                  ? "No favorites yet — star a model to pin it here."
+                  ? t("ai.modelPicker.noFavorites")
                   : tab === "recent"
-                    ? "No recently-used models."
-                    : "No models match."}
+                    ? t("ai.modelPicker.noRecent")
+                    : t("ai.modelPicker.noMatch")}
               </div>
             ) : (
               filtered.map((m) => (
@@ -389,7 +411,7 @@ function ModelDropdown() {
             <div className="mb-1.5 flex items-center justify-between">
               <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                 <HugeiconsIcon icon={BrainIcon} size={12} strokeWidth={1.75} />
-                思考等级
+                {t("ai.modelPicker.thinkingLevel")}
               </span>
               <span className="text-[11px] font-medium text-foreground">
                 {activeLevel?.label ?? offLabel}
@@ -418,7 +440,7 @@ function ModelDropdown() {
               ))}
             </div>
             <p className="mt-1 text-[9.5px] leading-relaxed text-muted-foreground/60">
-              终端场景下思考会增加延迟，建议保持关闭。
+              {t("ai.modelPicker.thinkingHint")}
             </p>
           </div>
         ) : null}
@@ -491,6 +513,7 @@ function ProviderPill({
 }
 
 function ProviderConfigureCTA({ providerId }: { providerId: string }) {
+  const { t } = useTranslation();
   const p = findProvider(providerId);
   if (!p) return null;
   return (
@@ -501,10 +524,10 @@ function ProviderConfigureCTA({ providerId }: { providerId: string }) {
     >
       <HugeiconsIcon icon={Settings01Icon} size={13} strokeWidth={1.75} />
       <span className="flex-1 truncate">
-        Configure {p.label} to use these models.
+        {t("ai.modelPicker.configureProvider", { provider: p.label })}
       </span>
       <span className="shrink-0 text-[10px] underline-offset-2 group-hover:underline">
-        Open
+        {t("ai.modelPicker.open")}
       </span>
     </button>
   );
@@ -527,6 +550,7 @@ function ModelRow({
   onPick: () => void;
   onToggleFavorite: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <DropdownMenuItem
       onSelect={(e) => {
@@ -546,7 +570,11 @@ function ModelRow({
           e.stopPropagation();
           onToggleFavorite();
         }}
-        title={favorite ? "Unfavorite" : "Favorite"}
+        title={
+          favorite
+            ? t("ai.modelPicker.unfavorite")
+            : t("ai.modelPicker.favorite")
+        }
         className={cn(
           "shrink-0 rounded p-0.5 transition-colors",
           favorite

@@ -7,6 +7,7 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
+import { t } from "@/modules/i18n";
 import {
   currentWorkspaceEnv,
   useWorkspaceEnvStore,
@@ -527,7 +528,7 @@ export function useFileTree(rootPath: string | null, options?: Options) {
           const parents = new Set(deleted.map(dirname));
           await Promise.all([...parents].map((path) => fetchChildren(path)));
         }
-        if (failed > 0) toast.error("Delete failed for one or more items");
+        if (failed > 0) toast.error(t("explorer.toast.deleteFailed"));
       };
       await run();
     },
@@ -546,13 +547,16 @@ export function useFileTree(rootPath: string | null, options?: Options) {
           resolve(resolution);
           if (dismiss) toast.dismiss(id);
         };
-        id = toast.warning(`"${name}" already exists`, {
+        id = toast.warning(t("explorer.toast.alreadyExists", { name }), {
           duration: Infinity,
           action: {
-            label: "Replace",
+            label: t("explorer.toast.replace"),
             onClick: () => finish("replace", true),
           },
-          cancel: { label: "Skip", onClick: () => finish("skip", true) },
+          cancel: {
+            label: t("explorer.toast.skip"),
+            onClick: () => finish("skip", true),
+          },
           onDismiss: () => finish("skip", false),
         });
         conflictPromptsRef.current.set(id, () => finish("skip", true));
@@ -589,11 +593,13 @@ export function useFileTree(rootPath: string | null, options?: Options) {
           await Promise.all([...parents].map((path) => fetchChildren(path)));
         }
         if (outcome.blocked > 0) {
-          toast.warning("Close destination before replacing");
+          toast.warning(t("explorer.toast.closeDestination"));
         }
         if (outcome.failures > 0) {
           toast.error(
-            outcome.moved > 0 ? "Some items could not be moved" : "Move failed",
+            outcome.moved > 0
+              ? t("explorer.toast.someNotMoved")
+              : t("explorer.toast.moveFailed"),
           );
         }
       };

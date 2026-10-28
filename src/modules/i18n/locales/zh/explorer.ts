@@ -1,0 +1,53 @@
+import type { explorer } from "../en/explorer";
+
+/** 文件资源管理器：工具栏、上下文菜单、搜索、新建/重命名占位符、拖放与粘贴/移动/删除的 toast。 */
+export const explorerZh: typeof explorer = {
+  searchFiles: "搜索文件",
+  newFile: "新建文件",
+  newFolder: "新建文件夹",
+  refresh: "刷新",
+  noCurrentDirectory: "没有当前目录",
+  loading: "加载中…",
+  menu: {
+    open: "打开",
+    openInTerminal: "在终端中打开",
+    openInSourceControl: "在源代码管理中打开",
+    openGitHistory: "打开 Git 历史",
+    revealInFinder: "在 Finder 中显示",
+    newFile: "新建文件",
+    newFolder: "新建文件夹",
+    paste: "粘贴",
+    copyPath: "复制路径",
+    copyRelativePath: "复制相对路径",
+    attachToAgent: "附加到 Agent",
+    delete: "删除",
+    deleteItems_one: "删除 {{count}} 个项目",
+    deleteItems_other: "删除 {{count}} 个项目",
+    clickAgainToConfirm: "再次点击以确认",
+  },
+  search: {
+    placeholder: "搜索文件…",
+    clear: "清除搜索",
+    searching: "搜索中…",
+    noMatches: "无匹配项",
+    partialResults: "仅显示部分结果 — 请细化你的查询。",
+  },
+  dnd: {
+    items_one: "{{count}} 个项目",
+    items_other: "{{count}} 个项目",
+  },
+  toast: {
+    deleteFailed: "一个或多个项目删除失败",
+    alreadyExists: "“{{name}}” 已存在",
+    replace: "替换",
+    skip: "跳过",
+    closeDestination: "替换前请先关闭目标文件",
+    someNotMoved: "部分项目无法移动",
+    moveFailed: "移动失败",
+    copyFailed_one: "无法复制 {{count}} 个项目",
+    copyFailed_other: "无法复制 {{count}} 个项目",
+    copyFailedWithError: "复制失败：{{error}}",
+    noFilesOnClipboard: "剪贴板上没有文件",
+    pasteFailed: "粘贴失败：{{error}}",
+  },
+};

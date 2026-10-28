@@ -15,6 +15,14 @@
 - 职责：主窗口 UI（终端标签页、编辑器、AI 面板）。
 - 对外暴露：`src/modules/settings/openSettingsWindow.ts` 的 `openSettingsWindow(tab?)`，是打开设置窗口的唯一入口（App.tsx、AgentSwitcher、AiStatusBarControls 等调用）。
 - 关键依赖：[前端主应用] → [应用外壳]（IPC）；[前端主应用] → [ghostty-core]（终端渲染）。
+- 易错点：`main.tsx` 是**顶层 await 模块**且窗口在 `tauri.conf.json` 里 `visible:false`、由前端首屏后 `window.show()`——入口模块任何一步崩溃都表现为「编译正常、进程活着、窗口永不出现」。排查手法见 pitfalls/2026-10-28-i18n-circular-import-tdz.md。
+
+### i18n  `src/modules/i18n/`
+- 职责：全应用文案（中/英），语言偏好来自 settings（`"system"` 按操作系统语言判定）。
+- 对外暴露：组件内 `useTranslation`；组件外（配置表、toast、校验信息）用模块级 `t()`；入口 `initI18n()`（两个窗口入口各自顶层 await）。
+- 关键依赖：[i18n] →（运行期 `t()` 被全应用静态 import，合法方向）；i18n 自身**不得静态依赖上层模块**（INV-009），对 preferences 的读取是 `initI18n` 内的动态 import。
+- 易错点：见 pitfalls/2026-10-28-i18n-circular-import-tdz.md。
+- 决策依据：见 decisions/2026-10-28-i18n-architecture.md
 
 ### 设置窗口  `src/settings/`、`src/modules/settings/`
 - 职责：独立 webview 中的设置页（general/editor/themes/shortcuts/models/agents/about 七个标签）。

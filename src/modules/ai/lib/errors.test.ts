@@ -1,7 +1,18 @@
 import { streamText } from "ai";
 import { MockLanguageModelV3 } from "ai/test";
-import { describe, expect, it } from "vitest";
+import i18next from "i18next";
+import { beforeAll, describe, expect, it } from "vitest";
+import { ai } from "@/modules/i18n/locales/en/ai";
 import { formatAiError } from "./errors";
+
+// formatAiError 的文案走 i18n；这里直接挂英文词典，断言真实英文文案。
+beforeAll(async () => {
+  await i18next.init({
+    resources: { en: { translation: { ai } } },
+    lng: "en",
+    interpolation: { escapeValue: false },
+  });
+});
 
 describe("formatAiError", () => {
   it("surfaces nested provider model errors", () => {

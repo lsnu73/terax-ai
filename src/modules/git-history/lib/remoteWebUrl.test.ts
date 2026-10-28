@@ -1,5 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { commitWebUrl, hostLabel, parseRemoteWebUrl } from "./remoteWebUrl";
+
+// i18next is not initialized in tests; t() resolves to the key name.
+vi.mock("@/modules/i18n", () => ({
+  t: (key: string) => key,
+}));
 
 describe("parseRemoteWebUrl", () => {
   it("parses an scp-style GitHub remote", () => {
@@ -99,8 +104,9 @@ describe("hostLabel", () => {
     const bitbucket = parseRemoteWebUrl("https://bitbucket.org/team/app.git");
     if (!github || !gitlab || !bitbucket) throw new Error("expected parses");
 
-    expect(hostLabel(github)).toBe("View on GitHub");
-    expect(hostLabel(gitlab)).toBe("View on GitLab");
-    expect(hostLabel(bitbucket)).toBe("View on Bitbucket");
+    // t() is mocked to return the key name.
+    expect(hostLabel(github)).toBe("gitHistory.viewOnGitHub");
+    expect(hostLabel(gitlab)).toBe("gitHistory.viewOnGitLab");
+    expect(hostLabel(bitbucket)).toBe("gitHistory.viewOnBitbucket");
   });
 });

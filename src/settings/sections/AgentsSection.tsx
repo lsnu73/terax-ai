@@ -9,7 +9,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { AGENT_ICONS } from "@/modules/ai/components/AgentSwitcher";
+import {
+  AGENT_ICONS,
+  agentDisplay,
+} from "@/modules/ai/components/AgentSwitcher";
 import {
   type Agent,
   type AgentIconId,
@@ -36,6 +39,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { SectionHeader } from "../components/SectionHeader";
 
 const ICON_OPTIONS: AgentIconId[] = [
@@ -48,6 +52,7 @@ const ICON_OPTIONS: AgentIconId[] = [
 ];
 
 export function AgentsSection() {
+  const { t } = useTranslation();
   const customInstructions = usePreferencesStore((s) => s.customInstructions);
   const customAgents = useAgentsStore((s) => s.customAgents);
   const activeAgentId = useAgentsStore((s) => s.activeId);
@@ -72,15 +77,15 @@ export function AgentsSection() {
   return (
     <div className="flex flex-col gap-7">
       <SectionHeader
-        title="Agents"
-        description="Personas and snippets the AI uses. Switch agents from the input bar."
+        title={t("settings.agents.header.title")}
+        description={t("settings.agents.header.description")}
       />
 
       <CustomInstructionsBlock value={customInstructions} />
 
       <section className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <Label>Agents</Label>
+          <Label>{t("settings.agents.agents.label")}</Label>
           <Button
             size="sm"
             variant="outline"
@@ -88,7 +93,7 @@ export function AgentsSection() {
             onClick={() =>
               setEditingAgent({
                 id: newAgentId(),
-                name: "New agent",
+                name: t("settings.agents.agents.defaultName"),
                 description: "",
                 instructions: "",
                 icon: "spark",
@@ -97,7 +102,7 @@ export function AgentsSection() {
             }
           >
             <HugeiconsIcon icon={Add01Icon} size={12} strokeWidth={1.75} />
-            New agent
+            {t("settings.agents.agents.new")}
           </Button>
         </div>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -117,13 +122,13 @@ export function AgentsSection() {
       <section className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <div className="flex flex-col">
-            <Label>Snippets</Label>
+            <Label>{t("settings.agents.snippets.label")}</Label>
             <span className="text-[10.5px] text-muted-foreground">
-              Reusable instructions you can drop into any prompt with{" "}
+              {t("settings.agents.snippets.hintPre")}{" "}
               <code className="rounded bg-muted/50 px-1 font-mono">
                 #handle
               </code>
-              .
+              {t("settings.agents.snippets.hintPost")}
             </span>
           </div>
           <Button
@@ -141,14 +146,15 @@ export function AgentsSection() {
             }
           >
             <HugeiconsIcon icon={Add01Icon} size={12} strokeWidth={1.75} />
-            New snippet
+            {t("settings.agents.snippets.new")}
           </Button>
         </div>
 
         {snippets.length === 0 ? (
           <div className="rounded-lg border border-dashed border-border/60 bg-card/30 px-4 py-6 text-center text-[11px] text-muted-foreground">
-            No snippets yet. Create one and insert it with{" "}
-            <code className="font-mono">#handle</code> in the AI input.
+            {t("settings.agents.snippets.emptyPre")}{" "}
+            <code className="font-mono">#handle</code>{" "}
+            {t("settings.agents.snippets.emptyPost")}
           </div>
         ) : (
           <ul className="flex flex-col gap-1.5">
@@ -175,7 +181,7 @@ export function AgentsSection() {
                   variant="ghost"
                   className="size-7"
                   onClick={() => setEditingSnippet(s)}
-                  title="Edit"
+                  title={t("settings.agents.card.edit")}
                 >
                   <HugeiconsIcon
                     icon={Edit02Icon}
@@ -188,7 +194,7 @@ export function AgentsSection() {
                   variant="ghost"
                   className="size-7 text-muted-foreground hover:text-destructive"
                   onClick={() => removeSnippet(s.id)}
-                  title="Delete"
+                  title={t("settings.agents.card.delete")}
                 >
                   <HugeiconsIcon
                     icon={Delete02Icon}
@@ -237,7 +243,9 @@ function AgentCard({
   onEdit: (() => void) | null;
   onDelete: (() => void) | null;
 }) {
+  const { t } = useTranslation();
   const Icon = AGENT_ICONS[agent.icon] ?? SparklesIcon;
+  const display = agentDisplay(agent, t);
   return (
     <div
       className={cn(
@@ -253,15 +261,15 @@ function AgentCard({
         </div>
         <div className="flex min-w-0 flex-1 flex-col">
           <span className="flex items-center gap-1.5 text-[12.5px] font-medium">
-            {agent.name}
+            {display.name}
             {agent.builtIn ? (
               <span className="rounded bg-muted/50 px-1 py-0.5 text-[9px] tracking-wide text-muted-foreground uppercase">
-                Built-in
+                {t("settings.agents.card.builtIn")}
               </span>
             ) : null}
           </span>
           <span className="line-clamp-2 text-[10.5px] leading-relaxed text-muted-foreground">
-            {agent.description}
+            {display.description}
           </span>
         </div>
       </div>
@@ -279,10 +287,10 @@ function AgentCard({
                 size={10}
                 strokeWidth={2}
               />
-              Active
+              {t("settings.agents.card.active")}
             </>
           ) : (
-            "Use agent"
+            t("settings.agents.card.use")
           )}
         </Button>
         <div className="flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
@@ -292,7 +300,7 @@ function AgentCard({
               variant="ghost"
               className="size-6"
               onClick={onEdit}
-              title="Edit"
+              title={t("settings.agents.card.edit")}
             >
               <HugeiconsIcon icon={Edit02Icon} size={11} strokeWidth={1.75} />
             </Button>
@@ -303,7 +311,7 @@ function AgentCard({
               variant="ghost"
               className="size-6 text-muted-foreground hover:text-destructive"
               onClick={onDelete}
-              title="Delete"
+              title={t("settings.agents.card.delete")}
             >
               <HugeiconsIcon icon={Delete02Icon} size={11} strokeWidth={1.75} />
             </Button>
@@ -325,6 +333,7 @@ function AgentEditorDialog({
   onClose: () => void;
   onSave: (a: Agent) => void;
 }) {
+  const { t } = useTranslation();
   const [draft, setDraft] = useState<Agent | null>(agent);
   useEffect(() => setDraft(agent), [agent]);
   if (!draft) return null;
@@ -338,13 +347,15 @@ function AgentEditorDialog({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="text-[14px]">
-            {isNew ? "New agent" : "Edit agent"}
+            {isNew
+              ? t("settings.agents.agentDialog.newTitle")
+              : t("settings.agents.agentDialog.editTitle")}
           </DialogTitle>
         </DialogHeader>
         <div className="-mx-2 max-h-[calc(100vh-14rem)] overflow-y-auto px-2 flex flex-col gap-3">
           <div className="flex gap-2">
             <div className="flex flex-col gap-1">
-              <Label>Icon</Label>
+              <Label>{t("settings.agents.agentDialog.icon")}</Label>
               <div className="flex flex-wrap gap-1">
                 {ICON_OPTIONS.map((id) => {
                   const Icon = AGENT_ICONS[id] ?? SparklesIcon;
@@ -368,48 +379,52 @@ function AgentEditorDialog({
               </div>
             </div>
             <div className="flex flex-1 flex-col gap-1">
-              <Label>Name</Label>
+              <Label>{t("settings.agents.agentDialog.name")}</Label>
               <Input
                 value={draft.name}
                 onChange={(e) => setDraft({ ...draft, name: e.target.value })}
                 className="h-8 text-[12px]"
-                placeholder="e.g. Test Engineer"
+                placeholder={t("settings.agents.agentDialog.namePlaceholder")}
               />
             </div>
           </div>
           <div className="flex flex-col gap-1">
-            <Label>Description</Label>
+            <Label>{t("settings.agents.agentDialog.description")}</Label>
             <Input
               value={draft.description}
               onChange={(e) =>
                 setDraft({ ...draft, description: e.target.value })
               }
-              placeholder="One line — shown in the agent picker"
+              placeholder={t(
+                "settings.agents.agentDialog.descriptionPlaceholder",
+              )}
               className="h-8 text-[12px]"
             />
           </div>
           <div className="flex flex-col gap-1">
-            <Label>Instructions</Label>
+            <Label>{t("settings.agents.agentDialog.instructions")}</Label>
             <Textarea
               value={draft.instructions}
               onChange={(e) =>
                 setDraft({ ...draft, instructions: e.target.value })
               }
-              placeholder="Persona & rules. Appended to Terax's core system prompt."
+              placeholder={t(
+                "settings.agents.agentDialog.instructionsPlaceholder",
+              )}
               className="min-h-40 resize-y text-[12px] leading-relaxed"
             />
           </div>
         </div>
         <DialogFooter>
           <Button variant="ghost" size="sm" onClick={onClose}>
-            Cancel
+            {t("settings.agents.common.cancel")}
           </Button>
           <Button
             size="sm"
             disabled={!canSave}
             onClick={() => onSave({ ...draft, builtIn: false })}
           >
-            Save
+            {t("settings.agents.common.save")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -428,16 +443,17 @@ function SnippetEditorDialog({
   onClose: () => void;
   onSave: (s: Snippet) => void;
 }) {
+  const { t } = useTranslation();
   const [draft, setDraft] = useState<Snippet | null>(snippet);
   useEffect(() => setDraft(snippet), [snippet]);
   if (!draft) return null;
 
   const handleErr = !draft.handle
-    ? "Required."
+    ? t("settings.agents.snippetDialog.handleErrorRequired")
     : !isValidHandle(draft.handle)
-      ? "Lowercase letters, digits, and dashes only."
+      ? t("settings.agents.snippetDialog.handleErrorInvalid")
       : existing.some((s) => s.id !== draft.id && s.handle === draft.handle)
-        ? "Already in use."
+        ? t("settings.agents.snippetDialog.handleErrorInUse")
         : null;
   const canSave =
     !handleErr &&
@@ -450,14 +466,14 @@ function SnippetEditorDialog({
         <DialogHeader>
           <DialogTitle className="text-[14px]">
             {existing.some((s) => s.id === draft.id)
-              ? "Edit snippet"
-              : "New snippet"}
+              ? t("settings.agents.snippetDialog.editTitle")
+              : t("settings.agents.snippetDialog.newTitle")}
           </DialogTitle>
         </DialogHeader>
         <div className="-mx-2 max-h-[calc(100vh-14rem)] overflow-y-auto px-2 flex flex-col gap-3">
           <div className="flex gap-2">
             <div className="flex w-32 flex-col gap-1">
-              <Label>Handle</Label>
+              <Label>{t("settings.agents.snippetDialog.handle")}</Label>
               <div className="relative">
                 <span className="absolute top-1/2 left-2 -translate-y-1/2 font-mono text-[11.5px] text-muted-foreground">
                   #
@@ -481,42 +497,46 @@ function SnippetEditorDialog({
               ) : null}
             </div>
             <div className="flex flex-1 flex-col gap-1">
-              <Label>Name</Label>
+              <Label>{t("settings.agents.snippetDialog.name")}</Label>
               <Input
                 value={draft.name}
                 onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-                placeholder="e.g. Pre-merge review checklist"
+                placeholder={t("settings.agents.snippetDialog.namePlaceholder")}
                 className="h-8 text-[12px]"
               />
             </div>
           </div>
           <div className="flex flex-col gap-1">
-            <Label>Description</Label>
+            <Label>{t("settings.agents.snippetDialog.description")}</Label>
             <Input
               value={draft.description}
               onChange={(e) =>
                 setDraft({ ...draft, description: e.target.value })
               }
-              placeholder="One line — shown in the # picker"
+              placeholder={t(
+                "settings.agents.snippetDialog.descriptionPlaceholder",
+              )}
               className="h-8 text-[12px]"
             />
           </div>
           <div className="flex flex-col gap-1">
-            <Label>Content</Label>
+            <Label>{t("settings.agents.snippetDialog.content")}</Label>
             <Textarea
               value={draft.content}
               onChange={(e) => setDraft({ ...draft, content: e.target.value })}
-              placeholder="Inserted into the prompt as a <snippet> block when you use #handle."
+              placeholder={t(
+                "settings.agents.snippetDialog.contentPlaceholder",
+              )}
               className="min-h-40 resize-y font-mono text-[11.5px] leading-relaxed"
             />
           </div>
         </div>
         <DialogFooter>
           <Button variant="ghost" size="sm" onClick={onClose}>
-            Cancel
+            {t("settings.agents.common.cancel")}
           </Button>
           <Button size="sm" disabled={!canSave} onClick={() => onSave(draft)}>
-            Save
+            {t("settings.agents.common.save")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -525,6 +545,7 @@ function SnippetEditorDialog({
 }
 
 function CustomInstructionsBlock({ value }: { value: string }) {
+  const { t } = useTranslation();
   const [draft, setDraft] = useState(value);
   const hadFirstSync = useRef(false);
 
@@ -538,20 +559,20 @@ function CustomInstructionsBlock({ value }: { value: string }) {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <Label>Custom instructions</Label>
+        <Label>{t("settings.agents.customInstructions.label")}</Label>
         {/* {savedTick > 0 ? (
           <span className="text-[10px] text-muted-foreground">Saved</span>
         ) : null} */}
         {draft && (
           <Button size="xs" onClick={() => void setCustomInstructions(draft)}>
-            Save
+            {t("settings.agents.customInstructions.save")}
           </Button>
         )}
       </div>
       <Textarea
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
-        placeholder="e.g. Always reply in concise bullet points. Prefer pnpm over npm. My machine is an M-series Mac."
+        placeholder={t("settings.agents.customInstructions.placeholder")}
         className="min-h-[100px] resize-y bg-card/60 font-sans text-[12px] leading-relaxed border border-border"
       />
     </div>

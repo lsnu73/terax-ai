@@ -5,14 +5,15 @@ type PaletteIcon = typeof TerminalIcon;
 
 export type PaletteItem = {
   id: string;
-  title: string;
+  titleKey: string;
+  titleParams?: Record<string, unknown>;
   group: string;
   keywords?: string[];
   icon?: PaletteIcon;
   iconUrl?: string;
   shortcutId?: ShortcutId;
   trailing?: string;
-  disabledReason?: string;
+  disabledReasonKey?: string;
   run: () => void;
 };
 

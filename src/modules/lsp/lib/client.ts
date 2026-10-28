@@ -24,6 +24,7 @@ import {
   openLocationsPanel,
 } from "./locationsPanel";
 import { fileUriToPath } from "./uri";
+import { t } from "@/modules/i18n";
 
 export {
   languageServerWithTransport,
@@ -322,7 +323,7 @@ export function lspInteractions(opts: {
     } catch {
       return;
     }
-    showResults(view, "Definitions", normalizeLocations(result));
+    showResults(view, t("lsp.panel.definitions"), normalizeLocations(result));
   };
 
   const findReferences = async (
@@ -339,7 +340,7 @@ export function lspInteractions(opts: {
     } catch {
       return;
     }
-    showResults(view, "References", result ?? []);
+    showResults(view, t("lsp.panel.references"), result ?? []);
   };
 
   return [
@@ -420,8 +421,11 @@ export class TeraxLspClient extends LanguageServerClient {
     position: LspPos;
     context: { includeDeclaration: boolean };
   }): Promise<LspLocation[] | null> {
-    return this.raw.request("textDocument/references", params, 10_000) as
-      Promise<LspLocation[] | null>;
+    return this.raw.request(
+      "textDocument/references",
+      params,
+      10_000,
+    ) as Promise<LspLocation[] | null>;
   }
 
   textDocumentDidClose(uri: string): void {

@@ -16,6 +16,7 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { type JSX, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { AboutSection } from "./sections/AboutSection";
 import { AgentsSection } from "./sections/AgentsSection";
 import { EditorSection } from "./sections/EditorSection";
@@ -26,44 +27,49 @@ import { ThemesSection } from "./sections/ThemesSection";
 
 const TABS: {
   id: SettingsTab;
-  label: string;
+  labelKey: string;
   icon: typeof Settings01Icon;
   component: () => JSX.Element;
 }[] = [
   {
     id: "general",
-    label: "General",
+    labelKey: "settings.tabs.general",
     icon: Settings01Icon,
     component: GeneralSection,
   },
   {
     id: "editor",
-    label: "Editor",
+    labelKey: "settings.tabs.editor",
     icon: SourceCodeIcon,
     component: EditorSection,
   },
   {
     id: "themes",
-    label: "Themes",
+    labelKey: "settings.tabs.themes",
     icon: PaintBoardIcon,
     component: ThemesSection,
   },
   {
     id: "shortcuts",
-    label: "Shortcuts",
+    labelKey: "settings.tabs.shortcuts",
     icon: KeyboardIcon,
     component: ShortcutsSection,
   },
-  { id: "models", label: "Models", icon: AiScanIcon, component: ModelsSection },
+  {
+    id: "models",
+    labelKey: "settings.tabs.models",
+    icon: AiScanIcon,
+    component: ModelsSection,
+  },
   {
     id: "agents",
-    label: "Agents",
+    labelKey: "settings.tabs.agents",
     icon: UserMultiple02Icon,
     component: AgentsSection,
   },
   {
     id: "about",
-    label: "About",
+    labelKey: "settings.tabs.about",
     icon: InformationCircleIcon,
     component: AboutSection,
   },
@@ -90,6 +96,7 @@ function readInitialTab(): SettingsTab {
 }
 
 export function SettingsApp() {
+  const { t } = useTranslation();
   const [active, setActive] = useState<SettingsTab>(readInitialTab);
   const init = usePreferencesStore((s) => s.init);
   const ActiveSection = TABS.find((t) => t.id === active)?.component;
@@ -133,14 +140,14 @@ export function SettingsApp() {
           data-tauri-drag-region
         >
           <TabsList className="mx-auto h-7 bg-muted/40 px-2">
-            {TABS.map((t) => (
+            {TABS.map((tab) => (
               <TabsTrigger
-                key={t.id}
-                value={t.id}
+                key={tab.id}
+                value={tab.id}
                 className="h-6 gap-1.5 px-2.5 text-[11.5px]"
               >
-                <HugeiconsIcon icon={t.icon} size={12} strokeWidth={1.75} />
-                <span>{t.label}</span>
+                <HugeiconsIcon icon={tab.icon} size={12} strokeWidth={1.75} />
+                <span>{t(tab.labelKey)}</span>
               </TabsTrigger>
             ))}
           </TabsList>

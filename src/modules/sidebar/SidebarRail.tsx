@@ -1,13 +1,14 @@
 import { cn } from "@/lib/utils";
 import { FolderGitTwoIcon, FolderTreeIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { useTranslation } from "react-i18next";
 import type { SidebarViewId } from "./types";
 
 const SIDEBAR_RAIL_HEIGHT = 36;
 
 type RailItem = {
   id: SidebarViewId;
-  label: string;
+  labelKey: string;
   icon: Parameters<typeof HugeiconsIcon>[0]["icon"];
   badge?: number;
 };
@@ -19,11 +20,12 @@ type Props = {
 };
 
 export function SidebarRail({ activeView, onSelectView, changedCount }: Props) {
+  const { t } = useTranslation();
   const items: RailItem[] = [
-    { id: "explorer", label: "Files", icon: FolderTreeIcon },
+    { id: "explorer", labelKey: "sidebar.files", icon: FolderTreeIcon },
     {
       id: "source-control",
-      label: "Git",
+      labelKey: "sidebar.git",
       icon: FolderGitTwoIcon,
       badge: changedCount,
     },
@@ -41,7 +43,7 @@ export function SidebarRail({ activeView, onSelectView, changedCount }: Props) {
           <button
             key={item.id}
             type="button"
-            aria-label={item.label}
+            aria-label={t(item.labelKey)}
             aria-pressed={isActive}
             onClick={() => onSelectView(item.id)}
             className={cn(
@@ -58,7 +60,7 @@ export function SidebarRail({ activeView, onSelectView, changedCount }: Props) {
               strokeWidth={isActive ? 2 : 1.75}
               className="shrink-0 transition-[stroke-width] duration-[var(--dur-base)]"
             />
-            <span>{item.label}</span>
+            <span>{t(item.labelKey)}</span>
             {showBadge ? (
               <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full border border-border/60 bg-card px-1 text-[9px] font-semibold leading-none tabular-nums text-muted-foreground/95">
                 {item.badge! > 99 ? "99+" : item.badge}

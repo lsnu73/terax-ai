@@ -23,6 +23,7 @@ import type {
   ParamDef,
   ThinkingConfig,
 } from "@/modules/ai/config";
+import { t as i18nT } from "@/modules/i18n";
 import {
   Add01Icon,
   Cancel01Icon,
@@ -30,6 +31,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 type ParseResult<T> = { ok: true; value: T } | { ok: false; error: string };
 
@@ -86,13 +88,14 @@ function withOptionalField<T>(base: T, key: string, value: unknown): T {
 
 /** 小号信息图标 + 悬浮说明。每个图标自带 Provider，避免设置窗口漏包 Provider。 */
 export function InfoHint({ text }: { text: string }) {
+  const { t } = useTranslation();
   return (
     <TooltipProvider delayDuration={150}>
       <Tooltip>
         <TooltipTrigger asChild>
           <button
             type="button"
-            aria-label="查看说明"
+            aria-label={t("settings.models.structured.infoAria")}
             onClick={(e) => e.stopPropagation()}
             className="inline-flex shrink-0 cursor-help items-center text-muted-foreground/50 transition-colors hover:text-foreground"
           >
@@ -122,6 +125,7 @@ function FieldModeToggle({
   mode: "form" | "json";
   onChange: (mode: "form" | "json") => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="flex items-center gap-0.5 rounded-md border border-border/50 bg-muted/30 p-0.5">
       {(["form", "json"] as const).map((item) => (
@@ -136,7 +140,7 @@ function FieldModeToggle({
               : "text-muted-foreground hover:text-foreground",
           )}
         >
-          {item === "form" ? "表单" : "JSON"}
+          {item === "form" ? t("settings.models.structured.modeForm") : "JSON"}
         </button>
       ))}
     </div>
@@ -168,6 +172,7 @@ export function StructuredJsonField<T>({
   emptyValue,
   renderForm,
 }: StructuredJsonFieldProps<T>) {
+  const { t } = useTranslation();
   const [mode, setMode] = useState<"form" | "json">("form");
   const [formValue, setFormValue] = useState<T | undefined>(() => {
     const trimmed = valueText.trim();
@@ -189,7 +194,9 @@ export function StructuredJsonField<T>({
     }
     const json = parseJson<unknown>(trimmed);
     if (json.error) {
-      setError(`无法切换到表单：当前 JSON 解析失败（${json.error}）`);
+      setError(
+        t("settings.models.structured.switchError", { error: json.error }),
+      );
       return;
     }
     const result = parse(json.value);
@@ -242,7 +249,7 @@ export function StructuredJsonField<T>({
           renderForm(formValue, update)
         ) : (
           <p className="text-[10.5px] text-destructive/80">
-            当前 JSON 无法转换为表单，请切回 JSON 模式修正。
+            {t("settings.models.structured.cannotConvert")}
           </p>
         )
       ) : (
@@ -273,20 +280,28 @@ function parseJson<T>(text: string): { value?: T; error?: string } {
 
 export function parseParamsArray(value: unknown): ParseResult<ParamDef[]> {
   if (!Array.isArray(value)) {
-    return { ok: false, error: "Params 必须是数组，例如 []。" };
+    return {
+      ok: false,
+      error: i18nT("settings.models.structured.parseParamsArray"),
+    };
   }
   if (!value.every(isRecord)) {
-    return { ok: false, error: "Params 数组中的每一项都必须是对象。" };
+    return {
+      ok: false,
+      error: i18nT("settings.models.structured.parseParamsItems"),
+    };
   }
   return { ok: true, value: value as ParamDef[] };
 }
 
-export function parseThinking(value: unknown): ParseResult<ThinkingConfig | null> {
+export function parseThinking(
+  value: unknown,
+): ParseResult<ThinkingConfig | null> {
   if (value === null) return { ok: true, value: null };
   if (!isRecord(value) || !Array.isArray(value.levels)) {
     return {
       ok: false,
-      error: "Thinking 必须是 null，或包含 levels 数组的对象。",
+      error: i18nT("settings.models.structured.parseThinking"),
     };
   }
   return { ok: true, value: value as unknown as ThinkingConfig };
@@ -294,7 +309,7 @@ export function parseThinking(value: unknown): ParseResult<ThinkingConfig | null
 
 export function parseExtra(value: unknown): ParseResult<JsonObject> {
   if (!isRecord(value)) {
-    return { ok: false, error: "Extra 必须是一个 JSON 对象，例如 {}。" };
+    return { ok: false, error: i18nT("settings.models.structured.parseExtra") };
   }
   return { ok: true, value: value as JsonObject };
 }
@@ -303,11 +318,17 @@ export function parseHeaders(
   value: unknown,
 ): ParseResult<Record<string, string>> {
   if (!isRecord(value)) {
-    return { ok: false, error: "Headers 必须是一个 JSON 对象，例如 {}。" };
+    return {
+      ok: false,
+      error: i18nT("settings.models.structured.parseHeaders"),
+    };
   }
   for (const [key, item] of Object.entries(value)) {
     if (typeof item !== "string") {
-      return { ok: false, error: `请求头 "${key}" 的值必须是字符串。` };
+      return {
+        ok: false,
+        error: i18nT("settings.models.structured.headerValueString", { key }),
+      };
     }
   }
   return { ok: true, value: value as Record<string, string> };
@@ -320,7 +341,7 @@ export function parseModelsApi(
   if (!isRecord(value)) {
     return {
       ok: false,
-      error: "Models API 必须是 null，或包含 path / itemsPath / idPath 的对象。",
+      error: i18nT("settings.models.structured.parseModelsApi"),
     };
   }
   return { ok: true, value: value as unknown as ModelsApiConfig };
@@ -369,6 +390,7 @@ function KeyValueEditor({
   valuePlaceholder: string;
   addLabel: string;
 }) {
+  const { t } = useTranslation();
   const [rows, setRows] = useState<KeyValueRow[]>(() =>
     Object.entries(value).map(([key, item]) => ({
       id: nextKeyValueId(),
@@ -413,7 +435,7 @@ function KeyValueEditor({
     <div className="flex flex-col gap-1.5">
       {rows.length === 0 ? (
         <span className="text-[10px] text-muted-foreground/70">
-          还没有键值对。
+          {t("settings.models.structured.noKeyValues")}
         </span>
       ) : null}
       {rows.map((row, index) => (
@@ -448,7 +470,7 @@ function KeyValueEditor({
             size="icon"
             variant="ghost"
             onClick={() => commit(rows.filter((_, i) => i !== index))}
-            title="删除这一行"
+            title={t("settings.models.structured.removeRow")}
             className="size-6 shrink-0 text-muted-foreground hover:text-destructive"
           >
             <HugeiconsIcon icon={Cancel01Icon} size={10} strokeWidth={1.75} />
@@ -477,6 +499,7 @@ export function ParamsForm({
   value: ParamDef[];
   onChange: (next: ParamDef[]) => void;
 }) {
+  const { t } = useTranslation();
   const rows = value as ParamDef[];
   const update = (index: number, patch: Partial<ParamDef>) => {
     onChange(rows.map((row, i) => (i === index ? { ...row, ...patch } : row)));
@@ -486,8 +509,7 @@ export function ParamsForm({
     <div className="flex flex-col gap-2">
       {rows.length === 0 ? (
         <p className="rounded-md border border-dashed border-border/50 px-2 py-2 text-[10px] leading-relaxed text-muted-foreground/80">
-          未声明额外参数。大多数 OpenAI 兼容厂商可以留空；只有需要发送思考等级等
-          厂商专有字段时才需要添加。
+          {t("settings.models.structured.paramsEmpty")}
         </p>
       ) : null}
       {rows.map((row, index) => (
@@ -497,7 +519,9 @@ export function ParamsForm({
         >
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-medium text-muted-foreground">
-              参数 #{index + 1}
+              {t("settings.models.structured.paramTitle", {
+                index: index + 1,
+              })}
             </span>
             <div className="flex items-center gap-2">
               <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
@@ -507,13 +531,13 @@ export function ParamsForm({
                     update(index, { enabled: checked })
                   }
                 />
-                启用
+                {t("settings.models.structured.paramEnabled")}
               </span>
               <Button
                 size="icon"
                 variant="ghost"
                 onClick={() => onChange(rows.filter((_, i) => i !== index))}
-                title="删除该参数"
+                title={t("settings.models.structured.paramRemove")}
                 className="size-6 text-muted-foreground hover:text-destructive"
               >
                 <HugeiconsIcon
@@ -526,8 +550,8 @@ export function ParamsForm({
           </div>
           <div className="grid grid-cols-2 gap-2">
             <MiniField
-              label="Key（逻辑键）"
-              info="思考档位通过这个键引用参数；同一 Provider 下重复声明会覆盖旧定义。"
+              label={t("settings.models.structured.paramKey")}
+              info={t("settings.models.structured.paramKeyInfo")}
             >
               <Input
                 value={row.key ?? ""}
@@ -545,18 +569,20 @@ export function ParamsForm({
                 className="h-7 font-mono text-[10.5px]"
               />
             </MiniField>
-            <MiniField label="显示名（可选）">
+            <MiniField label={t("settings.models.structured.paramLabel")}>
               <Input
                 value={row.label ?? ""}
                 onChange={(e) => update(index, { label: e.target.value })}
-                placeholder="Reasoning effort"
+                placeholder={t(
+                  "settings.models.structured.paramLabelPlaceholder",
+                )}
                 spellCheck={false}
                 className="h-7 text-[10.5px]"
               />
             </MiniField>
             <MiniField
-              label="位置"
-              info="body 写入 JSON 请求体；header 作为 HTTP 请求头发送。"
+              label={t("settings.models.structured.paramLocation")}
+              info={t("settings.models.structured.paramLocationInfo")}
             >
               <Select
                 value={row.location ?? "body"}
@@ -568,14 +594,18 @@ export function ParamsForm({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="body">body（请求体）</SelectItem>
-                  <SelectItem value="header">header（请求头）</SelectItem>
+                  <SelectItem value="body">
+                    {t("settings.models.structured.locationBody")}
+                  </SelectItem>
+                  <SelectItem value="header">
+                    {t("settings.models.structured.locationHeader")}
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </MiniField>
             <MiniField
-              label="类型"
-              info="仅用于说明与校验；实际发送值仍由输入决定。"
+              label={t("settings.models.structured.paramType")}
+              info={t("settings.models.structured.paramTypeInfo")}
             >
               <Select
                 value={row.type ?? "string"}
@@ -598,8 +628,8 @@ export function ParamsForm({
               </Select>
             </MiniField>
             <MiniField
-              label="发送路径"
-              info="实际写入请求的键名。点号会创建嵌套对象，例如 thinking.type。"
+              label={t("settings.models.structured.paramPath")}
+              info={t("settings.models.structured.paramPathInfo")}
             >
               <Input
                 value={row.path ?? ""}
@@ -610,8 +640,8 @@ export function ParamsForm({
               />
             </MiniField>
             <MiniField
-              label="可选值（逗号分隔）"
-              info="限制该参数允许的取值；映射结果不在列表内时会被跳过并告警。留空表示不限制。"
+              label={t("settings.models.structured.paramEnum")}
+              info={t("settings.models.structured.paramEnumInfo")}
             >
               <Input
                 value={displayEnum(row.enum)}
@@ -635,8 +665,8 @@ export function ParamsForm({
             </MiniField>
           </div>
           <MiniField
-            label="默认值"
-            info="档位没有覆盖时发送该值。留空表示不设置；支持 high、1024、true 或完整 JSON。"
+            label={t("settings.models.structured.paramDefault")}
+            info={t("settings.models.structured.paramDefaultInfo")}
           >
             <Input
               value={displayLoose(row.default)}
@@ -653,14 +683,16 @@ export function ParamsForm({
                   ),
                 )
               }
-              placeholder="留空 / high / 1024 / true"
+              placeholder={t(
+                "settings.models.structured.paramDefaultPlaceholder",
+              )}
               spellCheck={false}
               className="h-7 font-mono text-[10.5px]"
             />
           </MiniField>
           <MiniField
-            label="取值映射 map"
-            info="逻辑档位值 -> 实际发送值。值为 null 表示该档位省略此参数（用于关闭思考）。"
+            label={t("settings.models.structured.paramMap")}
+            info={t("settings.models.structured.paramMapInfo")}
           >
             <KeyValueEditor
               value={row.map ?? {}}
@@ -678,16 +710,22 @@ export function ParamsForm({
                 )
               }
               mode="json"
-              keyPlaceholder="逻辑值，如 medium"
-              valuePlaceholder="发送值，如 high；写 null 表示省略"
-              addLabel="添加映射"
+              keyPlaceholder={t(
+                "settings.models.structured.paramMapKeyPlaceholder",
+              )}
+              valuePlaceholder={t(
+                "settings.models.structured.paramMapValuePlaceholder",
+              )}
+              addLabel={t("settings.models.structured.paramMapAdd")}
             />
           </MiniField>
-          <MiniField label="说明（可选）">
+          <MiniField label={t("settings.models.structured.paramDescription")}>
             <Input
               value={row.description ?? ""}
               onChange={(e) => update(index, { description: e.target.value })}
-              placeholder="给未来的自己留一句说明"
+              placeholder={t(
+                "settings.models.structured.paramDescriptionPlaceholder",
+              )}
               className="h-7 text-[10.5px]"
             />
           </MiniField>
@@ -712,7 +750,7 @@ export function ParamsForm({
         className="h-7 gap-1 self-start px-2 text-[10.5px]"
       >
         <HugeiconsIcon icon={Add01Icon} size={11} strokeWidth={2} />
-        添加参数
+        {t("settings.models.structured.addParam")}
       </Button>
     </div>
   );
@@ -731,11 +769,13 @@ export function ThinkingForm({
   value: ThinkingConfig | null;
   onChange: (next: ThinkingConfig | null) => void;
 }) {
+  const { t } = useTranslation();
   if (!value) {
+    const off = t("settings.models.structured.thinkingOffSeed");
     return (
       <div className="flex items-center justify-between gap-2 rounded-md border border-dashed border-border/50 px-2 py-2">
         <span className="text-[10px] leading-relaxed text-muted-foreground/80">
-          当前为 null：该模型不会显示思考滑块，也不会发送思考参数。
+          {t("settings.models.structured.thinkingNull")}
         </span>
         <Button
           size="sm"
@@ -743,13 +783,13 @@ export function ThinkingForm({
           onClick={() =>
             onChange({
               default: "off",
-              offLabel: "关闭",
-              levels: [{ id: "off", label: "关闭", values: {} }],
+              offLabel: off,
+              levels: [{ id: "off", label: off, values: {} }],
             })
           }
           className="h-6 shrink-0 px-2 text-[10px]"
         >
-          创建思考档位
+          {t("settings.models.structured.thinkingCreate")}
         </Button>
       </div>
     );
@@ -788,8 +828,8 @@ export function ThinkingForm({
     <div className="flex flex-col gap-2">
       <div className="grid grid-cols-2 gap-2">
         <MiniField
-          label="默认档位"
-          info="用户没有手动选择时使用该档位；删除默认档位后会回退到第一档。"
+          label={t("settings.models.structured.thinkingDefault")}
+          info={t("settings.models.structured.thinkingDefaultInfo")}
         >
           <Select
             value={defaultId}
@@ -797,7 +837,11 @@ export function ThinkingForm({
             disabled={levels.length === 0}
           >
             <SelectTrigger className="h-7 text-[10.5px]">
-              <SelectValue placeholder="选择默认档位" />
+              <SelectValue
+                placeholder={t(
+                  "settings.models.structured.thinkingDefaultPlaceholder",
+                )}
+              />
             </SelectTrigger>
             <SelectContent>
               {levels.map((level) => (
@@ -809,8 +853,8 @@ export function ThinkingForm({
           </Select>
         </MiniField>
         <MiniField
-          label="最左档位标签"
-          info="滑条最左端的文字，一般为“关闭”。"
+          label={t("settings.models.structured.thinkingOffLabel")}
+          info={t("settings.models.structured.thinkingOffLabelInfo")}
         >
           <Input
             value={value.offLabel ?? ""}
@@ -823,7 +867,7 @@ export function ThinkingForm({
                 ),
               )
             }
-            placeholder="关闭"
+            placeholder={t("settings.models.structured.thinkingOffSeed")}
             className="h-7 text-[10.5px]"
           />
         </MiniField>
@@ -836,27 +880,25 @@ export function ThinkingForm({
         >
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-medium text-muted-foreground">
-              档位 #{index + 1}
-              {index === 0 ? "（最左 / 关闭）" : ""}
+              {t("settings.models.structured.levelTitle", {
+                index: index + 1,
+              })}
+              {index === 0 ? t("settings.models.structured.levelLeftmost") : ""}
             </span>
             <Button
               size="icon"
               variant="ghost"
               onClick={() => removeLevel(index)}
-              title="删除该档位"
+              title={t("settings.models.structured.levelRemove")}
               className="size-6 text-muted-foreground hover:text-destructive"
             >
-              <HugeiconsIcon
-                icon={Cancel01Icon}
-                size={10}
-                strokeWidth={1.75}
-              />
+              <HugeiconsIcon icon={Cancel01Icon} size={10} strokeWidth={1.75} />
             </Button>
           </div>
           <div className="grid grid-cols-2 gap-2">
             <MiniField
-              label="档位 ID"
-              info="保存到偏好的稳定标识；修改后已选中的用户会回退到默认档位。"
+              label={t("settings.models.structured.levelId")}
+              info={t("settings.models.structured.levelIdInfo")}
             >
               <Input
                 value={level.id ?? ""}
@@ -876,28 +918,32 @@ export function ThinkingForm({
                 className="h-7 font-mono text-[10.5px]"
               />
             </MiniField>
-            <MiniField label="显示名">
+            <MiniField label={t("settings.models.structured.levelLabel")}>
               <Input
                 value={level.label ?? ""}
-                onChange={(e) =>
-                  updateLevel(index, { label: e.target.value })
-                }
-                placeholder="低 / 高 / 最高"
+                onChange={(e) => updateLevel(index, { label: e.target.value })}
+                placeholder={t(
+                  "settings.models.structured.levelLabelPlaceholder",
+                )}
                 className="h-7 text-[10.5px]"
               />
             </MiniField>
           </div>
           <MiniField
-            label="档位参数值"
-            info="参数 key -> 逻辑值。值为 null 表示该档位不发送这个参数；例如关闭思考时可发送 thinking.type=disabled 并省略 reasoning_effort。"
+            label={t("settings.models.structured.levelValues")}
+            info={t("settings.models.structured.levelValuesInfo")}
           >
             <KeyValueEditor
               value={level.values ?? {}}
               onChange={(next) => updateLevel(index, { values: next })}
               mode="json"
-              keyPlaceholder="参数 key，如 reasoning_effort"
-              valuePlaceholder="逻辑值，如 high；null 表示省略"
-              addLabel="添加参数值"
+              keyPlaceholder={t(
+                "settings.models.structured.levelValuesKeyPlaceholder",
+              )}
+              valuePlaceholder={t(
+                "settings.models.structured.levelValuesValuePlaceholder",
+              )}
+              addLabel={t("settings.models.structured.levelValuesAdd")}
             />
           </MiniField>
         </div>
@@ -917,7 +963,7 @@ export function ThinkingForm({
         className="h-7 gap-1 self-start px-2 text-[10.5px]"
       >
         <HugeiconsIcon icon={Add01Icon} size={11} strokeWidth={2} />
-        添加档位
+        {t("settings.models.structured.addLevel")}
       </Button>
     </div>
   );
@@ -930,14 +976,15 @@ export function ExtraForm({
   value: JsonObject;
   onChange: (next: JsonObject) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <KeyValueEditor
       value={value}
       onChange={(next) => onChange(next as JsonObject)}
       mode="json"
-      keyPlaceholder="键，如 stream_options 或 thinking.type"
-      valuePlaceholder='值，如 {"include_usage":true} / true / high'
-      addLabel="添加额外字段"
+      keyPlaceholder={t("settings.models.structured.extraKeyPlaceholder")}
+      valuePlaceholder={t("settings.models.structured.extraValuePlaceholder")}
+      addLabel={t("settings.models.structured.extraAdd")}
     />
   );
 }
@@ -949,6 +996,7 @@ export function HeadersForm({
   value: Record<string, string>;
   onChange: (next: Record<string, string>) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <KeyValueEditor
       value={value}
@@ -960,9 +1008,9 @@ export function HeadersForm({
         onChange(out);
       }}
       mode="string"
-      keyPlaceholder="头名称，如 HTTP-Referer"
-      valuePlaceholder="头内容"
-      addLabel="添加请求头"
+      keyPlaceholder={t("settings.models.structured.headerKeyPlaceholder")}
+      valuePlaceholder={t("settings.models.structured.headerValuePlaceholder")}
+      addLabel={t("settings.models.structured.headerAdd")}
     />
   );
 }
@@ -974,11 +1022,12 @@ export function ModelsApiForm({
   value: ModelsApiConfig | null;
   onChange: (next: ModelsApiConfig | null) => void;
 }) {
+  const { t } = useTranslation();
   if (!value) {
     return (
       <div className="flex items-center justify-between gap-2 rounded-md border border-dashed border-border/50 px-2 py-2">
         <span className="text-[10px] leading-relaxed text-muted-foreground/80">
-          未启用模型列表接口：该 Provider 只能手动添加模型。
+          {t("settings.models.structured.modelsApiDisabled")}
         </span>
         <Button
           size="sm"
@@ -988,7 +1037,7 @@ export function ModelsApiForm({
           }
           className="h-6 shrink-0 px-2 text-[10px]"
         >
-          启用
+          {t("settings.models.structured.modelsApiEnable")}
         </Button>
       </div>
     );
@@ -997,8 +1046,8 @@ export function ModelsApiForm({
     <div className="flex flex-col gap-2">
       <div className="grid grid-cols-2 gap-2">
         <MiniField
-          label="接口路径"
-          info="追加到 Base URL 后的路径，通常为 /models。"
+          label={t("settings.models.structured.apiPath")}
+          info={t("settings.models.structured.apiPathInfo")}
         >
           <Input
             value={value.path ?? ""}
@@ -1009,22 +1058,20 @@ export function ModelsApiForm({
           />
         </MiniField>
         <MiniField
-          label="数组位置 itemsPath"
-          info="响应 JSON 中模型数组的点路径；留空表示响应根节点就是数组。"
+          label={t("settings.models.structured.apiItemsPath")}
+          info={t("settings.models.structured.apiItemsPathInfo")}
         >
           <Input
             value={value.itemsPath ?? ""}
-            onChange={(e) =>
-              onChange({ ...value, itemsPath: e.target.value })
-            }
+            onChange={(e) => onChange({ ...value, itemsPath: e.target.value })}
             placeholder="data"
             spellCheck={false}
             className="h-7 font-mono text-[10.5px]"
           />
         </MiniField>
         <MiniField
-          label="模型 ID 字段 idPath"
-          info="数组中每个条目的模型 ID 字段名，通常为 id。"
+          label={t("settings.models.structured.apiIdPath")}
+          info={t("settings.models.structured.apiIdPathInfo")}
         >
           <Input
             value={value.idPath ?? ""}
@@ -1035,8 +1082,8 @@ export function ModelsApiForm({
           />
         </MiniField>
         <MiniField
-          label="显示名字段 labelPath"
-          info="可选。数组条目中的人类可读名称字段；留空则直接使用模型 ID 作为显示名。"
+          label={t("settings.models.structured.apiLabelPath")}
+          info={t("settings.models.structured.apiLabelPathInfo")}
         >
           <Input
             value={value.labelPath ?? ""}
@@ -1061,7 +1108,7 @@ export function ModelsApiForm({
         onClick={() => onChange(null)}
         className="h-6 self-start px-2 text-[10px]"
       >
-        关闭模型列表接口
+        {t("settings.models.structured.modelsApiDisable")}
       </Button>
     </div>
   );

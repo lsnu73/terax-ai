@@ -2,6 +2,7 @@ import "../styles/globals.css";
 
 import { disableNativeContextMenu } from "@/lib/disableNativeContextMenu";
 import { USE_CUSTOM_WINDOW_CONTROLS } from "@/lib/platform";
+import { initI18n } from "@/modules/i18n";
 import { ThemeProvider } from "@/modules/theme";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import ReactDOM from "react-dom/client";
@@ -12,6 +13,9 @@ if (USE_CUSTOM_WINDOW_CONTROLS) {
 }
 
 disableNativeContextMenu();
+
+// i18n must be ready before first render: useTranslation suspends otherwise.
+await initI18n();
 
 ReactDOM.createRoot(
   document.getElementById("settings-root") as HTMLElement,

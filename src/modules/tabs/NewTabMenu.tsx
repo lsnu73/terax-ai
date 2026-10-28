@@ -25,6 +25,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 type Props = {
   onNew: () => void;
@@ -45,6 +46,7 @@ export function NewTabMenu({
   onNewGitGraph,
   onLaunchAgents,
 }: Props) {
+  const { t } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [launcherOpen, setLauncherOpen] = useState(false);
   const openLauncherAfterMenuClose = useRef(false);
@@ -77,7 +79,7 @@ export function NewTabMenu({
                 variant="ghost"
                 size="icon"
                 className="ml-1 size-6 shrink-0 rounded-full bg-foreground/[0.06] text-muted-foreground ring-1 ring-inset ring-foreground/[0.04] hover:bg-foreground/[0.12] hover:text-foreground"
-                title="New tab"
+                title={t("tabbar.newTab")}
               >
                 <HugeiconsIcon icon={PlusSignIcon} size={14} strokeWidth={2} />
               </Button>
@@ -99,7 +101,7 @@ export function NewTabMenu({
                   size={14}
                   strokeWidth={1.75}
                 />
-                <span className="flex-1">Terminal</span>
+                <span className="flex-1">{t("tabbar.kindTerminal")}</span>
                 <span className="text-xs text-muted-foreground">
                   {fmtShortcut(MOD_KEY, "T")}
                 </span>
@@ -110,7 +112,7 @@ export function NewTabMenu({
                   size={14}
                   strokeWidth={1.75}
                 />
-                <span className="flex-1">Blocks</span>
+                <span className="flex-1">{t("tabbar.kindBlocks")}</span>
                 <span className="text-xs text-muted-foreground">
                   {fmtShortcut(MOD_KEY, SHIFT_KEY, "T")}
                 </span>
@@ -121,7 +123,7 @@ export function NewTabMenu({
                   size={14}
                   strokeWidth={1.75}
                 />
-                <span className="flex-1">Agents</span>
+                <span className="flex-1">{t("tabbar.kindAgents")}</span>
                 <HugeiconsIcon
                   icon={ArrowRight01Icon}
                   size={14}
@@ -135,7 +137,7 @@ export function NewTabMenu({
                   size={14}
                   strokeWidth={1.75}
                 />
-                <span className="flex-1">Privacy</span>
+                <span className="flex-1">{t("tabbar.kindPrivacy")}</span>
                 <span className="text-xs text-muted-foreground">
                   {fmtShortcut(MOD_KEY, "R")}
                 </span>
@@ -146,7 +148,7 @@ export function NewTabMenu({
                   size={14}
                   strokeWidth={1.75}
                 />
-                <span className="flex-1">Editor</span>
+                <span className="flex-1">{t("tabbar.kindEditor")}</span>
                 <span className="text-xs text-muted-foreground">
                   {fmtShortcut(MOD_KEY, "E")}
                 </span>
@@ -157,7 +159,7 @@ export function NewTabMenu({
                   size={14}
                   strokeWidth={1.75}
                 />
-                <span className="flex-1">Preview</span>
+                <span className="flex-1">{t("tabbar.kindPreview")}</span>
                 <span className="text-xs text-muted-foreground">
                   {fmtShortcut(MOD_KEY, "P")}
                 </span>
@@ -168,7 +170,7 @@ export function NewTabMenu({
                   size={14}
                   strokeWidth={1.75}
                 />
-                <span className="flex-1">Git Graph</span>
+                <span className="flex-1">{t("tabbar.kindGitGraph")}</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

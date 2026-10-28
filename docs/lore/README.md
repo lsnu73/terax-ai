@@ -17,7 +17,6 @@ Terax 是一个开源的 AI 原生终端模拟器（Tauri 2 + React/TypeScript �
 
 1. 本文件 → 2. [glossary.md](glossary.md)（术语对照）→ 3. [invariants.md](invariants.md)（不可违反的硬约束）→ 4. [map.md](map.md)（模块拓扑）→ 5. 需要动某个模块时读对应的 `decisions/` 与 `pitfalls/`。
 
-读完 map.md 仍卡住时：仓库已被 Repowise 索引（根目录 `.repowise/`），可用 terax/repowise MCP 的 `get_answer` 直接提问；官方架构文档在 `docs/architecture/`。
 
 ## 地图维护规则
 

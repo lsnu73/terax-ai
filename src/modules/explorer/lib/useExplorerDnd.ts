@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { t } from "@/modules/i18n";
 import { excludeNestedSources } from "./batchMove";
 
 export type ExplorerPathDropTarget = {
@@ -159,7 +160,7 @@ export function useExplorerDnd({
         }
         setDragLabel(
           sources.length > 1
-            ? `${sources.length} items`
+            ? t("explorer.dnd.items", { count: sources.length })
             : source.slice(source.lastIndexOf("/") + 1),
         );
       }

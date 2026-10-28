@@ -1,6 +1,7 @@
 import { Popover, PopoverAnchor } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useWorkspaceFiles } from "../hooks/useWorkspaceFiles";
 import { useComposer } from "../lib/composer";
 import { SLASH_COMMANDS } from "../lib/slashCommands";
@@ -57,6 +58,7 @@ function detectFileTrigger(value: string, caret: number): FileTrigger | null {
 }
 
 export function AiComposerInput() {
+  const { t } = useTranslation();
   const c = useComposer();
   const snippets = useSnippetsStore((s) => s.snippets);
   const workspaceRoot = useChatStore((s) => s.live.getWorkspaceRoot());
@@ -100,7 +102,8 @@ export function AiComposerInput() {
     const q = trigger.query;
     const cmdItems: PickerItem[] = Object.values(SLASH_COMMANDS)
       .filter(
-        (c) => !q || c.name.includes(q) || c.label.toLowerCase().includes(q),
+        (c) =>
+          !q || c.name.includes(q) || t(c.labelKey).toLowerCase().includes(q),
       )
       .map((command) => ({ kind: "command", command }));
     if (trigger.char === "/") return cmdItems;
@@ -114,7 +117,7 @@ export function AiComposerInput() {
       )
       .map((snippet) => ({ kind: "snippet", snippet }));
     return [...cmdItems, ...snipItems];
-  }, [trigger, snippets]);
+  }, [trigger, snippets, t]);
 
   const FILE_PICKER_CAP = 30;
   const filteredFiles = useMemo<string[]>(() => {
@@ -196,83 +199,83 @@ export function AiComposerInput() {
 
   return (
     <Popover open={pickerOpen}>
-        <PopoverAnchor asChild>
-          <div className="flex items-start gap-2">
-            <textarea
-              ref={c.textareaRef}
-              value={c.value}
-              onChange={(e) => c.setValue(e.target.value)}
-              onKeyUp={updateTrigger}
-              onClick={updateTrigger}
-              onSelect={updateTrigger}
-              onKeyDown={(e) => {
-                if (pickerOpen) {
-                  const items = fileTrigger ? filteredFiles : filteredItems;
-                  if (e.key === "ArrowDown") {
-                    e.preventDefault();
-                    setActiveIndex((i) =>
-                      Math.min(i + 1, Math.max(0, items.length - 1)),
-                    );
-                    return;
-                  }
-                  if (e.key === "ArrowUp") {
-                    e.preventDefault();
-                    setActiveIndex((i) => Math.max(0, i - 1));
-                    return;
-                  }
-                  if (e.key === "Tab" || e.key === "Enter") {
-                    if (items.length > 0) {
-                      e.preventDefault();
-                      pickActive();
-                      return;
-                    }
-                  }
-                  if (e.key === "Escape") {
-                    e.preventDefault();
-                    if (fileTrigger) {
-                      const before = c.value.slice(0, fileTrigger.start);
-                      const after = c.value.slice(fileTrigger.end);
-                      c.setValue(`${before}${after}`);
-                      setFileTrigger(null);
-                    } else {
-                      setTrigger(null);
-                    }
-                    return;
-                  }
-                }
-                if (e.key === "Enter" && !e.shiftKey) {
+      <PopoverAnchor asChild>
+        <div className="flex items-start gap-2">
+          <textarea
+            ref={c.textareaRef}
+            value={c.value}
+            onChange={(e) => c.setValue(e.target.value)}
+            onKeyUp={updateTrigger}
+            onClick={updateTrigger}
+            onSelect={updateTrigger}
+            onKeyDown={(e) => {
+              if (pickerOpen) {
+                const items = fileTrigger ? filteredFiles : filteredItems;
+                if (e.key === "ArrowDown") {
                   e.preventDefault();
-                  c.submit();
+                  setActiveIndex((i) =>
+                    Math.min(i + 1, Math.max(0, items.length - 1)),
+                  );
+                  return;
                 }
-              }}
-              placeholder="Ask Terax anything   -   # for snippets and commands, @ for files"
-              rows={1}
-              className={cn(
-                "max-h-40 flex-1 resize-none bg-transparent text-[13px] leading-relaxed outline-none",
-                "placeholder:text-muted-foreground/60",
-              )}
-            />
-            <AgentSwitcher />
-          </div>
-        </PopoverAnchor>
-        {fileTrigger ? (
-          <FilePickerContent
-            files={filteredFiles}
-            activeIndex={activeIndex}
-            indexing={workspaceFiles.indexing}
-            truncated={workspaceFiles.truncated}
-            hasWorkspace={workspaceRoot !== null}
-            onPick={(f) => void onPickFile(f)}
-            onHover={setActiveIndex}
+                if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  setActiveIndex((i) => Math.max(0, i - 1));
+                  return;
+                }
+                if (e.key === "Tab" || e.key === "Enter") {
+                  if (items.length > 0) {
+                    e.preventDefault();
+                    pickActive();
+                    return;
+                  }
+                }
+                if (e.key === "Escape") {
+                  e.preventDefault();
+                  if (fileTrigger) {
+                    const before = c.value.slice(0, fileTrigger.start);
+                    const after = c.value.slice(fileTrigger.end);
+                    c.setValue(`${before}${after}`);
+                    setFileTrigger(null);
+                  } else {
+                    setTrigger(null);
+                  }
+                  return;
+                }
+              }
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                c.submit();
+              }
+            }}
+            placeholder={t("ai.composer.placeholder")}
+            rows={1}
+            className={cn(
+              "max-h-40 flex-1 resize-none bg-transparent text-[13px] leading-relaxed outline-none",
+              "placeholder:text-muted-foreground/60",
+            )}
           />
-        ) : (
-          <SnippetPickerContent
-            items={filteredItems}
-            activeIndex={activeIndex}
-            onPick={onPickItem}
-            onHover={setActiveIndex}
-          />
-        )}
+          <AgentSwitcher />
+        </div>
+      </PopoverAnchor>
+      {fileTrigger ? (
+        <FilePickerContent
+          files={filteredFiles}
+          activeIndex={activeIndex}
+          indexing={workspaceFiles.indexing}
+          truncated={workspaceFiles.truncated}
+          hasWorkspace={workspaceRoot !== null}
+          onPick={(f) => void onPickFile(f)}
+          onHover={setActiveIndex}
+        />
+      ) : (
+        <SnippetPickerContent
+          items={filteredItems}
+          activeIndex={activeIndex}
+          onPick={onPickItem}
+          onHover={setActiveIndex}
+        />
+      )}
     </Popover>
   );
 }

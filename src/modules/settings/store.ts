@@ -10,6 +10,9 @@ import { LazyStore } from "@tauri-apps/plugin-store";
 
 export type ThemePref = "system" | "light" | "dark";
 
+/** UI 语言。"system" 跟随操作系统语言（zh-* → 中文，其余 → 英文）。 */
+export type LanguagePref = "system" | "en" | "zh";
+
 export const DEFAULT_THEME_ID = "terax-default";
 
 export type BackgroundKind = "none" | "image";
@@ -110,6 +113,7 @@ export const EDITOR_THEME_LABELS: Record<EditorThemeId, string> = {
 export type Preferences = {
   theme: ThemePref;
   themeId: string;
+  language: LanguagePref;
   backgroundKind: BackgroundKind;
   backgroundImageId: string | null;
   backgroundOpacity: number;
@@ -190,6 +194,7 @@ export type LspCustomServer = {
 const STORE_PATH = "terax-settings.json";
 const KEY_THEME = "theme";
 const KEY_THEME_ID = "themeId";
+const KEY_LANGUAGE = "language";
 const KEY_BG_KIND = "backgroundKind";
 const KEY_BG_IMAGE_ID = "backgroundImageId";
 const KEY_BG_OPACITY = "backgroundOpacity";
@@ -271,6 +276,7 @@ export const TERMINAL_SCROLLBACK_PRESETS = [
 export const DEFAULT_PREFERENCES: Preferences = {
   theme: "system",
   themeId: DEFAULT_THEME_ID,
+  language: "system",
   backgroundKind: "none",
   backgroundImageId: null,
   backgroundOpacity: 0.5,
@@ -344,6 +350,7 @@ export async function loadPreferences(): Promise<Preferences> {
   const get = <T>(k: string): T | undefined => map.get(k) as T | undefined;
   return {
     theme: get<ThemePref>(KEY_THEME) ?? DEFAULT_PREFERENCES.theme,
+    language: coerceLanguage(get<unknown>(KEY_LANGUAGE)),
     themeId: get<string>(KEY_THEME_ID) ?? DEFAULT_PREFERENCES.themeId,
     backgroundKind:
       get<BackgroundKind>(KEY_BG_KIND) ?? DEFAULT_PREFERENCES.backgroundKind,
@@ -507,6 +514,16 @@ export async function setLspCustomServers(
 
 export async function setTheme(value: ThemePref): Promise<void> {
   await writePref(KEY_THEME, value);
+}
+
+export function coerceLanguage(value: unknown): LanguagePref {
+  return value === "en" || value === "zh" || value === "system"
+    ? value
+    : DEFAULT_PREFERENCES.language;
+}
+
+export async function setLanguage(value: unknown): Promise<void> {
+  await writePref(KEY_LANGUAGE, coerceLanguage(value));
 }
 
 export async function setThemeId(value: string): Promise<void> {
@@ -819,6 +836,7 @@ export async function onPreferencesChange(
   const map: Record<string, PrefKey> = {
     [KEY_THEME]: "theme",
     [KEY_THEME_ID]: "themeId",
+    [KEY_LANGUAGE]: "language",
     [KEY_BG_KIND]: "backgroundKind",
     [KEY_BG_IMAGE_ID]: "backgroundImageId",
     [KEY_BG_OPACITY]: "backgroundOpacity",

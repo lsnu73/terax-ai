@@ -13,6 +13,7 @@ import {
   useState,
 } from "react";
 import { usePreferencesStore } from "@/modules/settings/preferences";
+import { t } from "@/modules/i18n";
 import type { Tab } from "@/modules/tabs";
 import { leafHasForegroundProcess, leafIds } from "@/modules/terminal";
 
@@ -65,7 +66,7 @@ export function useAppCloseGuard(tabsRef: RefObject<Tab[]>) {
       await getCurrentWindow().close();
     } catch (error) {
       forceClose.current = false;
-      toast.error("Could not close the window", {
+      toast.error(t("app.closeGuard.couldNotCloseWindow"), {
         description: String(error),
       });
     }
@@ -80,14 +81,14 @@ export function useAppCloseGuard(tabsRef: RefObject<Tab[]>) {
       });
       if (closeAfterFlush(flush, warned.current) === "warn") {
         warned.current = true;
-        toast.error("Could not save chat history", {
+        toast.error(t("app.closeGuard.couldNotSaveChatHistory"), {
           id: "close-save-failed",
           duration: Number.POSITIVE_INFINITY,
           description: flush.timedOut
-            ? "Saving is taking too long. The latest messages may be lost."
-            : "The latest messages may be lost.",
+            ? t("app.closeGuard.saveTimeoutDescription")
+            : t("app.closeGuard.saveFailedDescription"),
           action: {
-            label: "Close anyway",
+            label: t("app.closeGuard.closeAnyway"),
             onClick: () => void closeWindow(),
           },
         });

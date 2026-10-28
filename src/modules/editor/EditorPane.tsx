@@ -1,4 +1,5 @@
 import { getKey } from "@/modules/ai/lib/keyring";
+import { t as tModule } from "@/modules/i18n";
 import { lspFormatDocument, useLspExtension } from "@/modules/lsp";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import { onKeysChanged } from "@/modules/settings/store";
@@ -28,6 +29,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
   inlineCompletion,
@@ -118,6 +120,7 @@ export const EditorPane = memo(
       onClose,
       mediaActive = true,
     } = props;
+    const { t } = useTranslation();
 
     const { doc, onChange, save, reload, adoptDiskText, openAnyway } =
       useDocument({
@@ -191,22 +194,20 @@ export const EditorPane = memo(
           try {
             res = await lspFormatDocument(view);
           } catch (e) {
-            toast.error("Language server format failed", {
+            toast.error(tModule("editor.format.lspFailed"), {
               description: String(e),
             });
           }
           if (res === "unsupported" && !warnedNoFormatRef.current) {
             warnedNoFormatRef.current = true;
-            toast.warning("Format on save skipped", {
-              description:
-                "The active language server has no formatter. Pick an external one in Settings (Ruff for Python, Prettier, rustfmt, ...).",
+            toast.warning(tModule("editor.format.skipped"), {
+              description: tModule("editor.format.noLspFormatter"),
             });
           }
         } else if (!warnedNoLspRef.current) {
           warnedNoLspRef.current = true;
-          toast.warning("Format on save skipped", {
-            description:
-              "No active language server for this file. Enable one in the statusbar, or pick an external formatter in Settings.",
+          toast.warning(tModule("editor.format.skipped"), {
+            description: tModule("editor.format.noLsp"),
           });
         }
       }
@@ -221,7 +222,9 @@ export const EditorPane = memo(
           prefs.editorCustomFormatCommand,
         );
         if (error) {
-          toast.error(`${formatter} format failed`, { description: error });
+          toast.error(tModule("editor.format.failed", { formatter }), {
+            description: error,
+          });
         } else {
           const readBack = await readFileText(pathRef.current);
           if (readBack !== null && view && view.state.doc === docAtSave) {
@@ -523,7 +526,7 @@ export const EditorPane = memo(
     if (doc.status === "loading") {
       return (
         <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
-          Loading…
+          {t("editor.media.loading")}
         </div>
       );
     }
@@ -578,11 +581,15 @@ export const EditorPane = memo(
       return (
         <div className="flex h-full flex-col items-center justify-center gap-1 px-6 text-center">
           <div className="text-sm text-foreground">
-            {doc.status === "binary" ? "Binary file" : "File too large"}
+            {doc.status === "binary"
+              ? t("editor.media.binaryFile")
+              : t("editor.media.fileTooLarge")}
           </div>
           <div className="text-xs text-muted-foreground">
             {formatBytes(doc.size)} ·{" "}
-            {canForce ? "syntax features disabled" : "preview not supported"}
+            {canForce
+              ? t("editor.media.syntaxDisabled")
+              : t("editor.media.previewNotSupported")}
           </div>
           {canForce && (
             <button
@@ -590,7 +597,7 @@ export const EditorPane = memo(
               onClick={openAnyway}
               className="mt-2 rounded-md border border-border bg-muted/60 px-3 py-1 text-xs text-foreground hover:bg-accent"
             >
-              Open anyway
+              {t("editor.media.openAnyway")}
             </button>
           )}
         </div>
