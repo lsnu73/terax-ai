@@ -1,3 +1,8 @@
+// 【导览 7】密钥层：API Key 不写进设置文件，而是经 Tauri 存进操作系统钥匙串。
+// 前端只看到 invoke("secrets_get"/"secrets_set"/"secrets_get_all")，
+// 真正的平台实现（macOS Keychain / Windows 凭据管理器）在：
+//   src-tauri/src/modules/secrets.rs
+// service 固定为 "terax-ai"，account 来自 config.ts 的 PROVIDERS[].keyringAccount（【导览 2】）。
 import { invoke } from "@tauri-apps/api/core";
 import {
   getProvider,
@@ -11,6 +16,7 @@ import {
 export type ProviderKeys = Record<ProviderId, string | null>;
 export type CustomEndpointKeys = Record<string, string | null>;
 
+// 每个云端 provider 一把钥匙；本地 provider（lmstudio/mlx/ollama）不需要 key，恒为 null。
 export const EMPTY_PROVIDER_KEYS: ProviderKeys = {
   openai: null,
   anthropic: null,
@@ -91,6 +97,9 @@ export function hasAnyKey(keys: ProviderKeys): boolean {
   return PROVIDERS.some((p) => providerSupportsKey(p.id) && !!keys[p.id]);
 }
 
+// 【导览 8】自定义端点的密钥用独立账户名：compat-<endpointId>-api-key。
+// 这样多个自定义端点可以各用各的 key，互不覆盖。
+// 下一站：非密钥配置（baseURL / 端点列表）存在哪里 → src/modules/settings/store.ts（【导览 9】）
 function compatKeyringAccount(endpointId: string): string {
   return `compat-${endpointId}-api-key`;
 }

@@ -148,6 +148,11 @@ const LOCAL_META: Partial<Record<ProviderId, LocalMeta>> = {
   },
 };
 
+// 【导览 22 / 终点】设置 → Models 页：API Key、本地端点地址、自定义端点的录入界面。
+// 这一页只负责"写"，不参与请求链路：
+//   - key 交给 keyring.ts（【导览 7/8】），输入组件在同目录 ../components/ProviderKeyCard.tsx
+//   - 其余字段写进 preferences store（【导览 9】）
+// 读完这里，再回到【导览 0】的地图看一遍，链路就闭环了。
 export function ModelsSection() {
   const [keys, setKeys] = useState<KeysMap | null>(null);
   const [epKeys, setEpKeys] = useState<CustomEndpointKeys>({});

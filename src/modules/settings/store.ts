@@ -118,6 +118,11 @@ export const EDITOR_THEME_LABELS: Record<EditorThemeId, string> = {
   "xcode-light": "Xcode Light",
 };
 
+// 【导览 9】非密钥配置的持久化。注意扫一眼：这里没有任何 apiKey 字段 —— 密钥全在钥匙串（【导览 7】）。
+// 与模型相关的配置分三类：
+//   1) 本地 runtime：lmstudio / mlx / ollama 的 baseURL + 模型 ID
+//   2) 自定义端点：customEndpoints[]（id / name / baseURL / modelId / contextLimit）
+//   3) 默认与补全模型：defaultModelId / autocompleteModelId
 export type Preferences = {
   theme: ThemePref;
   themeId: string;
@@ -465,6 +470,10 @@ export async function loadPreferences(): Promise<Preferences> {
     openaiCompatibleContextLimit:
       get<number>(KEY_OPENAI_COMPAT_CONTEXT_LIMIT) ??
       DEFAULT_PREFERENCES.openaiCompatibleContextLimit,
+    // 【导览 10】旧版只有一个 openaiCompatibleBaseURL，这里做一次性迁移：
+    // 新端点列表为空但旧字段有值，就自动生成一条自定义端点。
+    // 迁移函数 migrateLegacyCompatEndpoint 在 config.ts（【导览 3】旁边）。
+    // 下一站：核心工厂 → src/modules/ai/lib/agent.ts（【导览 11】）
     customEndpoints: (() => {
       const stored = get<CustomEndpoint[]>(KEY_CUSTOM_ENDPOINTS);
       if (stored && stored.length > 0) return stored;

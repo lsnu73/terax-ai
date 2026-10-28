@@ -72,6 +72,11 @@ type SendOptions = {
   [k: string]: unknown;
 };
 
+// 【导览 15】传输层：useChat 与 runAgentStream 之间的适配器。
+// 发请求前只做两件与模型无关的事：读工作区的 TERAX.md 项目记忆、注入环境块。
+// 然后调用 runAgentStream（agent.ts，【导览 14】），再把结果转成 UI 消息流。
+// Deps 里那一串 getXxx 都是 getter：模型 ID、密钥、各种 baseURL 每次请求现取，
+// 真正的数据仍在 chatStore / preferences store 里（【导览 17】【导览 9】）。
 export function createContextAwareTransport(deps: Deps) {
   const run = async (options: SendOptions) => {
     const live = deps.getLive();

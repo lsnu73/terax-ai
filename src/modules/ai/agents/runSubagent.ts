@@ -46,6 +46,9 @@ export async function runSubagent({
     if (t in readOnly) tools[t] = readOnly[t];
   }
 
+  // 【导览 18】消费方二：子代理。它绕过"分诊台"，直接查目录拿 provider 再构建模型，
+  // 因此只支持内置模型，不支持 compat-* 自定义端点（对比【导览 13】）。
+  // 另外它用的是 generateText（一次性返回），不是主聊天的流式 streamText。
   const model = await buildLanguageModel(
     getModel(modelId as ModelId).provider,
     keys,

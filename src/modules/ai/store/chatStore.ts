@@ -113,6 +113,8 @@ type StoreState = {
   customEndpointKeys: CustomEndpointKeys;
   setCustomEndpointKeys: (keys: CustomEndpointKeys) => void;
 
+  // 【导览 17】当前选中的模型。这里只存字符串 ID，不存任何厂商对象。
+  // 初始值是 config.ts 的 DEFAULT_MODEL_ID（【导览 6】）；下拉选择器见【导览 21】。
   selectedModelId: string;
   setSelectedModelId: (id: string) => void;
 

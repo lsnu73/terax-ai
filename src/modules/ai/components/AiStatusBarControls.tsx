@@ -207,6 +207,9 @@ export function AiStatusBarControls() {
 
 type Tab = "all" | "favorites" | "recent";
 
+// 【导览 21】用户在状态栏切换模型的下拉。下拉项 = 内置 MODELS + 每个自定义端点
+// 伪装成的 compat-* 模型（getCompatModelInfo）。点击后只做一件事：
+// 写入 chatStore.selectedModelId（【导览 17】）—— 不直接构建任何模型实例。
 function ModelDropdown() {
   const selected = useChatStore((s) => s.selectedModelId);
   const apiKeys = useChatStore((s) => s.apiKeys);

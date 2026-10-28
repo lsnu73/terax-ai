@@ -878,6 +878,8 @@ export function useSourceControlPanel(
       const { text: diffText, truncated } = truncateDiff(diff.diffText);
       const chatState = useChatStore.getState();
       const prefs = usePreferencesStore.getState();
+      // 【导览 20】消费方四：用当前对话所选模型生成 Git 提交信息。
+      // 它用的是"分诊台" buildConfiguredLanguageModel（【导览 13】），所以自定义端点也能用。
       const model = await buildConfiguredLanguageModel(
         selectedModelId,
         chatState.apiKeys,

@@ -71,8 +71,27 @@ export type BuildModelOptions = {
   openaiCompatibleBaseURL?: string;
 };
 
+// 【导览 11】模型实例缓存。同一个 provider + key + 端点地址 + 模型 ID 只构建一次。
+// 缓存键里特意包含 key：换了密钥会自然重建，不会复用带旧凭据的 client。
 const modelCache = new Map<string, LanguageModel>();
 
+/**
+ * 【导览 12】★ 全项目唯一的厂商收敛点。读懂这个函数，就读懂了整个配置架构。
+ *
+ * 输入：provider + 密钥 + 真实模型 ID + 端点配置
+ * 输出：AI SDK 的统一 LanguageModel（上游完全不关心是哪家厂商）
+ *
+ * 结构只有两段：
+ *   1) 缺 key 校验 + 查缓存（参数没变直接返回）
+ *   2) switch(provider) —— 每个 case 只做一件事：动态 import 对应包并构造模型
+ *
+ * 两条实现路径：
+ *   A 组：官方专属包 —— openai / anthropic / google / xai / cerebras / groq
+ *   B 组：OpenAI 兼容包 —— deepseek / mistral / openrouter / openai-compatible /
+ *        lmstudio / mlx / ollama，全部共用 createOpenAICompatible
+ *
+ * 要加国内厂商（GLM / Qwen / Kimi / 豆包），照 B 组任意一个 case 抄一遍即可。
+ */
 export async function buildLanguageModel(
   provider: ProviderId,
   keys: ProviderKeys,
@@ -97,6 +116,7 @@ export async function buildLanguageModel(
 
   let built: LanguageModel;
   switch (provider) {
+    // ── A 组：官方专属包，各走各的私有协议 ──────────────────────────────
     case "openai": {
       const { createOpenAI } = await import("@ai-sdk/openai");
       built = createOpenAI({ apiKey: key })(resolvedModelId);
@@ -122,6 +142,8 @@ export async function buildLanguageModel(
       built = createCerebras({ apiKey: key })(resolvedModelId);
       break;
     }
+    // ── B 组：OpenAI 兼容协议。DeepSeek 也没用专属包 —— 这就是本项目的"国内厂商模板"。
+    // 加 GLM / Qwen / Kimi 时，复制这个 case 改 name + baseURL 即可。
     case "deepseek": {
       const { createOpenAICompatible } =
         await import("@ai-sdk/openai-compatible");
@@ -161,6 +183,8 @@ export async function buildLanguageModel(
       })(resolvedModelId);
       break;
     }
+    // 用户自定义端点（compat-* 分诊后都会落到这里）：
+    // baseURL 来自设置，密钥优先用端点专属的 epKey，其次退回该 provider 的钥匙。
     case "openai-compatible": {
       if (!compatURL) {
         throw new Error(
@@ -177,6 +201,8 @@ export async function buildLanguageModel(
       })(resolvedModelId);
       break;
     }
+    // 本地 runtime 三兄弟（lmstudio / mlx / ollama）：不需要 key，
+    // 必须走 localProxyFetch 才能访问本机 localhost 端口。
     case "lmstudio": {
       const { createOpenAICompatible } =
         await import("@ai-sdk/openai-compatible");
@@ -230,6 +256,16 @@ export type LocalProviderConfig = {
   customEndpointKeys?: CustomEndpointKeys;
 };
 
+/**
+ * 【导览 13】模型 ID 分诊台：把"用户选中的 ID"翻译成 (provider, 真实模型 ID, 端点配置)。
+ *
+ * 三种情况：
+ *   1) compat-<endpointId>       → 去 customEndpoints 找到端点，改走 openai-compatible
+ *   2) lmstudio-local 等占位 ID  → 用设置里填的真实模型 ID 替换（本地 runtime 模型名不固定）
+ *   3) 其余                       → 查内置 MODELS 目录，直接拿到 provider
+ *
+ * 分诊完成后统一交给 buildLanguageModel（【导览 12】）。
+ */
 export function buildConfiguredLanguageModel(
   modelId: string,
   keys: ProviderKeys,
@@ -362,6 +398,8 @@ export type RunAgentOptions = {
 
 export async function runAgentStream(opts: RunAgentOptions) {
   const modelId = opts.modelId ?? DEFAULT_MODEL_ID;
+  // 【导览 14】模型进入真实请求的地方：先分诊、再构建模型，然后把工具和提示词交给 streamText。
+  // 从这行往上/往下就是纯业务（提示词、工具、上下文压缩、用量统计），全部与厂商无关。
   const model = await buildConfiguredLanguageModel(modelId, opts.keys, {
     lmstudioBaseURL: opts.lmstudioBaseURL,
     lmstudioModelId: opts.lmstudioModelId,

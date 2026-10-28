@@ -18,6 +18,8 @@ import {
   useChatStore,
 } from "./chatStore";
 
+// 【导览 16】把 transport 接到 @ai-sdk/react 的 Chat 实例上。
+// 注意 getModelId / getKeys 用的是 getter 而不是快照：用户随时切换模型，下一次请求自动生效。
 function makeChat(sessionId: string): Chat<UIMessage> {
   const readCache = new Map<string, { size: number; hash: number }>();
   const toolContext: ToolContext = {

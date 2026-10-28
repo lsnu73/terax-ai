@@ -1,5 +1,28 @@
+/**
+ * 【导览 0 / 起点】AI 模型配置地图 —— 从这里开始读。
+ *
+ * 阅读顺序（代码里每站都标了【导览 N】）：
+ *   【1-6】  src/modules/ai/config.ts                静态目录：有哪些厂商、哪些模型
+ *   【7-8】  src/modules/ai/lib/keyring.ts           密钥存在操作系统钥匙串
+ *   【9-10】 src/modules/settings/store.ts           本地端点/自定义端点的持久化
+ *   【11-14】src/modules/ai/lib/agent.ts             ★ 核心：模型 ID → LanguageModel
+ *   【15】   src/modules/ai/lib/transport.ts         聊天请求的传输层
+ *   【16】   src/modules/ai/store/chatRuntime.ts     useChat 与 transport 的接线
+ *   【17】   src/modules/ai/store/chatStore.ts       当前选中的模型 ID
+ *   【18】   src/modules/ai/agents/runSubagent.ts    消费方二：子代理
+ *   【19】   src/modules/editor/lib/autocomplete/provider.ts     消费方三：行内补全
+ *   【20】   src/modules/source-control/useSourceControlPanel.ts 消费方四：提交信息
+ *   【21】   src/modules/ai/components/AiStatusBarControls.tsx   模型下拉选择器
+ *   【22】   src/settings/sections/ModelsSection.tsx 设置页：录入 key 与端点
+ *
+ * 一句话主线：选择模型(ID) → 工厂把 ID 翻译成 LanguageModel → 交给 AI SDK 发请求。
+ */
+
 export const KEYRING_SERVICE = "terax-ai";
 
+// 【导览 1】厂商白名单：全部 13 个 provider 的联合类型。
+// 想加一家厂商，第一步就是在这里加一个成员 —— 之后 agent.ts 的 switch 会用
+// `never` 检查强制你把分支补齐，漏了会编译报错。
 export type ProviderId =
   | "openai"
   | "anthropic"
@@ -25,6 +48,8 @@ export type ProviderInfo = {
   keyOptional?: boolean;
 };
 
+// 【导览 2】每家厂商的元数据。keyringAccount 是它在操作系统钥匙串里的账户名，
+// 下一站 keyring.ts（【导览 7】）就是拿这个字段去存/取密钥的。
 export const PROVIDERS: readonly ProviderInfo[] = [
   {
     id: "openai",
@@ -120,6 +145,9 @@ export const PROVIDERS: readonly ProviderInfo[] = [
   },
 ] as const;
 
+// 【导览 3】自定义端点：OpenAI 兼容协议的自建/第三方服务（GLM、Qwen、Kimi 都走这里）。
+// 关键约定：一个端点会在模型列表里伪装成 ID 为 `compat-<endpointId>` 的普通模型，
+// 上层（聊天下拉、工厂分诊）完全不需要知道它是自定义的。
 export type CustomEndpoint = {
   id: string;
   name: string;
@@ -187,6 +215,8 @@ export type ModelInfo = {
   supportsTemperature?: boolean;
 };
 
+// 【导览 4】内置模型目录：所有厂商能力的静态声明，UI 直接读它渲染下拉，无需联网枚举。
+// 注意这里只有"型号 + 展示信息 + 能力标签"，没有任何网络/密钥逻辑。
 export const MODELS = [
   // ── OpenAI ────────────────────────────────────────────────────────────────
   {
@@ -634,6 +664,9 @@ export const MODELS = [
 
 export type ModelId = (typeof MODELS)[number]["id"];
 
+// 【导览 5】ID 解析：把用户选中的模型 ID 还原成 ModelInfo（provider + 展示信息）。
+// compat-* 开头的去自定义端点里查，其余在内置目录里查，找不到就抛错。
+// resolveModel 是工厂分诊的第一步，下一站 agent.ts（【导览 13】）。
 export function getCompatModelInfo(
   modelId: string,
   endpoints: readonly CustomEndpoint[],
@@ -713,6 +746,9 @@ export function modelUsesReasoningTokens(
   );
 }
 
+// 【导览 6】三张派生表：默认模型、上下文窗口、价格。
+// 它们只服务于运行时（上下文压缩、费用统计、补全模型兜底），
+// 和"怎么连厂商"无关，第一遍读架构时可以跳过。
 export const DEFAULT_MODEL_ID: ModelId = "gpt-5.4-mini";
 
 /** Approximate context window (in tokens) per model. Used for the

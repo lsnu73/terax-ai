@@ -30,6 +30,9 @@ const MAX_OUTPUT_TOKENS_DEFAULT = 128;
 // empty text. The trim step still caps visible output at MAX_LINES.
 const MAX_OUTPUT_TOKENS_REASONING = 1024;
 
+// 【导览 19】消费方三：编辑器行内补全。
+// 模型选择规则：用户显式配置的 modelId > DEFAULT_AUTOCOMPLETE_MODEL[provider]（config.ts【导览 6】）。
+// 它同样直接调 buildLanguageModel（【导览 12】），属于轻量旁路。
 export async function requestCompletion(
   req: CompletionRequest,
   deps: CompletionDeps,
