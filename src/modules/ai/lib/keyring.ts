@@ -1,166 +1,140 @@
-// 【导览 7】密钥层：API Key 不写进设置文件，而是经 Tauri 存进操作系统钥匙串。
-// 前端只看到 invoke("secrets_get"/"secrets_set"/"secrets_get_all")，
-// 真正的平台实现（macOS Keychain / Windows 凭据管理器）在：
-//   src-tauri/src/modules/secrets.rs
-// service 固定为 "terax-ai"，account 来自 config.ts 的 PROVIDERS[].keyringAccount（【导览 2】）。
 import { invoke } from "@tauri-apps/api/core";
 import {
-  getProvider,
-  KEYRING_SERVICE,
-  PROVIDERS,
+  allKeyringAccounts,
+  findProvider,
   providerSupportsKey,
-  type CustomEndpoint,
-  type ProviderId,
+  STT_KEY_ACCOUNTS,
 } from "../config";
 
-export type ProviderKeys = Record<ProviderId, string | null>;
-export type CustomEndpointKeys = Record<string, string | null>;
+/**
+ * API Key 存放在操作系统钥匙串，绝不写入 JSON 配置文件。
+ * 账户名是每个 Provider 配置的一部分（`keyringAccount`），
+ * 因此新增 Provider 不需要改代码。
+ */
+export const KEYRING_SERVICE = "terax-ai";
 
-// 每个云端 provider 一把钥匙；本地 provider（lmstudio/mlx/ollama）不需要 key，恒为 null。
-export const EMPTY_PROVIDER_KEYS: ProviderKeys = {
-  openai: null,
-  anthropic: null,
-  google: null,
-  xai: null,
-  cerebras: null,
-  groq: null,
-  deepseek: null,
-  mistral: null,
-  openrouter: null,
-  "openai-compatible": null,
-  lmstudio: null,
-  mlx: null,
-  ollama: null,
-};
+export type ProviderKeys = Record<string, string | null>;
 
-export async function getKey(provider: ProviderId): Promise<string | null> {
-  if (!providerSupportsKey(provider)) return null;
+export const EMPTY_PROVIDER_KEYS: ProviderKeys = {};
+
+async function getByAccount(account: string): Promise<string | null> {
+  if (!account) return null;
   try {
-    const v = await invoke<string | null>("secrets_get", {
+    const value = await invoke<string | null>("secrets_get", {
       service: KEYRING_SERVICE,
-      account: getProvider(provider).keyringAccount,
+      account,
     });
-    return v && v.length > 0 ? v : null;
+    return value && value.length > 0 ? value : null;
   } catch {
     return null;
   }
 }
 
-export async function setKey(provider: ProviderId, key: string): Promise<void> {
+async function getAllByAccount(
+  accounts: readonly string[],
+): Promise<Map<string, string | null>> {
+  const out = new Map<string, string | null>();
+  if (accounts.length === 0) return out;
+  try {
+    const results = await invoke<(string | null)[]>("secrets_get_all", {
+      service: KEYRING_SERVICE,
+      accounts: [...accounts],
+    });
+    accounts.forEach((account, index) => {
+      const value = results[index];
+      out.set(account, value && value.length > 0 ? value : null);
+    });
+    return out;
+  } catch {
+    for (const account of accounts) out.set(account, await getByAccount(account));
+    return out;
+  }
+}
+
+export async function getKey(providerId: string): Promise<string | null> {
+  const provider = findProvider(providerId);
+  if (!provider || !providerSupportsKey(provider)) return null;
+  return getByAccount(provider.keyringAccount);
+}
+
+export async function setKey(
+  providerId: string,
+  key: string,
+): Promise<void> {
+  const provider = findProvider(providerId);
+  if (!provider) throw new Error(`Unknown provider: ${providerId}`);
   if (!providerSupportsKey(provider)) {
-    throw new Error(`${provider} does not use an API key`);
+    throw new Error(`${provider.label} does not use an API key`);
   }
   const trimmed = key.trim();
   if (!trimmed) throw new Error("API key is empty");
   await invoke("secrets_set", {
     service: KEYRING_SERVICE,
-    account: getProvider(provider).keyringAccount,
+    account: provider.keyringAccount,
     password: trimmed,
   });
 }
 
-export async function clearKey(provider: ProviderId): Promise<void> {
-  if (!providerSupportsKey(provider)) return;
+export async function clearKey(providerId: string): Promise<void> {
+  const provider = findProvider(providerId);
+  if (!provider) return;
   try {
     await invoke("secrets_delete", {
       service: KEYRING_SERVICE,
-      account: getProvider(provider).keyringAccount,
+      account: provider.keyringAccount,
     });
   } catch {
-    // already absent — fine
+    // 本来就不存在——忽略
   }
 }
 
+/** 所有已配置 Provider 的密钥，外加固定的语音转写账户。 */
 export async function getAllKeys(): Promise<ProviderKeys> {
-  const out = { ...EMPTY_PROVIDER_KEYS };
-  const need = PROVIDERS.filter((p) => providerSupportsKey(p.id));
-  try {
-    const results = await invoke<(string | null)[]>("secrets_get_all", {
-      service: KEYRING_SERVICE,
-      accounts: need.map((p) => p.keyringAccount),
-    });
-    need.forEach((p, i) => {
-      const v = results[i];
-      out[p.id] = v && v.length > 0 ? v : null;
-    });
-    return out;
-  } catch {
-    const entries = await Promise.all(
-      need.map(async (p) => [p.id, await getKey(p.id)] as const),
-    );
-    for (const [id, v] of entries) out[id] = v;
-    return out;
+  const providers = allKeyringAccounts();
+  const stt = Object.entries(STT_KEY_ACCOUNTS);
+  const accounts = [
+    ...stt.map(([, account]) => account),
+    ...providers.map((p) => p.account),
+  ];
+  const values = await getAllByAccount(accounts);
+  const out: ProviderKeys = {};
+  for (const [providerId, account] of stt) {
+    out[providerId] = values.get(account) ?? null;
   }
+  for (const { providerId, account } of providers) {
+    out[providerId] = values.get(account) ?? null;
+  }
+  return out;
 }
 
-export function hasAnyKey(keys: ProviderKeys): boolean {
-  return PROVIDERS.some((p) => providerSupportsKey(p.id) && !!keys[p.id]);
-}
+type SttAccountId = keyof typeof STT_KEY_ACCOUNTS;
 
-// 【导览 8】自定义端点的密钥用独立账户名：compat-<endpointId>-api-key。
-// 这样多个自定义端点可以各用各的 key，互不覆盖。
-// 下一站：非密钥配置（baseURL / 端点列表）存在哪里 → src/modules/settings/store.ts（【导览 9】）
-function compatKeyringAccount(endpointId: string): string {
-  return `compat-${endpointId}-api-key`;
-}
-
-export async function getCustomEndpointKey(
-  endpointId: string,
+export async function getSttKey(
+  provider: SttAccountId,
 ): Promise<string | null> {
-  try {
-    const v = await invoke<string | null>("secrets_get", {
-      service: KEYRING_SERVICE,
-      account: compatKeyringAccount(endpointId),
-    });
-    return v && v.length > 0 ? v : null;
-  } catch {
-    return null;
-  }
+  return getByAccount(STT_KEY_ACCOUNTS[provider]);
 }
 
-export async function setCustomEndpointKey(
-  endpointId: string,
+export async function setSttKey(
+  provider: SttAccountId,
   key: string,
 ): Promise<void> {
   const trimmed = key.trim();
   if (!trimmed) throw new Error("API key is empty");
   await invoke("secrets_set", {
     service: KEYRING_SERVICE,
-    account: compatKeyringAccount(endpointId),
+    account: STT_KEY_ACCOUNTS[provider],
     password: trimmed,
   });
 }
 
-export async function clearCustomEndpointKey(
-  endpointId: string,
-): Promise<void> {
+export async function clearSttKey(provider: SttAccountId): Promise<void> {
   try {
     await invoke("secrets_delete", {
       service: KEYRING_SERVICE,
-      account: compatKeyringAccount(endpointId),
-    });
-  } catch {}
-}
-
-export async function getAllCustomEndpointKeys(
-  endpoints: readonly CustomEndpoint[],
-): Promise<CustomEndpointKeys> {
-  if (endpoints.length === 0) return {};
-  const out: CustomEndpointKeys = {};
-  try {
-    const accounts = endpoints.map((e) => compatKeyringAccount(e.id));
-    const results = await invoke<(string | null)[]>("secrets_get_all", {
-      service: KEYRING_SERVICE,
-      accounts,
-    });
-    endpoints.forEach((e, i) => {
-      const v = results[i];
-      out[e.id] = v && v.length > 0 ? v : null;
+      account: STT_KEY_ACCOUNTS[provider],
     });
   } catch {
-    for (const e of endpoints) {
-      out[e.id] = await getCustomEndpointKey(e.id);
-    }
+    // 本来就不存在——忽略
   }
-  return out;
 }

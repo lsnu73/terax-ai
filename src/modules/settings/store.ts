@@ -1,16 +1,6 @@
 import {
   type AutocompleteProviderId,
-  type CustomEndpoint,
-  DEFAULT_AUTOCOMPLETE_MODEL,
-  DEFAULT_MODEL_ID,
   DEFAULT_STT_PROVIDER,
-  isKnownModelId,
-  LMSTUDIO_DEFAULT_BASE_URL,
-  MLX_DEFAULT_BASE_URL,
-  type ModelId,
-  migrateLegacyCompatEndpoint,
-  OLLAMA_DEFAULT_BASE_URL,
-  OPENAI_COMPATIBLE_DEFAULT_BASE_URL,
   type SttProvider,
   WHISPERCPP_DEFAULT_BASE_URL,
 } from "@/modules/ai/config";
@@ -58,7 +48,7 @@ export const EDITOR_THEMES = [
 
 export type EditorThemeId = (typeof EDITOR_THEMES)[number];
 
-/** "auto" follows the active app theme's editorTheme pairing (resolved live). */
+/** "auto" 跟随当前应用主题的 editorTheme 配对（运行时解析）。 */
 export const EDITOR_THEME_AUTO = "auto" as const;
 export type EditorThemePref = typeof EDITOR_THEME_AUTO | EditorThemeId;
 
@@ -118,11 +108,10 @@ export const EDITOR_THEME_LABELS: Record<EditorThemeId, string> = {
   "xcode-light": "Xcode Light",
 };
 
-// 【导览 9】非密钥配置的持久化。注意扫一眼：这里没有任何 apiKey 字段 —— 密钥全在钥匙串（【导览 7】）。
-// 与模型相关的配置分三类：
-//   1) 本地 runtime：lmstudio / mlx / ollama 的 baseURL + 模型 ID
-//   2) 自定义端点：customEndpoints[]（id / name / baseURL / modelId / contextLimit）
-//   3) 默认与补全模型：defaultModelId / autocompleteModelId
+// 【导览 9】非密钥配置的持久化。这里没有任何 apiKey 字段 —— 密钥全在钥匙串。
+// 模型相关的配置本身不在这个文件里：providers / models / 请求参数都在
+// terax-ai-models.json（src/modules/ai/config/persist.ts）。
+// 这里只保存 UI 选择：补全模型、每个模型上次的思考档位。
 export type Preferences = {
   theme: ThemePref;
   themeId: string;
@@ -131,7 +120,6 @@ export type Preferences = {
   backgroundOpacity: number;
   backgroundBlur: number;
   windowVibrancy: boolean;
-  defaultModelId: ModelId;
   editorTheme: EditorThemePref;
   editorFontSize: number;
   customInstructions: string;
@@ -141,17 +129,8 @@ export type Preferences = {
   autocompleteTrigger: AutocompleteTrigger;
   autocompleteProvider: AutocompleteProviderId;
   autocompleteModelId: string;
-  lmstudioBaseURL: string;
-  lmstudioModelId: string;
-  mlxBaseURL: string;
-  mlxModelId: string;
-  ollamaBaseURL: string;
-  ollamaModelId: string;
-  openaiCompatibleBaseURL: string;
-  openaiCompatibleModelId: string;
-  openaiCompatibleContextLimit: number;
-  customEndpoints: CustomEndpoint[];
-  openrouterModelId: string;
+  /** 每个模型的思考滑块位置（档位 id）。缺省时使用模型默认档位。 */
+  thinkingLevelByModel: Record<string, string>;
   sttProvider: SttProvider;
   groqSttModel: string;
   whispercppBaseURL: string;
@@ -184,9 +163,9 @@ export type Preferences = {
   editorAutoSaveDelay: number;
   editorFormatOnSave: boolean;
   editorFormatter: EditorFormatter;
-  /** languageResolver id -> formatter, overriding the global default. */
+  /** languageResolver id -> 格式化器，用于覆盖全局默认值。 */
   editorFormatterByLang: Record<string, EditorFormatter>;
-  /** Shell template for the "custom" formatter; {file} is the quoted path. */
+  /** "custom" 格式化器的 shell 模板；{file} 是已加引号的路径。 */
   editorCustomFormatCommand: string;
   lspActivation: Record<string, LspActivation>;
   lspCustomServers: LspCustomServer[];
@@ -211,7 +190,7 @@ export type LspCustomServer = {
   name: string;
   command: string;
   args: string[];
-  /** languageResolver id -> LSP languageId */
+  /** languageResolver id -> LSP languageId 映射。 */
   languages: Record<string, string>;
   rootMarkers: string[];
 };
@@ -224,7 +203,6 @@ const KEY_BG_IMAGE_ID = "backgroundImageId";
 const KEY_BG_OPACITY = "backgroundOpacity";
 const KEY_BG_BLUR = "backgroundBlur";
 const KEY_WINDOW_VIBRANCY = "windowVibrancy";
-const KEY_DEFAULT_MODEL = "defaultModelId";
 const KEY_EDITOR_THEME = "editorTheme";
 const KEY_EDITOR_FONT_SIZE = "editorFontSize";
 const KEY_CUSTOM_INSTRUCTIONS = "customInstructions";
@@ -236,17 +214,7 @@ const KEY_AUTOCOMPLETE_ENABLED = "autocompleteEnabled";
 const KEY_AUTOCOMPLETE_TRIGGER = "autocompleteTrigger";
 const KEY_AUTOCOMPLETE_PROVIDER = "autocompleteProvider";
 const KEY_AUTOCOMPLETE_MODEL = "autocompleteModelId";
-const KEY_LMSTUDIO_BASE_URL = "lmstudioBaseURL";
-const KEY_LMSTUDIO_MODEL_ID = "lmstudioModelId";
-const KEY_MLX_BASE_URL = "mlxBaseURL";
-const KEY_MLX_MODEL_ID = "mlxModelId";
-const KEY_OLLAMA_BASE_URL = "ollamaBaseURL";
-const KEY_OLLAMA_MODEL_ID = "ollamaModelId";
-const KEY_OPENAI_COMPAT_BASE_URL = "openaiCompatibleBaseURL";
-const KEY_OPENAI_COMPAT_MODEL_ID = "openaiCompatibleModelId";
-const KEY_OPENAI_COMPAT_CONTEXT_LIMIT = "openaiCompatibleContextLimit";
-const KEY_CUSTOM_ENDPOINTS = "customEndpoints";
-const KEY_OPENROUTER_MODEL_ID = "openrouterModelId";
+const KEY_THINKING_LEVELS = "thinkingLevelByModel";
 const KEY_STT_PROVIDER = "sttProvider";
 const KEY_GROQ_STT_MODEL = "groqSttModel";
 const KEY_WHISPERCPP_BASE_URL = "whispercppBaseURL";
@@ -318,31 +286,19 @@ export const DEFAULT_PREFERENCES: Preferences = {
   backgroundImageId: null,
   backgroundOpacity: 0.5,
   backgroundBlur: 0,
-  defaultModelId: DEFAULT_MODEL_ID,
   editorTheme: EDITOR_THEME_AUTO,
   editorFontSize: EDITOR_FONT_SIZE_DEFAULT,
   customInstructions: "",
   autostart: false,
-  // Off by default: a translucent window keeps the compositor blending the
-  // whole frame every present. An explicitly stored choice (either value)
-  // always wins; only an absent key falls back to this.
+  // 默认关闭：半透明窗口会让合成器在每次呈现时混合整帧。
+  // 显式保存过的取值（无论 true/false）始终优先；只有键不存在时才回落到这里。
   windowVibrancy: false,
   restoreWindowState: true,
   autocompleteEnabled: false,
   autocompleteTrigger: "auto",
-  autocompleteProvider: "cerebras",
-  autocompleteModelId: DEFAULT_AUTOCOMPLETE_MODEL.cerebras ?? "",
-  lmstudioBaseURL: LMSTUDIO_DEFAULT_BASE_URL,
-  lmstudioModelId: "",
-  mlxBaseURL: MLX_DEFAULT_BASE_URL,
-  mlxModelId: "",
-  ollamaBaseURL: OLLAMA_DEFAULT_BASE_URL,
-  ollamaModelId: "",
-  openaiCompatibleBaseURL: OPENAI_COMPATIBLE_DEFAULT_BASE_URL,
-  openaiCompatibleModelId: "",
-  openaiCompatibleContextLimit: 128_000,
-  customEndpoints: [],
-  openrouterModelId: "",
+  autocompleteProvider: "",
+  autocompleteModelId: "",
+  thinkingLevelByModel: {},
   sttProvider: DEFAULT_STT_PROVIDER,
   groqSttModel: "whisper-large-v3-turbo",
   whispercppBaseURL: WHISPERCPP_DEFAULT_BASE_URL,
@@ -383,10 +339,9 @@ export const DEFAULT_PREFERENCES: Preferences = {
 
 const store = new LazyStore(STORE_PATH, { defaults: {}, autoSave: 200 });
 
-// LazyStore.onChange only fires within the writing process. The settings
-// page lives in a separate webview, so writes there never reach the main
-// window's subscribers. Mirror every setter through a Tauri event so any
-// window can listen.
+// LazyStore.onChange 只在写入进程内触发。设置页运行在独立的 webview 中，
+// 那里的写入永远到不了主窗口的订阅者。因此每个 setter 都通过 Tauri
+// 事件广播一次，让任意窗口都能监听。
 const PREFS_CHANGED_EVENT = "terax://prefs-changed";
 
 async function writePref<T>(key: string, value: T): Promise<void> {
@@ -396,8 +351,8 @@ async function writePref<T>(key: string, value: T): Promise<void> {
 }
 
 export async function loadPreferences(): Promise<Preferences> {
-  // Single IPC roundtrip — fetching keys individually fans out to one
-  // `plugin:store|get` per setting and is the dominant boot cost.
+  // 单次 IPC 往返——逐键读取会为每个设置扇出一次
+  // `plugin:store|get`，是启动阶段的主要开销。
   const entries = await store.entries();
   const map = new Map<string, unknown>(entries);
   const get = <T>(k: string): T | undefined => map.get(k) as T | undefined;
@@ -415,12 +370,6 @@ export async function loadPreferences(): Promise<Preferences> {
     backgroundBlur: clampBlur(
       get<number>(KEY_BG_BLUR) ?? DEFAULT_PREFERENCES.backgroundBlur,
     ),
-    defaultModelId: ((): ModelId => {
-      const stored = get<string>(KEY_DEFAULT_MODEL);
-      return stored && isKnownModelId(stored)
-        ? stored
-        : DEFAULT_PREFERENCES.defaultModelId;
-    })(),
     editorTheme: ((): EditorThemePref => {
       const stored = get<string>(KEY_EDITOR_THEME);
       if (stored === EDITOR_THEME_AUTO || isEditorThemeId(stored))
@@ -451,42 +400,9 @@ export async function loadPreferences(): Promise<Preferences> {
     autocompleteModelId:
       get<string>(KEY_AUTOCOMPLETE_MODEL) ??
       DEFAULT_PREFERENCES.autocompleteModelId,
-    lmstudioBaseURL:
-      get<string>(KEY_LMSTUDIO_BASE_URL) ?? DEFAULT_PREFERENCES.lmstudioBaseURL,
-    lmstudioModelId:
-      get<string>(KEY_LMSTUDIO_MODEL_ID) ?? DEFAULT_PREFERENCES.lmstudioModelId,
-    mlxBaseURL: get<string>(KEY_MLX_BASE_URL) ?? DEFAULT_PREFERENCES.mlxBaseURL,
-    mlxModelId: get<string>(KEY_MLX_MODEL_ID) ?? DEFAULT_PREFERENCES.mlxModelId,
-    ollamaBaseURL:
-      get<string>(KEY_OLLAMA_BASE_URL) ?? DEFAULT_PREFERENCES.ollamaBaseURL,
-    ollamaModelId:
-      get<string>(KEY_OLLAMA_MODEL_ID) ?? DEFAULT_PREFERENCES.ollamaModelId,
-    openaiCompatibleBaseURL:
-      get<string>(KEY_OPENAI_COMPAT_BASE_URL) ??
-      DEFAULT_PREFERENCES.openaiCompatibleBaseURL,
-    openaiCompatibleModelId:
-      get<string>(KEY_OPENAI_COMPAT_MODEL_ID) ??
-      DEFAULT_PREFERENCES.openaiCompatibleModelId,
-    openaiCompatibleContextLimit:
-      get<number>(KEY_OPENAI_COMPAT_CONTEXT_LIMIT) ??
-      DEFAULT_PREFERENCES.openaiCompatibleContextLimit,
-    // 【导览 10】旧版只有一个 openaiCompatibleBaseURL，这里做一次性迁移：
-    // 新端点列表为空但旧字段有值，就自动生成一条自定义端点。
-    // 迁移函数 migrateLegacyCompatEndpoint 在 config.ts（【导览 3】旁边）。
-    // 下一站：核心工厂 → src/modules/ai/lib/agent.ts（【导览 11】）
-    customEndpoints: (() => {
-      const stored = get<CustomEndpoint[]>(KEY_CUSTOM_ENDPOINTS);
-      if (stored && stored.length > 0) return stored;
-      return migrateLegacyCompatEndpoint(
-        get<string>(KEY_OPENAI_COMPAT_BASE_URL) ?? "",
-        get<string>(KEY_OPENAI_COMPAT_MODEL_ID) ?? "",
-        get<number>(KEY_OPENAI_COMPAT_CONTEXT_LIMIT) ?? 128_000,
-        crypto.randomUUID().slice(0, 8),
-      );
-    })(),
-    openrouterModelId:
-      get<string>(KEY_OPENROUTER_MODEL_ID) ??
-      DEFAULT_PREFERENCES.openrouterModelId,
+    thinkingLevelByModel:
+      get<Record<string, string>>(KEY_THINKING_LEVELS) ??
+      DEFAULT_PREFERENCES.thinkingLevelByModel,
     sttProvider:
       get<SttProvider>(KEY_STT_PROVIDER) ?? DEFAULT_PREFERENCES.sttProvider,
     groqSttModel:
@@ -496,10 +412,10 @@ export async function loadPreferences(): Promise<Preferences> {
       DEFAULT_PREFERENCES.whispercppBaseURL,
     favoriteModelIds: (
       get<string[]>(KEY_FAVORITE_MODELS) ?? DEFAULT_PREFERENCES.favoriteModelIds
-    ).filter(isKnownModelId),
+    ).filter((id): id is string => typeof id === "string"),
     recentModelIds: (
       get<string[]>(KEY_RECENT_MODELS) ?? DEFAULT_PREFERENCES.recentModelIds
-    ).filter(isKnownModelId),
+    ).filter((id): id is string => typeof id === "string"),
     vimMode: get<boolean>(KEY_VIM_MODE) ?? DEFAULT_PREFERENCES.vimMode,
     editorWordWrap:
       get<boolean>(KEY_EDITOR_WORD_WRAP) ?? DEFAULT_PREFERENCES.editorWordWrap,
@@ -618,8 +534,8 @@ export async function setThemeId(value: string): Promise<void> {
   await writePref(KEY_THEME_ID, value);
 }
 
-/** Slider stores 0..1. Actual rendered opacity is halved in SurfaceLayer
- *  so the image never exceeds 50% — keeps UI/terminal readable at any setting. */
+/** 滑块保存 0..1。SurfaceLayer 渲染时会再减半，
+ *  保证图片不透明度不超过 50%，任何设置下 UI/终端都保持可读。 */
 export const BG_OPACITY_RENDER_FACTOR = 0.5;
 
 function clampBgOpacity(v: number): number {
@@ -648,10 +564,6 @@ export async function setBackgroundOpacity(value: number): Promise<void> {
 
 export async function setBackgroundBlur(value: number): Promise<void> {
   await writePref(KEY_BG_BLUR, clampBlur(value));
-}
-
-export async function setDefaultModel(value: ModelId): Promise<void> {
-  await writePref(KEY_DEFAULT_MODEL, value);
 }
 
 export async function setEditorTheme(value: EditorThemePref): Promise<void> {
@@ -706,55 +618,24 @@ export async function setAutocompleteModelId(value: string): Promise<void> {
   await writePref(KEY_AUTOCOMPLETE_MODEL, value);
 }
 
-export async function setLmstudioBaseURL(value: string): Promise<void> {
-  await writePref(KEY_LMSTUDIO_BASE_URL, value);
-}
-
-export async function setLmstudioModelId(value: string): Promise<void> {
-  await writePref(KEY_LMSTUDIO_MODEL_ID, value);
-}
-
-export async function setMlxBaseURL(value: string): Promise<void> {
-  await writePref(KEY_MLX_BASE_URL, value);
-}
-
-export async function setMlxModelId(value: string): Promise<void> {
-  await writePref(KEY_MLX_MODEL_ID, value);
-}
-
-export async function setOllamaBaseURL(value: string): Promise<void> {
-  await writePref(KEY_OLLAMA_BASE_URL, value);
-}
-
-export async function setOllamaModelId(value: string): Promise<void> {
-  await writePref(KEY_OLLAMA_MODEL_ID, value);
-}
-
-export async function setOpenaiCompatibleBaseURL(value: string): Promise<void> {
-  await writePref(KEY_OPENAI_COMPAT_BASE_URL, value);
-}
-
-export async function setOpenaiCompatibleModelId(value: string): Promise<void> {
-  await writePref(KEY_OPENAI_COMPAT_MODEL_ID, value);
-}
-
-export async function setOpenaiCompatibleContextLimit(
-  value: number,
+export async function setThinkingLevelByModel(
+  value: Record<string, string>,
 ): Promise<void> {
-  const clamped = Number.isFinite(value)
-    ? Math.max(1_000, Math.round(value))
-    : DEFAULT_PREFERENCES.openaiCompatibleContextLimit;
-  await writePref(KEY_OPENAI_COMPAT_CONTEXT_LIMIT, clamped);
+  await writePref(KEY_THINKING_LEVELS, value);
 }
 
-export async function setCustomEndpoints(
-  value: CustomEndpoint[],
+export async function setThinkingLevel(
+  modelId: string,
+  levelId: string | null,
 ): Promise<void> {
-  await writePref(KEY_CUSTOM_ENDPOINTS, value);
-}
-
-export async function setOpenrouterModelId(value: string): Promise<void> {
-  await writePref(KEY_OPENROUTER_MODEL_ID, value);
+  const current =
+    (await store.get(KEY_THINKING_LEVELS).catch(() => null)) as
+      | Record<string, string>
+      | null;
+  const next = { ...(current ?? {}) };
+  if (levelId) next[modelId] = levelId;
+  else delete next[modelId];
+  await writePref(KEY_THINKING_LEVELS, next);
 }
 
 export async function setSttProvider(value: SttProvider): Promise<void> {
@@ -964,7 +845,7 @@ export async function setShortcuts(
 
 export type PrefKey = keyof Preferences;
 
-/** Subscribe to changes from any window (settings → main). */
+/** 订阅任意窗口的变更（设置页 → 主窗口）。 */
 export async function onPreferencesChange(
   cb: (key: PrefKey, value: unknown) => void,
 ): Promise<UnlistenFn> {
@@ -976,7 +857,7 @@ export async function onPreferencesChange(
     [KEY_BG_OPACITY]: "backgroundOpacity",
     [KEY_BG_BLUR]: "backgroundBlur",
     [KEY_WINDOW_VIBRANCY]: "windowVibrancy",
-    [KEY_DEFAULT_MODEL]: "defaultModelId",
+    [KEY_THINKING_LEVELS]: "thinkingLevelByModel",
     [KEY_EDITOR_THEME]: "editorTheme",
     [KEY_EDITOR_FONT_SIZE]: "editorFontSize",
     [KEY_CUSTOM_INSTRUCTIONS]: "customInstructions",
@@ -986,17 +867,6 @@ export async function onPreferencesChange(
     [KEY_AUTOCOMPLETE_TRIGGER]: "autocompleteTrigger",
     [KEY_AUTOCOMPLETE_PROVIDER]: "autocompleteProvider",
     [KEY_AUTOCOMPLETE_MODEL]: "autocompleteModelId",
-    [KEY_LMSTUDIO_BASE_URL]: "lmstudioBaseURL",
-    [KEY_LMSTUDIO_MODEL_ID]: "lmstudioModelId",
-    [KEY_MLX_BASE_URL]: "mlxBaseURL",
-    [KEY_MLX_MODEL_ID]: "mlxModelId",
-    [KEY_OLLAMA_BASE_URL]: "ollamaBaseURL",
-    [KEY_OLLAMA_MODEL_ID]: "ollamaModelId",
-    [KEY_OPENAI_COMPAT_BASE_URL]: "openaiCompatibleBaseURL",
-    [KEY_OPENAI_COMPAT_MODEL_ID]: "openaiCompatibleModelId",
-    [KEY_OPENAI_COMPAT_CONTEXT_LIMIT]: "openaiCompatibleContextLimit",
-    [KEY_CUSTOM_ENDPOINTS]: "customEndpoints",
-    [KEY_OPENROUTER_MODEL_ID]: "openrouterModelId",
     [KEY_STT_PROVIDER]: "sttProvider",
     [KEY_GROQ_STT_MODEL]: "groqSttModel",
     [KEY_WHISPERCPP_BASE_URL]: "whispercppBaseURL",
@@ -1034,8 +904,8 @@ export async function onPreferencesChange(
     [KEY_LSP_ACTIVATION]: "lspActivation",
     [KEY_LSP_CUSTOM_SERVERS]: "lspCustomServers",
   };
-  // Same-process writes still fire onChange immediately; cross-window writes
-  // arrive via the Tauri event emitted by writePref().
+  // 同进程写入仍会立即触发 onChange；跨窗口写入则通过
+  // writePref() 发出的 Tauri 事件送达。
   const unsubLocal = await store.onChange<unknown>((key, value) => {
     const mapped = map[key];
     if (mapped) cb(mapped, value);
@@ -1053,8 +923,8 @@ export async function onPreferencesChange(
   };
 }
 
-// API key changes are stored in OS keychain (not the prefs store),
-// so we broadcast via a Tauri event for cross-window listeners.
+// API Key 变更保存在操作系统钥匙串（而非偏好存储），
+// 因此通过 Tauri 事件广播给跨窗口监听者。
 const KEYS_CHANGED_EVENT = "terax://ai-keys-changed";
 
 export async function emitKeysChanged(): Promise<void> {

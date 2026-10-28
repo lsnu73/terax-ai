@@ -6,34 +6,35 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Kbd } from "@/components/ui/kbd";
+import { Slider } from "@/components/ui/slider";
 import { Spinner } from "@/components/ui/spinner";
+import { ProviderIcon } from "@/components/ProviderIcon";
 import { fmtShortcut, MOD_KEY } from "@/lib/platform";
 import { cn } from "@/lib/utils";
+import {
+  findModel,
+  findProvider,
+  providerNeedsKey,
+  STT_PROVIDER_LABELS,
+  thinkingLevelIndex,
+  thinkingLevels,
+  toModelInfo,
+  useAiConfigStore,
+  type ModelInfo,
+} from "@/modules/ai/config";
 import { openSettingsWindow } from "@/modules/settings/openSettingsWindow";
+import { usePreferencesStore } from "@/modules/settings/preferences";
+import { setThinkingLevel } from "@/modules/settings/store";
 import {
   Add01Icon,
   AiBookIcon,
-  AppleIcon,
   ArrowDown01Icon,
   ArrowUpIcon,
   BrainIcon,
-  ChatGptIcon,
-  ClaudeIcon,
   Clock01Icon,
-  CoinsDollarIcon,
-  ComputerIcon,
-  CpuIcon,
-  DeepseekIcon,
   FavouriteIcon,
-  FlashIcon,
-  GlobeIcon,
-  GoogleGeminiIcon,
-  Grok02Icon,
-  MistralIcon,
   Message01Icon,
   Mic01Icon,
-  PlugIcon,
-  ServerStack01Icon,
   Search01Icon,
   Settings01Icon,
   StarIcon,
@@ -42,40 +43,9 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMemo, useRef, useState } from "react";
-import {
-  compatModelIdForEndpoint,
-  getCompatModelInfo,
-  getModel,
-  isCompatModelId,
-  MODELS,
-  providerNeedsKey,
-  PROVIDERS,
-  STT_PROVIDER_LABELS,
-  type ModelCapabilities,
-  type ModelId,
-  type ModelInfo,
-  type ProviderId,
-} from "../config";
 import { ACCEPTED_FILES, useComposer } from "../lib/composer";
 import { toggleFavoriteModel } from "../lib/modelPrefs";
 import { useChatStore } from "../store/chatStore";
-import { usePreferencesStore } from "@/modules/settings/preferences";
-
-const PROVIDER_ICON = {
-  openai: ChatGptIcon,
-  anthropic: ClaudeIcon,
-  google: GoogleGeminiIcon,
-  xai: Grok02Icon,
-  cerebras: CpuIcon,
-  groq: FlashIcon,
-  deepseek: DeepseekIcon,
-  mistral: MistralIcon,
-  openrouter: GlobeIcon,
-  "openai-compatible": PlugIcon,
-  lmstudio: ComputerIcon,
-  mlx: AppleIcon,
-  ollama: ServerStack01Icon,
-} as const satisfies Record<ProviderId, typeof ChatGptIcon>;
 
 export function AiOpenButton({ onOpen }: { onOpen: () => void }) {
   return (
@@ -141,7 +111,7 @@ export function AiStatusBarControls() {
           disabled={c.isBusy || c.voice.transcribing || !c.voice.hasKey}
           className={cn(
             c.voice.recording &&
-            "bg-destructive/10 text-destructive hover:bg-destructive/15",
+              "bg-destructive/10 text-destructive hover:bg-destructive/15",
           )}
         >
           {c.voice.recording ? (
@@ -207,55 +177,41 @@ export function AiStatusBarControls() {
 
 type Tab = "all" | "favorites" | "recent";
 
-// 【导览 21】用户在状态栏切换模型的下拉。下拉项 = 内置 MODELS + 每个自定义端点
-// 伪装成的 compat-* 模型（getCompatModelInfo）。点击后只做一件事：
-// 写入 chatStore.selectedModelId（【导览 17】）—— 不直接构建任何模型实例。
+/**
+ * 终端 Ctrl+I 提示词输入框中的模型选择器。列表完全由 JSON 配置生成，
+ * 底部是该模型的思考滑块，档位来自所选模型自己的阶梯声明。
+ */
 function ModelDropdown() {
   const selected = useChatStore((s) => s.selectedModelId);
   const apiKeys = useChatStore((s) => s.apiKeys);
   const setSelected = useChatStore((s) => s.setSelectedModelId);
   const favoriteIds = usePreferencesStore((s) => s.favoriteModelIds);
   const recentIds = usePreferencesStore((s) => s.recentModelIds);
-  const customEndpoints = usePreferencesStore((s) => s.customEndpoints);
-  const current = isCompatModelId(selected)
-    ? getCompatModelInfo(selected, customEndpoints)
-    : getModel(selected as ModelId);
+  const thinkingByModel = usePreferencesStore((s) => s.thinkingLevelByModel);
+  const config = useAiConfigStore((s) => s.config);
+  const current = findModel(selected);
   const [search, setSearch] = useState("");
   const [activeProvider, setActiveProvider] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("all");
   const inputRef = useRef<HTMLInputElement>(null);
-  const currentProviderHasKey = isCompatModelId(selected)
-    ? true
-    : providerNeedsKey(current.provider)
-      ? !!apiKeys[current.provider]
-      : true;
 
-  const hasKeyFor = (id: ProviderId) =>
-    providerNeedsKey(id) ? !!apiKeys[id] : true;
-
-  const epModelInfos = useMemo(() => {
-    return customEndpoints.map((ep) =>
-      getCompatModelInfo(compatModelIdForEndpoint(ep.id), customEndpoints),
-    );
-  }, [customEndpoints]);
-
-  const sortedProviders = useMemo(() => {
-    const configured: (typeof PROVIDERS)[number][] = [];
-    const unconfigured: (typeof PROVIDERS)[number][] = [];
-    for (const p of PROVIDERS) {
-      if (p.id === "openai-compatible") continue;
-      (hasKeyFor(p.id) ? configured : unconfigured).push(p);
-    }
-    return { configured, unconfigured };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiKeys]);
-
-  const allModels = useMemo(
-    () => [...MODELS, ...epModelInfos],
-    [epModelInfos],
+  const providersWithModels = useMemo(
+    () => config.providers.filter((p) => p.models.length > 0),
+    [config],
   );
 
-  const COMPAT_PROVIDER_ID = "__compat__";
+  const allModels = useMemo(
+    () => config.providers.flatMap((p) => p.models.map((m) => toModelInfo(p, m))),
+    [config],
+  );
+
+  const hasKeyFor = (providerId: string) => {
+    const provider = config.providers.find((p) => p.id === providerId);
+    if (!provider) return false;
+    return !providerNeedsKey(provider) || !!apiKeys[provider.id];
+  };
+
+  const currentProviderHasKey = current ? hasKeyFor(current.provider) : false;
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -269,23 +225,36 @@ function ModelDropdown() {
         .slice()
         .sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
     }
-    if (activeProvider === COMPAT_PROVIDER_ID) {
-      pool = pool.filter((m) => isCompatModelId(m.id));
-    } else if (activeProvider !== null) {
+    if (activeProvider !== null) {
       pool = pool.filter((m) => m.provider === activeProvider);
     }
     if (q) {
       pool = pool.filter(
         (m) =>
           m.label.toLowerCase().includes(q) ||
-          m.hint.toLowerCase().includes(q) ||
-          m.description.toLowerCase().includes(q) ||
-          m.provider.includes(q) ||
-          (m.tags?.some((t) => t.includes(q)) ?? false),
+          m.id.toLowerCase().includes(q) ||
+          m.providerLabel.toLowerCase().includes(q) ||
+          m.provider.includes(q),
       );
     }
     return pool;
   }, [activeProvider, allModels, favoriteIds, recentIds, search, tab]);
+
+  const levels = current
+    ? thinkingLevels(current.providerEntry, current.model)
+    : [];
+  const levelIndex = current
+    ? thinkingLevelIndex(
+        current.providerEntry,
+        current.model,
+        thinkingByModel[selected] ?? null,
+      )
+    : -1;
+  const activeLevel = levelIndex >= 0 ? levels[levelIndex] : null;
+  const offLabel =
+    current?.model.thinking?.offLabel ??
+    current?.providerEntry.thinking?.offLabel ??
+    "关闭";
 
   return (
     <DropdownMenu>
@@ -301,12 +270,14 @@ function ModelDropdown() {
               : "text-amber-600 dark:text-amber-400",
           )}
           title={
-            currentProviderHasKey
-              ? `Model: ${current.label}`
-              : `${current.label} — no key configured`
+            !current
+              ? "No model configured — open Settings → Models"
+              : currentProviderHasKey
+                ? `Model: ${current.label}`
+                : `${current.label} — no key configured`
           }
         >
-          {current.label}
+          {current?.label ?? "Select model"}
           <HugeiconsIcon
             icon={ArrowDown01Icon}
             size={11}
@@ -323,7 +294,6 @@ function ModelDropdown() {
           if (e.target !== inputRef.current) inputRef.current?.focus();
         }}
       >
-        {/* Search */}
         <div className="flex items-center gap-2.5 border-b border-border/70 px-3 py-2.5">
           <HugeiconsIcon
             icon={Search01Icon}
@@ -336,12 +306,11 @@ function ModelDropdown() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={(e) => e.stopPropagation()}
-            placeholder="Search models, providers, capabilities…"
+            placeholder="Search models and providers…"
             className="w-full bg-transparent text-xs outline-none placeholder:text-muted-foreground/60"
           />
         </div>
 
-        {/* Tabs */}
         <div className="flex items-center gap-0.5 border-b border-border/70 px-2 py-1.5">
           <TabButton
             label="All"
@@ -366,7 +335,6 @@ function ModelDropdown() {
         </div>
 
         <div className="flex max-h-104 min-h-0">
-          {/* Provider sidebar — configured first, unconfigured muted, no dividers. */}
           <div className="flex w-11 shrink-0 flex-col gap-0.5 overflow-y-auto border-r border-border/70 bg-muted/20 py-1.5">
             <ProviderPill
               icon={AiBookIcon}
@@ -374,50 +342,51 @@ function ModelDropdown() {
               active={activeProvider === null}
               onClick={() => setActiveProvider(null)}
             />
-            {[...sortedProviders.configured, ...sortedProviders.unconfigured].map(
-              (p) => (
-                <ProviderPill
+            {providersWithModels.map((p) => {
+              const connected = hasKeyFor(p.id);
+              return (
+                <button
                   key={p.id}
-                  icon={PROVIDER_ICON[p.id]}
-                  title={
-                    hasKeyFor(p.id)
-                      ? p.label
-                      : `${p.label} — not configured`
-                  }
-                  active={activeProvider === p.id}
-                  muted={!hasKeyFor(p.id)}
+                  type="button"
+                  title={connected ? p.label : `${p.label} — not configured`}
                   onClick={() => setActiveProvider(p.id)}
-                />
-              ),
-            )}
-            {customEndpoints.length > 0 && (
-              <ProviderPill
-                icon={PlugIcon}
-                title="OpenAI Compatible"
-                active={activeProvider === COMPAT_PROVIDER_ID}
-                onClick={() => setActiveProvider(COMPAT_PROVIDER_ID)}
-              />
-            )}
+                  className={cn(
+                    "relative mx-auto flex size-8 items-center justify-center rounded-md transition-colors",
+                    activeProvider === p.id
+                      ? "bg-accent text-foreground after:absolute after:right-0 after:top-1.5 after:bottom-1.5 after:w-[2px] after:rounded-full after:bg-primary after:content-['']"
+                      : connected
+                        ? "text-muted-foreground hover:bg-accent/40 hover:text-foreground"
+                        : "text-muted-foreground/50 hover:bg-accent/40 hover:text-foreground",
+                  )}
+                >
+                  <ProviderIcon provider={p.id} size={16} />
+                </button>
+              );
+            })}
           </div>
 
-          {/* Models list */}
           <div className="min-h-0 flex-1 overflow-y-auto py-1">
-            {activeProvider === COMPAT_PROVIDER_ID && (
+            {activeProvider !== null && findProvider(activeProvider) ? (
               <div className="flex items-center gap-1.5 px-3 pt-1 pb-1.5 text-[11px] font-medium tracking-tight text-muted-foreground/90">
-                <HugeiconsIcon icon={PlugIcon} size={13} strokeWidth={1.75} />
-                <span>OpenAI Compatible</span>
+                <ProviderIcon provider={activeProvider} size={13} />
+                <span>{findProvider(activeProvider)?.label}</span>
               </div>
-            )}
-            {activeProvider !== null &&
-            activeProvider !== COMPAT_PROVIDER_ID ? (
-              <ProviderHeader providerId={activeProvider as ProviderId} />
             ) : null}
-            {activeProvider !== null &&
-            activeProvider !== COMPAT_PROVIDER_ID &&
-            !hasKeyFor(activeProvider as ProviderId) ? (
-              <ProviderConfigureCTA providerId={activeProvider as ProviderId} />
+            {activeProvider !== null && !hasKeyFor(activeProvider) ? (
+              <ProviderConfigureCTA providerId={activeProvider} />
             ) : null}
-            {filtered.length === 0 ? (
+            {allModels.length === 0 ? (
+              <button
+                type="button"
+                onClick={() => void openSettingsWindow("models")}
+                className="group mx-2 my-2 flex w-[calc(100%-1rem)] items-center gap-2 rounded-md border border-dashed border-border/70 bg-muted/20 px-3 py-2 text-left text-[11px] text-muted-foreground transition-colors hover:border-border hover:bg-accent/40 hover:text-foreground"
+              >
+                <HugeiconsIcon icon={Settings01Icon} size={13} strokeWidth={1.75} />
+                <span className="flex-1">
+                  No models yet — add a provider and a model in Settings.
+                </span>
+              </button>
+            ) : filtered.length === 0 ? (
               <div className="flex items-center justify-center px-4 py-10 text-xs text-muted-foreground/70">
                 {tab === "favorites"
                   ? "No favorites yet — star a model to pin it here."
@@ -431,14 +400,11 @@ function ModelDropdown() {
                   key={m.id}
                   model={m}
                   selected={m.id === selected}
-                  hasKey={
-                    isCompatModelId(m.id) ||
-                    hasKeyFor(m.provider)
-                  }
+                  hasKey={hasKeyFor(m.provider)}
                   favorite={favoriteIds.includes(m.id)}
                   showProviderIcon={activeProvider === null}
                   onPick={() => {
-                    if (!isCompatModelId(m.id) && !hasKeyFor(m.provider)) {
+                    if (!hasKeyFor(m.provider)) {
                       void openSettingsWindow("models");
                       return;
                     }
@@ -450,6 +416,45 @@ function ModelDropdown() {
             )}
           </div>
         </div>
+
+        {current && levels.length > 1 ? (
+          <div className="border-t border-border/70 bg-muted/10 px-3 py-2.5">
+            <div className="mb-1.5 flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <HugeiconsIcon icon={BrainIcon} size={12} strokeWidth={1.75} />
+                思考等级
+              </span>
+              <span className="text-[11px] font-medium text-foreground">
+                {activeLevel?.label ?? offLabel}
+              </span>
+            </div>
+            <Slider
+              min={0}
+              max={levels.length - 1}
+              step={1}
+              value={[Math.max(0, levelIndex)]}
+              onValueChange={(values) => {
+                const next = levels[values[0]];
+                if (next) void setThinkingLevel(selected, next.id);
+              }}
+              onPointerDown={(e) => e.stopPropagation()}
+              className="py-1"
+            />
+            <div className="mt-0.5 flex justify-between text-[9.5px] text-muted-foreground/70">
+              {levels.map((level, index) => (
+                <span
+                  key={level.id}
+                  className={cn(index === levelIndex && "text-foreground")}
+                >
+                  {level.label}
+                </span>
+              ))}
+            </div>
+            <p className="mt-1 text-[9.5px] leading-relaxed text-muted-foreground/60">
+              终端场景下思考会增加延迟，建议保持关闭。
+            </p>
+          </div>
+        ) : null}
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -494,13 +499,11 @@ function ProviderPill({
   icon,
   title,
   active,
-  muted,
   onClick,
 }: {
   icon: typeof AiBookIcon;
   title: string;
   active: boolean;
-  muted?: boolean;
   onClick: () => void;
 }) {
   return (
@@ -512,9 +515,7 @@ function ProviderPill({
         "relative mx-auto flex size-8 items-center justify-center rounded-md transition-colors",
         active
           ? "bg-accent text-foreground after:absolute after:right-0 after:top-1.5 after:bottom-1.5 after:w-[2px] after:rounded-full after:bg-primary after:content-['']"
-          : muted
-            ? "text-muted-foreground/50 hover:bg-accent/40 hover:text-foreground"
-            : "text-muted-foreground hover:bg-accent/40 hover:text-foreground",
+          : "text-muted-foreground hover:bg-accent/40 hover:text-foreground",
       )}
     >
       <HugeiconsIcon icon={icon} size={16} strokeWidth={1.5} />
@@ -522,23 +523,8 @@ function ProviderPill({
   );
 }
 
-function ProviderHeader({ providerId }: { providerId: ProviderId }) {
-  const p = PROVIDERS.find((x) => x.id === providerId);
-  if (!p) return null;
-  return (
-    <div className="flex items-center gap-1.5 px-3 pt-1 pb-1.5 text-[11px] font-medium tracking-tight text-muted-foreground/90">
-      <HugeiconsIcon
-        icon={PROVIDER_ICON[p.id]}
-        size={13}
-        strokeWidth={1.75}
-      />
-      <span>{p.label}</span>
-    </div>
-  );
-}
-
-function ProviderConfigureCTA({ providerId }: { providerId: ProviderId }) {
-  const p = PROVIDERS.find((x) => x.id === providerId);
+function ProviderConfigureCTA({ providerId }: { providerId: string }) {
+  const p = findProvider(providerId);
   if (!p) return null;
   return (
     <button
@@ -610,10 +596,9 @@ function ModelRow({
       </button>
 
       {showProviderIcon ? (
-        <HugeiconsIcon
-          icon={PROVIDER_ICON[model.provider]}
+        <ProviderIcon
+          provider={model.provider}
           size={13}
-          strokeWidth={1.5}
           className="shrink-0 text-muted-foreground/70"
         />
       ) : null}
@@ -622,12 +607,10 @@ function ModelRow({
         <span className="shrink-0 text-[12px] font-medium leading-none">
           {model.label}
         </span>
-        <span className="truncate text-[10.5px] leading-none text-muted-foreground">
-          {model.description}
+        <span className="truncate font-mono text-[10.5px] leading-none text-muted-foreground">
+          {model.id}
         </span>
       </div>
-
-      <CapabilityBars caps={model.capabilities} />
 
       {selected ? (
         <HugeiconsIcon
@@ -638,55 +621,6 @@ function ModelRow({
         />
       ) : null}
     </DropdownMenuItem>
-  );
-}
-
-function CapabilityBars({ caps }: { caps: ModelCapabilities }) {
-  return (
-    <div className="ml-auto flex items-center gap-1.5">
-      <CapBar icon={BrainIcon} value={caps.intelligence} label="Intelligence" />
-      <CapBar icon={FlashIcon} value={caps.speed} label="Speed" />
-      <CapBar
-        icon={CoinsDollarIcon}
-        value={caps.cost}
-        label="Affordability"
-      />
-    </div>
-  );
-}
-
-function CapBar({
-  icon,
-  value,
-  label,
-}: {
-  icon: typeof AiBookIcon;
-  value: number;
-  label: string;
-}) {
-  return (
-    <span
-      className="flex items-center gap-0.5"
-      title={`${label}: ${value}/5`}
-    >
-      <HugeiconsIcon
-        icon={icon}
-        size={10}
-        strokeWidth={1.75}
-        className="text-muted-foreground/60"
-      />
-      <span className="flex items-center gap-px">
-        {[1, 2, 3, 4, 5].map((i) => (
-          <span
-            key={i}
-            className={cn(
-              "h-2 w-[2px] rounded-full",
-              i <= value ? "bg-foreground/70" : "bg-foreground/15",
-            )}
-          />
-        ))}
-      </span>
-    </span>
   );
 }
 

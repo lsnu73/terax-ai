@@ -1,7 +1,6 @@
 import type { UIMessage } from "@ai-sdk/react";
-import type { CustomEndpoint } from "../config";
 import { runAgentStream, type AgentUsageDelta } from "./agent";
-import type { ProviderKeys, CustomEndpointKeys } from "./keyring";
+import type { ProviderKeys } from "./keyring";
 import { formatAiError } from "./errors";
 import { native } from "./native";
 import type { ToolContext } from "../tools/tools";
@@ -44,21 +43,10 @@ type Deps = {
   getKeys: () => ProviderKeys;
   toolContext: ToolContext;
   getModelId: () => string;
+  getThinkingLevelId: () => string | null;
   getCustomInstructions: () => string;
   getAgentPersona: () => { name: string; instructions: string } | null;
   getLive: () => LiveSnapshot;
-  getLmstudioBaseURL?: () => string | undefined;
-  getLmstudioModelId?: () => string | undefined;
-  getMlxBaseURL?: () => string | undefined;
-  getMlxModelId?: () => string | undefined;
-  getOllamaBaseURL?: () => string | undefined;
-  getOllamaModelId?: () => string | undefined;
-  getOpenaiCompatibleBaseURL?: () => string | undefined;
-  getOpenaiCompatibleModelId?: () => string | undefined;
-  getOpenaiCompatibleContextLimit?: () => number | undefined;
-  getOpenrouterModelId?: () => string | undefined;
-  getCustomEndpoints?: () => readonly CustomEndpoint[];
-  getCustomEndpointKeys?: () => CustomEndpointKeys;
   onStep?: (step: string | null) => void;
   onUsage?: (delta: AgentUsageDelta) => void;
   onCompact?: (info: { droppedCount: number }) => void;
@@ -72,11 +60,10 @@ type SendOptions = {
   [k: string]: unknown;
 };
 
-// 【导览 15】传输层：useChat 与 runAgentStream 之间的适配器。
-// 发请求前只做两件与模型无关的事：读工作区的 TERAX.md 项目记忆、注入环境块。
-// 然后调用 runAgentStream（agent.ts，【导览 14】），再把结果转成 UI 消息流。
-// Deps 里那一串 getXxx 都是 getter：模型 ID、密钥、各种 baseURL 每次请求现取，
-// 真正的数据仍在 chatStore / preferences store 里（【导览 17】【导览 9】）。
+/**
+ * `useChat` 与 Agent 执行器之间的适配器。它为出站消息补充工作区/项目上下文，
+ * 并透传实时的模型选择，包括模型选择器中选定的思考档位。
+ */
 export function createContextAwareTransport(deps: Deps) {
   const run = async (options: SendOptions) => {
     const live = deps.getLive();
@@ -88,6 +75,7 @@ export function createContextAwareTransport(deps: Deps) {
     const result = await runAgentStream({
       keys: deps.getKeys(),
       modelId: deps.getModelId(),
+      thinkingLevelId: deps.getThinkingLevelId(),
       customInstructions: deps.getCustomInstructions(),
       agentPersona: deps.getAgentPersona(),
       toolContext: deps.toolContext,
@@ -95,18 +83,6 @@ export function createContextAwareTransport(deps: Deps) {
       onUsage: deps.onUsage,
       onCompact: deps.onCompact,
       onFinishMeta: deps.onFinishMeta,
-      lmstudioBaseURL: deps.getLmstudioBaseURL?.(),
-      lmstudioModelId: deps.getLmstudioModelId?.(),
-      mlxBaseURL: deps.getMlxBaseURL?.(),
-      mlxModelId: deps.getMlxModelId?.(),
-      ollamaBaseURL: deps.getOllamaBaseURL?.(),
-      ollamaModelId: deps.getOllamaModelId?.(),
-      openaiCompatibleBaseURL: deps.getOpenaiCompatibleBaseURL?.(),
-      openaiCompatibleModelId: deps.getOpenaiCompatibleModelId?.(),
-      openaiCompatibleContextLimit: deps.getOpenaiCompatibleContextLimit?.(),
-      openrouterModelId: deps.getOpenrouterModelId?.(),
-      customEndpoints: deps.getCustomEndpoints?.(),
-      customEndpointKeys: deps.getCustomEndpointKeys?.(),
       planMode: deps.getPlanMode?.(),
       projectMemory,
       uiMessages: messagesForRun,

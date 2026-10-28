@@ -10,3 +10,24 @@
   - 违反代价：用户切换到其他软件后设置窗口仍钉在屏幕上（2026-10-23 报告的 bug）。
   - 强制点：`src-tauri/src/lib.rs` 的 `open_settings_window`（builder 不再设置 `always_on_top`，已有窗口分支不再调用 `set_always_on_top`）。
   - ⚠️ 此条暂无自动化测试强制（原 `settings_float_only_outside_macos` 测试随修复一并删除），靠代码评审把关。
+
+- **INV-003** 模型配置的唯一事实来源是应用数据目录下的 `terax-ai-models.json`；运行时不得硬编码厂商参数名、思考取值或模型清单。
+  - 违反代价：新增/调整国内厂商又要改代码并重新发版；厂商改名参数时全量请求静默失败。
+  - 强制点：`src/modules/ai/config/defaults.ts` 只提供种子数据；所有请求参数经 `resolveRequestParams`（`config/params.ts`）从配置生成；`agent.ts` 仅按封闭的 `protocol` 枚举分支。
+
+- **INV-004** API Key 只允许存操作系统钥匙串；`terax-ai-models.json` 里只能出现 `keyringAccount` 账户名。
+  - 违反代价：明文密钥进入可备份/可同步的配置文件，造成泄露。
+  - 强制点：`normalizeProvider()` 会移除 `headers` 中的 `Authorization` / `x-api-key` / `api-key` / `x-goog-api-key` 并产生 warning；密钥读写只经 `keyring.ts`。
+
+- **INV-005** 合并请求参数时必须保留传输层保护键，思考档位的映射结果 `null` 表示省略该键。
+  - 违反代价：用户 `extra` 覆盖 `model` / `messages` / `stream` / `tools` 会直接破坏请求；把 `null` 当成真实值发送会让「关闭思考」被厂商拒绝。
+  - 强制点：`config/params.ts` 的 `PROTECTED_BODY_KEYS` / `PROTECTED_HEADERS`；`resolveRequestParams` 把映射为 `null` 的参数丢弃；`config.test.ts` 有对应断言。
+
+- **INV-006** UI 编辑与手工编辑 JSON 必须走同一条 `normalizeAiConfig` 校验链路；手工改文件后由用户显式触发 Reload，不做文件监听。
+  - 违反代价：两条写入路径产生不同结构，或监听与未保存草稿互相覆盖。
+  - 强制点：`useAiConfigStore.replace()` 与 `persist.readAiConfig()` 都调用 `normalizeAiConfig`；`ModelsSection` 的 “Reload from disk” 是唯一手工重载入口。
+
+- **INV-007** 钥匙串账户列表只能来自已 hydrate 的配置快照；Provider 增删或配置重载后必须重新读取密钥。
+  - 违反代价：已保存的 API Key 全部表现为“未配置”，AI 输入框不可用（见 pitfalls/2026-10-28-keys-before-config-hydration.md）。
+  - 强制点：`src/modules/ai/hooks/useAiBootstrap.ts` 的密钥 effect 以 `configHydrated` 门控并依赖 `config`；`src/settings/sections/ModelsSection.tsx` 的 `getAllKeys()` effect 依赖 `config`。
+  - ⚠️ 此条暂无自动化测试强制，靠启动时序评审与手工回归把关。

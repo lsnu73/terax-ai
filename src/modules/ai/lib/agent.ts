@@ -7,28 +7,22 @@ import {
   type UIMessage,
 } from "ai";
 import {
-  DEFAULT_MODEL_ID,
-  endpointIdFromCompatModel,
-  getModelContextLimit,
-  isCompatModelId,
-  LMSTUDIO_DEFAULT_BASE_URL,
+  getDefaultModelId,
   MAX_AGENT_STEPS,
-  MLX_DEFAULT_BASE_URL,
   modelKeepsReasoning,
-  OLLAMA_DEFAULT_BASE_URL,
   providerNeedsKey,
   resolveModel,
-  selectSystemPrompt,
-  type CustomEndpoint,
-  type ProviderId,
+  resolveRequestParams,
+  selectSystemPromptForModel,
+  type ModelEntry,
+  type ProviderEntry,
+  type ResolvedRequestParams,
 } from "../config";
 import { buildTools, type ToolContext } from "../tools/tools";
+import type { ProviderKeys } from "./keyring";
 import { compactModelMessagesDetailed } from "./compact";
-import type { ProviderKeys, CustomEndpointKeys } from "./keyring";
 import { prepareAgentPrompt } from "./prompt";
-import { createProxyFetch } from "./proxyFetch";
-
-const localProxyFetch = createProxyFetch({ allowPrivateNetwork: true });
+import { authHeaders, resolveProviderFetch } from "./providerHttp";
 
 const TOOL_LABELS: Record<string, (input: Record<string, unknown>) => string> =
   {
@@ -63,275 +57,195 @@ function ellipsize(s: string, max: number): string {
   return s.length > max ? `${s.slice(0, max - 1)}…` : s;
 }
 
-export type BuildModelOptions = {
-  modelIdOverride?: string;
-  lmstudioBaseURL?: string;
-  mlxBaseURL?: string;
-  ollamaBaseURL?: string;
-  openaiCompatibleBaseURL?: string;
-};
-
-// 【导览 11】模型实例缓存。同一个 provider + key + 端点地址 + 模型 ID 只构建一次。
-// 缓存键里特意包含 key：换了密钥会自然重建，不会复用带旧凭据的 client。
 const modelCache = new Map<string, LanguageModel>();
 
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+/** 把解析后的参数补丁深合并进 SDK 生成的 JSON 请求体。
+ *  `null` 值表示删除该键。 */
+function mergePayload(
+  target: Record<string, unknown>,
+  patch: Record<string, unknown>,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...target };
+  for (const [key, value] of Object.entries(patch)) {
+    if (value === null) {
+      delete out[key];
+      continue;
+    }
+    const previous = out[key];
+    out[key] =
+      isPlainObject(previous) && isPlainObject(value)
+        ? mergePayload(previous, value)
+        : value;
+  }
+  return out;
+}
+
 /**
- * 【导览 12】★ 全项目唯一的厂商收敛点。读懂这个函数，就读懂了整个配置架构。
- *
- * 输入：provider + 密钥 + 真实模型 ID + 端点配置
- * 输出：AI SDK 的统一 LanguageModel（上游完全不关心是哪家厂商）
- *
- * 结构只有两段：
- *   1) 缺 key 校验 + 查缓存（参数没变直接返回）
- *   2) switch(provider) —— 每个 case 只做一件事：动态 import 对应包并构造模型
- *
- * 两条实现路径：
- *   A 组：官方专属包 —— openai / anthropic / google / xai / cerebras / groq
- *   B 组：OpenAI 兼容包 —— deepseek / mistral / openrouter / openai-compatible /
- *        lmstudio / mlx / ollama，全部共用 createOpenAICompatible
- *
- * 要加国内厂商（GLM / Qwen / Kimi / 豆包），照 B 组任意一个 case 抄一遍即可。
+ * 包装传输层 fetch，把用户声明的任意参数合并进请求体/请求头。
+ * 这里刻意不感知厂商：参数名和取值全部来自 JSON 配置，
+ * 绝不硬编码在本文件中。
+ */
+function withRequestParams(
+  base: typeof fetch,
+  params: ResolvedRequestParams,
+): typeof fetch {
+  if (
+    Object.keys(params.body).length === 0 &&
+    Object.keys(params.headers).length === 0
+  ) {
+    return base;
+  }
+  return (input, init) => {
+    if (!init) return base(input, init);
+    const headers = new Headers(init.headers);
+    for (const [key, value] of Object.entries(params.headers)) {
+      headers.set(key, value);
+    }
+    let body = init.body;
+    if (typeof body === "string" && body.length > 0) {
+      try {
+        const parsed: unknown = JSON.parse(body);
+        if (isPlainObject(parsed)) {
+          body = JSON.stringify(mergePayload(parsed, params.body));
+        }
+      } catch {
+        // 非 JSON 请求体保持原样。
+      }
+    }
+    return base(input, { ...init, headers, body });
+  };
+}
+
+type AdapterArgs = {
+  provider: ProviderEntry;
+  apiKey: string | null;
+  modelId: string;
+  params: ResolvedRequestParams;
+};
+
+type Adapter = (args: AdapterArgs) => Promise<LanguageModel>;
+
+const ADAPTERS: Record<string, Adapter> = {
+  "openai-compatible": async ({ provider, apiKey, modelId, params }) => {
+    const { createOpenAICompatible } = await import(
+      "@ai-sdk/openai-compatible"
+    );
+    const fetchImpl = withRequestParams(
+      resolveProviderFetch(provider.baseURL),
+      params,
+    );
+    return createOpenAICompatible({
+      name: provider.id,
+      baseURL: provider.baseURL,
+      apiKey: provider.auth.mode === "bearer" ? apiKey || undefined : undefined,
+      headers: {
+        ...provider.headers,
+        ...authHeaders(provider, apiKey),
+      },
+      fetch: fetchImpl,
+    })(modelId);
+  },
+  anthropic: async ({ provider, apiKey, modelId, params }) => {
+    const { createAnthropic } = await import("@ai-sdk/anthropic");
+    return createAnthropic({
+      apiKey: apiKey || undefined,
+      headers: {
+        ...provider.headers,
+        ...authHeaders(provider, apiKey),
+      },
+      fetch: withRequestParams(resolveProviderFetch(provider.baseURL), params),
+      baseURL: provider.baseURL || undefined,
+    })(modelId);
+  },
+  google: async ({ provider, apiKey, modelId, params }) => {
+    const { createGoogleGenerativeAI } = await import("@ai-sdk/google");
+    return createGoogleGenerativeAI({
+      apiKey: apiKey || undefined,
+      headers: {
+        ...provider.headers,
+        ...authHeaders(provider, apiKey),
+      },
+      fetch: withRequestParams(resolveProviderFetch(provider.baseURL), params),
+      baseURL: provider.baseURL || undefined,
+    })(modelId);
+  },
+};
+
+/**
+ * 为一个 Provider/Model 组合构建 `LanguageModel`。这是全应用唯一
+ * 感知传输 SDK 的地方。Provider 的行为来自配置；这里的 switch 只覆盖
+ * 一个很小且封闭的 `protocol` 枚举。
  */
 export async function buildLanguageModel(
-  provider: ProviderId,
+  provider: ProviderEntry,
+  model: ModelEntry,
   keys: ProviderKeys,
-  resolvedModelId: string,
-  options: BuildModelOptions = {},
-  customEndpointKey?: string | null,
+  thinkingLevelId?: string | null,
 ): Promise<LanguageModel> {
-  if (providerNeedsKey(provider) && !keys[provider]) {
+  const apiKey = keys[provider.id] ?? null;
+  if (providerNeedsKey(provider) && !apiKey) {
     throw new Error(
-      `No API key configured for ${provider}. Open Settings → AI to add one.`,
+      `No API key configured for ${provider.label}. Open Settings → Models to add one.`,
     );
   }
-  const key = keys[provider] ?? "";
-  const lmstudioURL = options.lmstudioBaseURL ?? LMSTUDIO_DEFAULT_BASE_URL;
-  const mlxURL = options.mlxBaseURL ?? MLX_DEFAULT_BASE_URL;
-  const ollamaURL = options.ollamaBaseURL ?? OLLAMA_DEFAULT_BASE_URL;
-  const compatURL = options.openaiCompatibleBaseURL ?? "";
-  const epKey = customEndpointKey ?? "";
-  const cacheKey = `${provider} ${key} ${epKey} ${resolvedModelId} ${lmstudioURL} ${mlxURL} ${ollamaURL} ${compatURL}`;
+  if (!provider.baseURL.trim()) {
+    throw new Error(
+      `${provider.label}: base URL is empty. Open Settings → Models to fill it in.`,
+    );
+  }
+  const params = resolveRequestParams(provider, model, thinkingLevelId);
+  for (const warning of params.warnings) {
+    console.warn(`[ai-config] ${warning}`);
+  }
+  const cacheKey = [
+    provider.id,
+    provider.protocol,
+    provider.baseURL,
+    provider.auth.mode,
+    apiKey ?? "",
+    JSON.stringify(provider.headers),
+    model.id,
+    JSON.stringify(params.body),
+    JSON.stringify(params.headers),
+  ].join("\u0000");
   const hit = modelCache.get(cacheKey);
   if (hit) return hit;
 
-  let built: LanguageModel;
-  switch (provider) {
-    // ── A 组：官方专属包，各走各的私有协议 ──────────────────────────────
-    case "openai": {
-      const { createOpenAI } = await import("@ai-sdk/openai");
-      built = createOpenAI({ apiKey: key })(resolvedModelId);
-      break;
-    }
-    case "anthropic": {
-      const { createAnthropic } = await import("@ai-sdk/anthropic");
-      built = createAnthropic({ apiKey: key })(resolvedModelId);
-      break;
-    }
-    case "google": {
-      const { createGoogleGenerativeAI } = await import("@ai-sdk/google");
-      built = createGoogleGenerativeAI({ apiKey: key })(resolvedModelId);
-      break;
-    }
-    case "xai": {
-      const { createXai } = await import("@ai-sdk/xai");
-      built = createXai({ apiKey: key })(resolvedModelId);
-      break;
-    }
-    case "cerebras": {
-      const { createCerebras } = await import("@ai-sdk/cerebras");
-      built = createCerebras({ apiKey: key })(resolvedModelId);
-      break;
-    }
-    // ── B 组：OpenAI 兼容协议。DeepSeek 也没用专属包 —— 这就是本项目的"国内厂商模板"。
-    // 加 GLM / Qwen / Kimi 时，复制这个 case 改 name + baseURL 即可。
-    case "deepseek": {
-      const { createOpenAICompatible } =
-        await import("@ai-sdk/openai-compatible");
-      built = createOpenAICompatible({
-        name: "deepseek",
-        baseURL: "https://api.deepseek.com",
-        apiKey: key,
-      })(resolvedModelId);
-      break;
-    }
-    case "mistral": {
-      const { createOpenAICompatible } =
-        await import("@ai-sdk/openai-compatible");
-      built = createOpenAICompatible({
-        name: "mistral",
-        baseURL: "https://api.mistral.ai/v1",
-        apiKey: key,
-      })(resolvedModelId);
-      break;
-    }
-    case "groq": {
-      const { createGroq } = await import("@ai-sdk/groq");
-      built = createGroq({ apiKey: key })(resolvedModelId);
-      break;
-    }
-    case "openrouter": {
-      const { createOpenAICompatible } =
-        await import("@ai-sdk/openai-compatible");
-      built = createOpenAICompatible({
-        name: "openrouter",
-        baseURL: "https://openrouter.ai/api/v1",
-        apiKey: key,
-        headers: {
-          "HTTP-Referer": "https://terax.ai",
-          "X-Title": "Terax",
-        },
-      })(resolvedModelId);
-      break;
-    }
-    // 用户自定义端点（compat-* 分诊后都会落到这里）：
-    // baseURL 来自设置，密钥优先用端点专属的 epKey，其次退回该 provider 的钥匙。
-    case "openai-compatible": {
-      if (!compatURL) {
-        throw new Error(
-          "OpenAI-compatible provider has no base URL. Set it in Settings → Models.",
-        );
-      }
-      const { createOpenAICompatible } =
-        await import("@ai-sdk/openai-compatible");
-      built = createOpenAICompatible({
-        name: "openai-compatible",
-        baseURL: compatURL,
-        apiKey: epKey || key || undefined,
-        fetch: localProxyFetch,
-      })(resolvedModelId);
-      break;
-    }
-    // 本地 runtime 三兄弟（lmstudio / mlx / ollama）：不需要 key，
-    // 必须走 localProxyFetch 才能访问本机 localhost 端口。
-    case "lmstudio": {
-      const { createOpenAICompatible } =
-        await import("@ai-sdk/openai-compatible");
-      built = createOpenAICompatible({
-        name: "lmstudio",
-        baseURL: lmstudioURL,
-        fetch: localProxyFetch,
-      })(resolvedModelId);
-      break;
-    }
-    case "mlx": {
-      const { createOpenAICompatible } =
-        await import("@ai-sdk/openai-compatible");
-      built = createOpenAICompatible({
-        name: "mlx",
-        baseURL: mlxURL,
-        fetch: localProxyFetch,
-      })(resolvedModelId);
-      break;
-    }
-    case "ollama": {
-      const { createOpenAICompatible } =
-        await import("@ai-sdk/openai-compatible");
-      built = createOpenAICompatible({
-        name: "ollama",
-        baseURL: ollamaURL,
-        fetch: localProxyFetch,
-      })(resolvedModelId);
-      break;
-    }
-    default: {
-      const _exhaustive: never = provider;
-      throw new Error(`Unsupported provider: ${_exhaustive as ProviderId}`);
-    }
+  const adapter = ADAPTERS[provider.protocol];
+  if (!adapter) {
+    throw new Error(`Unsupported provider protocol: ${provider.protocol}`);
   }
+  const built = await adapter({
+    provider,
+    apiKey,
+    modelId: model.id,
+    params,
+  });
   modelCache.set(cacheKey, built);
   return built;
 }
 
-export type LocalProviderConfig = {
-  lmstudioBaseURL?: string;
-  lmstudioModelId?: string;
-  mlxBaseURL?: string;
-  mlxModelId?: string;
-  ollamaBaseURL?: string;
-  ollamaModelId?: string;
-  openaiCompatibleBaseURL?: string;
-  openaiCompatibleModelId?: string;
-  openrouterModelId?: string;
-  customEndpoints?: readonly CustomEndpoint[];
-  customEndpointKeys?: CustomEndpointKeys;
+export type BuildConfiguredOptions = {
+  thinkingLevelId?: string | null;
 };
 
-/**
- * 【导览 13】模型 ID 分诊台：把"用户选中的 ID"翻译成 (provider, 真实模型 ID, 端点配置)。
- *
- * 三种情况：
- *   1) compat-<endpointId>       → 去 customEndpoints 找到端点，改走 openai-compatible
- *   2) lmstudio-local 等占位 ID  → 用设置里填的真实模型 ID 替换（本地 runtime 模型名不固定）
- *   3) 其余                       → 查内置 MODELS 目录，直接拿到 provider
- *
- * 分诊完成后统一交给 buildLanguageModel（【导览 12】）。
- */
+/** 通过配置解析模型 ID，然后构建模型实例。 */
 export function buildConfiguredLanguageModel(
   modelId: string,
   keys: ProviderKeys,
-  local: LocalProviderConfig = {},
+  opts: BuildConfiguredOptions = {},
 ): Promise<LanguageModel> {
-  if (isCompatModelId(modelId)) {
-    const eid = endpointIdFromCompatModel(modelId);
-    const ep = local.customEndpoints?.find((e) => e.id === eid);
-    if (!ep) throw new Error(`Custom endpoint not found: ${eid}`);
-    if (!ep.modelId.trim()) {
-      throw new Error(
-        `${ep.name}: no model id set. Open Settings → Models.`,
-      );
-    }
-    return buildLanguageModel(
-      "openai-compatible",
-      keys,
-      ep.modelId.trim(),
-      { openaiCompatibleBaseURL: ep.baseURL },
-      local.customEndpointKeys?.[eid],
-    );
-  }
-  const m = resolveModel(modelId);
-  let resolvedId: string = m.id;
-  if (m.id === "lmstudio-local") {
-    if (!local.lmstudioModelId?.trim()) {
-      throw new Error(
-        "LM Studio: no model id set. Open Settings → Models and enter the model id loaded in LM Studio.",
-      );
-    }
-    resolvedId = local.lmstudioModelId.trim();
-  } else if (m.id === "mlx-local") {
-    if (!local.mlxModelId?.trim()) {
-      throw new Error(
-        "MLX: no model id set. Open Settings → Models and enter the model id served by mlx_lm.server.",
-      );
-    }
-    resolvedId = local.mlxModelId.trim();
-  } else if (m.id === "ollama-local") {
-    if (!local.ollamaModelId?.trim()) {
-      throw new Error(
-        "Ollama: no model id set. Open Settings → Models and enter the model id (e.g. the name from `ollama list`).",
-      );
-    }
-    resolvedId = local.ollamaModelId.trim();
-  } else if (m.id === "openai-compatible-custom") {
-    if (!local.openaiCompatibleModelId?.trim()) {
-      throw new Error(
-        "OpenAI-compatible: no model id set. Open Settings → Models.",
-      );
-    }
-    resolvedId = local.openaiCompatibleModelId.trim();
-  } else if (m.id === "openrouter-custom") {
-    if (!local.openrouterModelId?.trim()) {
-      throw new Error(
-        "OpenRouter: no model id set. Open Settings → Models and enter an OpenRouter model id (e.g. anthropic/claude-sonnet-5).",
-      );
-    }
-    resolvedId = local.openrouterModelId.trim();
-  }
-  return buildLanguageModel(m.provider, keys, resolvedId, {
-    lmstudioBaseURL: local.lmstudioBaseURL,
-    mlxBaseURL: local.mlxBaseURL,
-    ollamaBaseURL: local.ollamaBaseURL,
-    openaiCompatibleBaseURL: local.openaiCompatibleBaseURL,
-  });
+  const info = resolveModel(modelId);
+  return buildLanguageModel(
+    info.providerEntry,
+    info.model,
+    keys,
+    opts.thinkingLevelId,
+  );
 }
 
 const PLAN_MODE_PROMPT = `## PLAN MODE — ACTIVE
@@ -343,7 +257,7 @@ function buildStableSystem(
   customInstructions: string | undefined,
   projectMemory: string | null,
 ): string {
-  const base = selectSystemPrompt(modelId);
+  const base = selectSystemPromptForModel(modelId);
   const personaBlock = persona?.instructions.trim()
     ? `\n\n## ACTIVE AGENT — ${persona.name}\n${persona.instructions.trim()}`
     : "";
@@ -371,6 +285,8 @@ export type AgentUsageDelta = AgentUsage & {
 export type RunAgentOptions = {
   keys: ProviderKeys;
   modelId?: string;
+  /** 该模型在思考滑块上选中的档位。 */
+  thinkingLevelId?: string | null;
   customInstructions?: string;
   agentPersona?: { name: string; instructions: string } | null;
   toolContext: ToolContext;
@@ -378,18 +294,6 @@ export type RunAgentOptions = {
   onUsage?: (delta: AgentUsageDelta) => void;
   onCompact?: (info: { droppedCount: number }) => void;
   onFinishMeta?: (info: { hitStepCap: boolean; finishReason: string }) => void;
-  lmstudioBaseURL?: string;
-  lmstudioModelId?: string;
-  mlxBaseURL?: string;
-  mlxModelId?: string;
-  ollamaBaseURL?: string;
-  ollamaModelId?: string;
-  openaiCompatibleBaseURL?: string;
-  openaiCompatibleModelId?: string;
-  openaiCompatibleContextLimit?: number;
-  openrouterModelId?: string;
-  customEndpoints?: readonly CustomEndpoint[];
-  customEndpointKeys?: CustomEndpointKeys;
   planMode?: boolean;
   projectMemory?: string | null;
   uiMessages: UIMessage[];
@@ -397,25 +301,19 @@ export type RunAgentOptions = {
 };
 
 export async function runAgentStream(opts: RunAgentOptions) {
-  const modelId = opts.modelId ?? DEFAULT_MODEL_ID;
-  // 【导览 14】模型进入真实请求的地方：先分诊、再构建模型，然后把工具和提示词交给 streamText。
-  // 从这行往上/往下就是纯业务（提示词、工具、上下文压缩、用量统计），全部与厂商无关。
-  const model = await buildConfiguredLanguageModel(modelId, opts.keys, {
-    lmstudioBaseURL: opts.lmstudioBaseURL,
-    lmstudioModelId: opts.lmstudioModelId,
-    mlxBaseURL: opts.mlxBaseURL,
-    mlxModelId: opts.mlxModelId,
-    ollamaBaseURL: opts.ollamaBaseURL,
-    ollamaModelId: opts.ollamaModelId,
-    openaiCompatibleBaseURL: opts.openaiCompatibleBaseURL,
-    openaiCompatibleModelId: opts.openaiCompatibleModelId,
-    openrouterModelId: opts.openrouterModelId,
-    customEndpoints: opts.customEndpoints,
-    customEndpointKeys: opts.customEndpointKeys,
-  });
-  const endpoints = opts.customEndpoints ?? [];
-  const info = resolveModel(modelId, endpoints);
-  const provider = info.provider;
+  const modelId = opts.modelId || getDefaultModelId();
+  if (!modelId) {
+    throw new Error(
+      "No model configured. Open Settings → Models, add a provider and a model.",
+    );
+  }
+  const info = resolveModel(modelId);
+  const model = await buildLanguageModel(
+    info.providerEntry,
+    info.model,
+    opts.keys,
+    opts.thinkingLevelId,
+  );
 
   const stableSystem = buildStableSystem(
     modelId,
@@ -431,13 +329,9 @@ export async function runAgentStream(opts: RunAgentOptions) {
     reasoning: keepsReasoning ? "none" : "before-last-message",
     emptyMessages: "remove",
   });
-  const compatCtxOverride = isCompatModelId(modelId)
-    ? endpoints.find((e) => e.id === endpointIdFromCompatModel(modelId))
-        ?.contextLimit
-    : opts.openaiCompatibleContextLimit;
   const compact = compactModelMessagesDetailed(
     prunedHistory,
-    getModelContextLimit(modelId, compatCtxOverride),
+    info.inputTokens,
   );
   const compactedHistory = compact.messages;
   if (compact.compacted) {
@@ -448,7 +342,7 @@ export async function runAgentStream(opts: RunAgentOptions) {
     stableSystem,
     opts.planMode ? PLAN_MODE_PROMPT : null,
     compactedHistory,
-    provider,
+    info.providerEntry.protocol,
   );
 
   let stepsSeen = 0;
@@ -457,6 +351,7 @@ export async function runAgentStream(opts: RunAgentOptions) {
     system: prompt.system,
     messages: prompt.messages,
     allowSystemInMessages: false,
+    maxOutputTokens: info.outputTokens,
     tools: buildTools(opts.toolContext),
     stopWhen: stepCountIs(MAX_AGENT_STEPS),
     abortSignal: opts.abortSignal,

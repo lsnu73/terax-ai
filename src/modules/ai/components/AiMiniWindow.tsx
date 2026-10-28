@@ -29,14 +29,13 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { PresenceState } from "@/lib/usePresence";
 import { useEffect, useMemo } from "react";
-import { estimateCost, getModel, getModelContextLimit, type ModelId } from "../config";
+import { getModelContextLimit, tryResolveModel } from "../config";
 import type { ResizeDir } from "../lib/miniWindowGeometry";
 import type { SessionMeta } from "../lib/sessions";
 import { useMiniWindowGeometry } from "../lib/useMiniWindowGeometry";
 import { useAgentsStore } from "../store/agentsStore";
 import { useChatStore } from "../store/chatStore";
 import { getOrCreateChat } from "../store/chatRuntime";
-import { usePreferencesStore } from "@/modules/settings/preferences";
 import { usePlanStore } from "../store/planStore";
 import { AgentSwitcher } from "./AgentSwitcher";
 import { AiChatView } from "./AiChat";
@@ -345,18 +344,11 @@ function ContextIndicator({ messages }: { messages: UIMessage[] }) {
   const estimated = useMemo(() => estimateTokens(messages), [messages]);
   const used = lastInput > 0 ? lastInput : estimated;
   const reported = tokens.inputTokens + tokens.outputTokens;
-  const openaiCompatibleContextLimit = usePreferencesStore(
-    (s) => s.openaiCompatibleContextLimit,
+  const max = getModelContextLimit(modelId);
+  const modelLabel = useMemo(
+    () => tryResolveModel(modelId)?.label ?? modelId,
+    [modelId],
   );
-  const max = getModelContextLimit(modelId, openaiCompatibleContextLimit);
-  const modelLabel = useMemo(() => {
-    try {
-      return getModel(modelId as ModelId).label;
-    } catch {
-      return modelId;
-    }
-  }, [modelId]);
-  const cost = estimateCost(modelId, tokens);
   const cacheRate =
     tokens.inputTokens > 0
       ? Math.round((tokens.cachedInputTokens / tokens.inputTokens) * 100)
@@ -404,14 +396,6 @@ function ContextIndicator({ messages }: { messages: UIMessage[] }) {
                 <div className="flex items-center justify-between text-muted-foreground">
                   <span>Cache hit</span>
                   <span className="font-mono text-foreground">{cacheRate}%</span>
-                </div>
-              )}
-              {cost != null && (
-                <div className="flex items-center justify-between text-muted-foreground">
-                  <span>Session cost</span>
-                  <span className="font-mono text-foreground">
-                    ${cost.toFixed(cost < 0.01 ? 4 : cost < 1 ? 3 : 2)}
-                  </span>
                 </div>
               )}
             </>
@@ -505,7 +489,7 @@ function SessionRow({
   return (
     <DropdownMenuItem
       onSelect={(e) => {
-        // Don't dismiss if user clicked the trash icon — handle below.
+        // 用户点击垃圾桶图标时不要关闭——在下方单独处理。
         const target = e.target as HTMLElement | null;
         if (target?.closest("[data-session-delete]")) {
           e.preventDefault();

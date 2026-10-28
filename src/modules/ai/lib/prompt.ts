@@ -1,5 +1,4 @@
 import type { ModelMessage, SystemModelMessage } from "ai";
-import type { ProviderId } from "@/modules/ai/config";
 
 export type PreparedAgentPrompt = {
   system: SystemModelMessage[];
@@ -10,7 +9,7 @@ export function prepareAgentPrompt(
   stableSystem: string,
   planInstructions: string | null,
   history: readonly ModelMessage[],
-  provider: ProviderId,
+  protocol: string,
 ): PreparedAgentPrompt {
   const system: SystemModelMessage[] = [
     { role: "system", content: stableSystem },
@@ -19,7 +18,7 @@ export function prepareAgentPrompt(
     system.push({ role: "system", content: planInstructions });
   }
   const messages = history.slice();
-  if (provider !== "anthropic") return { system, messages };
+  if (protocol !== "anthropic") return { system, messages };
 
   system[0] = withAnthropicCacheMarker(system[0]);
   const lastIdx = messages.length - 1;

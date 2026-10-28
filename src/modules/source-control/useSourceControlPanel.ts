@@ -9,7 +9,7 @@ import { useChatStore } from "@/modules/ai/store/chatStore";
 import {
   modelSupportsTemperature,
   providerNeedsKey,
-  resolveModel,
+  tryResolveModel,
 } from "@/modules/ai/config";
 import {
   invalidateDiff,
@@ -51,7 +51,7 @@ type SourceControlEntry = {
 
 export type CheckState = "checked" | "indeterminate" | "unchecked";
 
-/** One row per changed file (flat list) — merges the staged/unstaged split. */
+/** 每个变更文件一行（扁平列表）——合并已暂存/未暂存的区分。 */
 export type SourceControlFileEntry = {
   key: string;
   path: string;
@@ -373,21 +373,13 @@ export function useSourceControlPanel(
   const selectedModelId = useChatStore((state) => state.selectedModelId);
   const agentStatus = useChatStore((state) => state.agentMeta.status);
   const hasApiKeyForSelected = useChatStore((state) => {
-    const model = resolveModel(state.selectedModelId);
-    return !providerNeedsKey(model.provider) || !!state.apiKeys[model.provider];
+    const model = tryResolveModel(state.selectedModelId);
+    if (!model) return false;
+    return (
+      !providerNeedsKey(model.providerEntry) ||
+      !!state.apiKeys[model.provider]
+    );
   });
-  const lmstudioModelId = usePreferencesStore((state) => state.lmstudioModelId);
-  const mlxModelId = usePreferencesStore((state) => state.mlxModelId);
-  const ollamaModelId = usePreferencesStore((state) => state.ollamaModelId);
-  const openaiCompatibleBaseURL = usePreferencesStore(
-    (state) => state.openaiCompatibleBaseURL,
-  );
-  const openaiCompatibleModelId = usePreferencesStore(
-    (state) => state.openaiCompatibleModelId,
-  );
-  const openrouterModelId = usePreferencesStore(
-    (state) => state.openrouterModelId,
-  );
   const [panelState, setPanelState] = useState<PanelState>("closed");
   const [repo, setRepo] = useState<GitRepoInfo | null>(null);
   const [status, setStatus] = useState<GitStatusSnapshot | null>(null);
@@ -466,50 +458,21 @@ export function useSourceControlPanel(
 
   const allClean = stagedEntries.length === 0 && unstagedEntries.length === 0;
   const canPush = !!status?.upstream && status.behind === 0;
-  const selectedModel = resolveModel(selectedModelId);
-  const selectedModelSupportsTemperature = modelSupportsTemperature(
-    selectedModel.provider,
-    selectedModel.id,
-  );
+  const selectedModel = tryResolveModel(selectedModelId);
+  const selectedModelSupportsTemperature = selectedModel
+    ? modelSupportsTemperature(selectedModel.provider, selectedModel.id)
+    : false;
   const aiBusy = agentStatus !== "idle" && agentStatus !== "error";
   const anyActionBusy = localActionBusy !== null || summary.busyAction !== null;
   const aiUnavailableReason = useMemo(() => {
     if (stagedEntries.length === 0) {
       return "Stage changes to generate a commit message";
     }
-    if (!hasApiKeyForSelected) {
-      return "Connect an AI provider to generate commit messages";
-    }
-    if (selectedModel.id === "lmstudio-local" && !lmstudioModelId.trim()) {
-      return "Connect an AI provider to generate commit messages";
-    }
-    if (selectedModel.id === "mlx-local" && !mlxModelId.trim()) {
-      return "Connect an AI provider to generate commit messages";
-    }
-    if (selectedModel.id === "ollama-local" && !ollamaModelId.trim()) {
-      return "Connect an AI provider to generate commit messages";
-    }
-    if (
-      selectedModel.id === "openai-compatible-custom" &&
-      (!openaiCompatibleBaseURL.trim() || !openaiCompatibleModelId.trim())
-    ) {
-      return "Connect an AI provider to generate commit messages";
-    }
-    if (selectedModel.id === "openrouter-custom" && !openrouterModelId.trim()) {
+    if (!selectedModel || !hasApiKeyForSelected) {
       return "Connect an AI provider to generate commit messages";
     }
     return null;
-  }, [
-    hasApiKeyForSelected,
-    lmstudioModelId,
-    mlxModelId,
-    ollamaModelId,
-    openaiCompatibleBaseURL,
-    openaiCompatibleModelId,
-    openrouterModelId,
-    selectedModel,
-    stagedEntries.length,
-  ]);
+  }, [hasApiKeyForSelected, selectedModel, stagedEntries.length]);
   const canGenerateCommitMessage =
     stagedEntries.length > 0 && !anyActionBusy && !aiBusy && !!repo;
   const generateCommitMessageHint = aiUnavailableReason
@@ -877,23 +840,15 @@ export function useSourceControlPanel(
         ]);
       const { text: diffText, truncated } = truncateDiff(diff.diffText);
       const chatState = useChatStore.getState();
-      const prefs = usePreferencesStore.getState();
+      const thinkingLevelId =
+        usePreferencesStore.getState().thinkingLevelByModel[selectedModelId] ??
+        null;
       // 【导览 20】消费方四：用当前对话所选模型生成 Git 提交信息。
-      // 它用的是"分诊台" buildConfiguredLanguageModel（【导览 13】），所以自定义端点也能用。
+      // 与聊天共用同一条构建链路（含 JSON 配置里的请求参数与思考档位）。
       const model = await buildConfiguredLanguageModel(
         selectedModelId,
         chatState.apiKeys,
-        {
-          lmstudioBaseURL: prefs.lmstudioBaseURL,
-          lmstudioModelId,
-          mlxBaseURL: prefs.mlxBaseURL,
-          mlxModelId,
-          ollamaBaseURL: prefs.ollamaBaseURL,
-          ollamaModelId,
-          openaiCompatibleBaseURL,
-          openaiCompatibleModelId,
-          openrouterModelId,
-        },
+        { thinkingLevelId },
       );
       const result = await generateText({
         model,
@@ -928,12 +883,6 @@ export function useSourceControlPanel(
   }, [
     aiUnavailableReason,
     aiBusy,
-    lmstudioModelId,
-    mlxModelId,
-    ollamaModelId,
-    openaiCompatibleBaseURL,
-    openaiCompatibleModelId,
-    openrouterModelId,
     repo,
     selectedModelId,
     selectedModelSupportsTemperature,

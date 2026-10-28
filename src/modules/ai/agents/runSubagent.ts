@@ -1,6 +1,5 @@
 import { generateText, stepCountIs } from "ai";
-import { getModel, type ModelId } from "../config";
-import { buildLanguageModel } from "../lib/agent";
+import { buildConfiguredLanguageModel } from "../lib/agent";
 import type { ProviderKeys } from "../lib/keyring";
 import type { ToolContext } from "../tools/context";
 import { buildFsTools } from "../tools/fs";
@@ -15,7 +14,7 @@ type Args = {
   keys: ProviderKeys;
   modelId: string;
   toolContext: ToolContext;
-  lmstudioBaseURL?: string;
+  thinkingLevelId?: string | null;
   onStep?: (label: string) => void;
 };
 
@@ -31,7 +30,7 @@ export async function runSubagent({
   keys,
   modelId,
   toolContext,
-  lmstudioBaseURL,
+  thinkingLevelId,
   onStep,
 }: Args): Promise<RunResult> {
   const def = SUBAGENTS[type];
@@ -46,15 +45,12 @@ export async function runSubagent({
     if (t in readOnly) tools[t] = readOnly[t];
   }
 
-  // 【导览 18】消费方二：子代理。它绕过"分诊台"，直接查目录拿 provider 再构建模型，
-  // 因此只支持内置模型，不支持 compat-* 自定义端点（对比【导览 13】）。
+  // 【导览 18】消费方二：子代理。走与主对话相同的配置驱动构建链路，
+  // 因此任何在 JSON 里声明的 Provider / 模型 / 参数都自动生效。
   // 另外它用的是 generateText（一次性返回），不是主聊天的流式 streamText。
-  const model = await buildLanguageModel(
-    getModel(modelId as ModelId).provider,
-    keys,
-    getModel(modelId as ModelId).id,
-    { lmstudioBaseURL },
-  );
+  const model = await buildConfiguredLanguageModel(modelId, keys, {
+    thinkingLevelId,
+  });
 
   const start = Date.now();
   const result = await generateText({

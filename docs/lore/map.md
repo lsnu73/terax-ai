@@ -31,6 +31,30 @@
 - 职责：随安装包分发的命令行工具。构建期由 `scripts/build-cli.mjs` 用 cargo 编译为 release，拷到 `src-tauri/binaries/terax-cli-<target>` 作为 Tauri sidecar。
 - 易错点：见 pitfalls/2026-10-23-windows-build-network.md（build-cli 从仓库根调用 cargo，`.cargo/config.toml` 必须放根目录才生效）。
 
+## AI 与模型配置
+
+### 模型配置（数据驱动层）  `src/modules/ai/config/`
+- 职责：把 Provider、模型、请求参数、思考档位全部收敛为一份可手工编辑的 JSON（`terax-ai-models.json`），让「新增厂商」变成配置操作而不是代码分支。
+- 对外暴露：`registry.ts` 的同步查询（`resolveModel` / `listModels` / `providerNeedsKey` 等）、`params.ts` 的 `resolveRequestParams`、`store.ts` 的 `useAiConfigStore`。
+- 关键依赖：[设置页 ModelsSection] → [config/store + persist] → [terax-ai-models.json]；[请求链路 agent.ts] →（resolveModel / resolveRequestParams）→ [config/registry + params]；[Ctrl+I 模型选择窗] →（thinkingLevels / thinkingLevelIndex）→ [config/params]。
+- 易错点：见 pitfalls/2026-10-28-models-json-no-reload.md、pitfalls/2026-10-28-keys-before-config-hydration.md
+- 决策依据：见 decisions/2026-10-28-data-driven-model-config.md、decisions/2026-10-28-thinking-ladder-per-model.md
+
+### 请求发送与协议适配  `src/modules/ai/lib/agent.ts`、`providerHttp.ts`
+- 职责：`agent.ts` 是全应用唯一感知传输 SDK 的地方（`protocol` 枚举 → adapter）；`providerHttp.ts` 负责连通性测试与 `/models` 拉取。用户参数由 `withRequestParams()` 在 SDK 序列化后注入请求体/头。
+- 关键依赖：[agent.ts] →（authHeaders / resolveProviderFetch）→ [providerHttp.ts] → [proxyFetch] → [Rust `net::*` IPC]。
+- 易错点：模型缓存键包含密钥与完整参数 JSON；参数变化会新建实例，改缓存键时必须保留这两个维度。
+
+### 密钥存储  `src/modules/ai/lib/keyring.ts`
+- 职责：API Key 只进操作系统钥匙串；Provider 配置里仅有 `keyringAccount` 账户名。语音转写使用独立账户（`openai-api-key` / `groq-api-key`），不依赖模型 Provider 目录。
+- 关键依赖：[keyring.ts] →（`secrets_get` / `secrets_set` / `secrets_get_all`）→ [Rust secrets 模块]。
+- 易错点：钥匙串账户列表来自当前配置快照；配置未 hydrate 时读取会得到空列表（见对应 pitfall）。
+
+### 模型设置页与思考滑块  `src/settings/sections/ModelsSection.tsx`、`src/modules/ai/components/AiStatusBarControls.tsx`
+- 职责：前者负责 Provider/模型的增删改、连通性测试、模型列表拉取与高级 JSON 编辑；后者在 Ctrl+I 模型选择窗底部渲染思考滑块。
+- 关键依赖：[ModelsSection] → [useAiConfigStore.replace] → [persist.writeAiConfig] →（Tauri 事件 `terax://ai-models-changed`）→ [主窗口]。
+- 易错点：UI 与手改 JSON 必须走同一条 `normalizeAiConfig`；滑块档位来自所选模型自己的阶梯，无阶梯时不渲染。
+
 ## 构建与打包
 
 ### 打包链路  `pnpm tauri build`
