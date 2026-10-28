@@ -13,3 +13,6 @@
 - **协议 adapter（protocol）**：`agent.ts` 中按 `protocol` 枚举构造 AI SDK 模型的函数；目前有 `openai-compatible` / `anthropic` / `google`。新增国内厂商默认不需要新增 adapter。
 - **钥匙串账户（keyringAccount）**：Provider 配置里唯一的密钥相关字段，只是操作系统钥匙串中的账户名，绝不包含密钥本身。
 - **模型 ID 全局唯一**：当前 `ModelEntry.id` 在全配置内唯一，选择器/收藏/默认模型都以单字符串为键；同名模型需靠 `label` 区分。
+- **双模式字段（StructuredJsonField）**：`src/settings/sections/models/StructuredFields.tsx` 的通用组件，给结构化 JSON 字段提供「表单 / JSON」切换；默认表单，两种视图共享同一份文本。易与普通 JSON 文本域混淆——它额外负责空值 placeholder、切换时 pretty-print 与保存前校验。
+- **emptyValue**：`StructuredJsonField` 的「视为空」基准值（如 `[]` / `null` / `{}`）；值等于它时序列化为空字符串，JSON 模式显示格式化示例 placeholder。改某个字段的空值语义时先改这里。
+- **InfoHint**：`StructuredFields.tsx` 的信息图标组件（自带 TooltipProvider），`ModelsSection` 的 `FieldRow` 通过 `info` 参数挂载；INV-008 要求每个配置项都有它。

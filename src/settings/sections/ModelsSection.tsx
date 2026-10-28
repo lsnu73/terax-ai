@@ -16,7 +16,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
 import { ProviderIcon } from "@/components/ProviderIcon";
 import { cn } from "@/lib/utils";
 import {
@@ -76,6 +75,20 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useEffect, useMemo, useState } from "react";
 import { SectionHeader } from "../components/SectionHeader";
+import {
+  ExtraForm,
+  HeadersForm,
+  InfoHint,
+  ModelsApiForm,
+  ParamsForm,
+  StructuredJsonField,
+  ThinkingForm,
+  parseExtra,
+  parseHeaders,
+  parseModelsApi,
+  parseParamsArray,
+  parseThinking,
+} from "./models/StructuredFields";
 
 type TestState =
   | { status: "idle" }
@@ -104,6 +117,33 @@ function nextProviderId(base: string, existing: ReadonlySet<string>): string {
   let i = 2;
   while (existing.has(`${base}-${i}`)) i++;
   return `${base}-${i}`;
+}
+
+function validateParamKeys(params: ParamDef[] | undefined): string | null {
+  const list = params ?? [];
+  for (let i = 0; i < list.length; i++) {
+    if (!list[i]?.key?.trim()) {
+      return `Params 第 ${i + 1} 项的 Key 不能为空（没有 Key 的参数会被丢弃）。`;
+    }
+  }
+  return null;
+}
+
+function validateThinkingLevels(
+  thinking: ThinkingConfig | null | undefined,
+): string | null {
+  const levels = thinking?.levels ?? [];
+  if (thinking && levels.length === 0) {
+    return "Thinking 至少需要一个档位，或者设为 null 表示不显示滑块。";
+  }
+  const seen = new Set<string>();
+  for (let i = 0; i < levels.length; i++) {
+    const id = levels[i]?.id?.trim();
+    if (!id) return `Thinking 第 ${i + 1} 个档位缺少 ID。`;
+    if (seen.has(id)) return `Thinking 档位 ID 重复：${id}。`;
+    seen.add(id);
+  }
+  return null;
 }
 
 /**
@@ -287,18 +327,22 @@ export function ModelsSection() {
 
       <div className="flex flex-col gap-2 rounded-lg border border-border/60 bg-card/60 px-3 py-2.5">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[11px] font-medium tracking-tight text-muted-foreground">
+          <span className="flex items-center gap-1 text-[11px] font-medium tracking-tight text-muted-foreground">
             Configuration file
+            <InfoHint text="Provider、模型、请求参数与思考档位都保存在这个文件里。可以直接用编辑器修改，但修改后需要点击 Reload from disk 才会生效。" />
           </span>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => void reload()}
-            className="h-7 gap-1.5 px-2.5 text-[11px]"
-          >
-            <HugeiconsIcon icon={RefreshIcon} size={12} strokeWidth={2} />
-            Reload from disk
-          </Button>
+          <span className="flex items-center gap-1">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => void reload()}
+              className="h-7 gap-1.5 px-2.5 text-[11px]"
+            >
+              <HugeiconsIcon icon={RefreshIcon} size={12} strokeWidth={2} />
+              Reload from disk
+            </Button>
+            <InfoHint text="从磁盘重新读取 JSON。设置页里尚未保存的修改会被丢弃；如果文件刚被外部编辑过，必须先点这里才能看到新配置。" />
+          </span>
         </div>
         <code className="truncate font-mono text-[10.5px] text-muted-foreground">
           {filePath || "terax-ai-models.json"}
@@ -539,7 +583,10 @@ function ProviderCard({
 
       {expanded ? (
         <div className="flex flex-col gap-2.5 border-t border-border/40 px-3 py-2.5">
-          <FieldRow label="Base URL">
+          <FieldRow
+            label="Base URL"
+            info="厂商 OpenAI 兼容接口的根地址，通常以 /v1 或 /v4 结尾。地址错误会导致 Test 失败或请求 404。"
+          >
             <div className="flex flex-1 gap-1.5">
               <Input
                 value={baseURLDraft}
@@ -561,11 +608,15 @@ function ProviderCard({
               >
                 Test
               </Button>
+              <InfoHint text="请求 /models 验证地址、网络与鉴权。401/403 表示 Key 有问题；404 表示端点可达但厂商不提供模型列表。" />
             </div>
           </FieldRow>
 
           {providerSupportsKey(provider) ? (
-            <FieldRow label="API key">
+            <FieldRow
+              label="API key"
+              info="只保存到操作系统钥匙串，不会写入 JSON 文件。端点不需要鉴权时可以留空。"
+            >
               {apiKey ? (
                 <div className="flex flex-1 items-center gap-1.5">
                   <code className="flex-1 truncate rounded bg-muted/40 px-2 py-1 font-mono text-[11px] text-muted-foreground">
@@ -633,6 +684,7 @@ function ProviderCard({
                 <span className="font-mono text-[10.5px] text-muted-foreground">
                   GET {provider.modelsApi.path}
                 </span>
+                <InfoHint text="调用厂商的模型列表接口，把返回的模型 ID 列出来供你逐个添加。没有列表接口的厂商请手动填写模型 ID。" />
               </>
             ) : (
               <span className="text-[10.5px] text-muted-foreground">
@@ -688,7 +740,10 @@ function ProviderCard({
           ) : null}
 
           <div className="flex items-center justify-between">
-            <Label>Models ({provider.models.length})</Label>
+            <span className="flex items-center gap-1">
+              <Label>Models ({provider.models.length})</Label>
+              <InfoHint text="这里列出该 Provider 下可选择的模型。每个模型都需要单独填写 ID、输入/输出 token 上限与参数配置。" />
+            </span>
             <Button
               size="sm"
               variant="outline"
@@ -730,19 +785,22 @@ function ProviderCard({
             />
           ) : null}
 
-          <button
-            type="button"
-            onClick={() => setAdvanced((v) => !v)}
-            className="mt-1 flex items-center gap-1.5 self-start text-[10.5px] text-muted-foreground hover:text-foreground"
-          >
-            <HugeiconsIcon
-              icon={ChevronDown}
-              size={11}
-              strokeWidth={2}
-              className={cn("transition-transform", !advanced && "-rotate-90")}
-            />
-            高级：请求参数 / 思考档位 / 模型列表接口
-          </button>
+          <div className="mt-1 flex items-center gap-1.5 self-start">
+            <button
+              type="button"
+              onClick={() => setAdvanced((v) => !v)}
+              className="flex items-center gap-1.5 text-[10.5px] text-muted-foreground hover:text-foreground"
+            >
+              <HugeiconsIcon
+                icon={ChevronDown}
+                size={11}
+                strokeWidth={2}
+                className={cn("transition-transform", !advanced && "-rotate-90")}
+              />
+              高级：请求参数 / 思考档位 / 模型列表接口
+            </button>
+            <InfoHint text="展开 Provider 级的高级配置：传输协议、鉴权方式、钥匙串账户、静态请求头、共享参数、兜底思考档位与模型列表接口。" />
+          </div>
           {advanced ? (
             <ProviderAdvancedEditor provider={provider} onSave={onUpdate} />
           ) : null}
@@ -894,9 +952,19 @@ function ModelEditor({
       setError(`参数 JSON 无效：${params.error}`);
       return;
     }
+    const paramsError = validateParamKeys(params.value);
+    if (paramsError) {
+      setError(paramsError);
+      return;
+    }
     const thinking = parseJson<ThinkingConfig>(thinkingText);
     if (thinking.error) {
       setError(`思考档位 JSON 无效：${thinking.error}`);
+      return;
+    }
+    const thinkingError = validateThinkingLevels(thinking.value);
+    if (thinkingError) {
+      setError(thinkingError);
       return;
     }
     const extra = parseJson<JsonObject>(extraText);
@@ -934,7 +1002,10 @@ function ModelEditor({
       <span className="text-[11px] font-medium text-muted-foreground">
         {title}
       </span>
-      <FieldRow label="Model ID">
+      <FieldRow
+        label="Model ID"
+        info="厂商 API 使用的真实模型 ID（如 glm-5.3 / deepseek-chat）。必须与厂商文档完全一致，否则请求会失败；整个配置内不能与其他模型重复。"
+      >
         <Input
           value={id}
           onChange={(e) => setId(e.target.value)}
@@ -943,7 +1014,10 @@ function ModelEditor({
           className="h-8 font-mono text-[11.5px]"
         />
       </FieldRow>
-      <FieldRow label="Label">
+      <FieldRow
+        label="Label"
+        info="仅用于界面显示，不会发送给厂商。建议填写能一眼区分数量的名称。"
+      >
         <Input
           value={label}
           onChange={(e) => setLabel(e.target.value)}
@@ -952,7 +1026,10 @@ function ModelEditor({
           className="h-8 text-[11.5px]"
         />
       </FieldRow>
-      <FieldRow label="Input">
+      <FieldRow
+        label="Input"
+        info="上下文窗口（输入 token 预算）。设得过大会让超长请求被厂商拒绝；过小会触发上下文压缩、丢失早期对话。"
+      >
         <div className="flex flex-1 items-center gap-1.5">
           <Input
             value={inputTokens}
@@ -966,7 +1043,10 @@ function ModelEditor({
           </span>
         </div>
       </FieldRow>
-      <FieldRow label="Output">
+      <FieldRow
+        label="Output"
+        info="单次响应的最大输出 token，会作为 max_tokens 发送。过小会截断回答；过大会被部分厂商拒绝或增加费用。"
+      >
         <div className="flex flex-1 items-center gap-1.5">
           <Input
             value={outputTokens}
@@ -980,31 +1060,42 @@ function ModelEditor({
           </span>
         </div>
       </FieldRow>
-      <FieldRow label="Sampling">
+      <FieldRow
+        label="Sampling"
+        info="控制采样行为、补全可用性与系统提示词长度。修改前请确认模型是否支持 temperature。"
+      >
         <div className="flex flex-1 items-center gap-3">
           <span className="flex items-center gap-1.5 text-[10.5px] text-muted-foreground">
             <Switch checked={temperature} onCheckedChange={setTemperature} />
             temperature
+            <InfoHint text="开启后会按调用方传入的 temperature 采样；推理模型通常应关闭，否则请求可能被拒绝。" />
           </span>
           <span className="flex items-center gap-1.5 text-[10.5px] text-muted-foreground">
             <Switch checked={autocomplete} onCheckedChange={setAutocomplete} />
             autocomplete
+            <InfoHint text="关闭后该模型不会出现在编辑器的行内补全选择器中；云端旗舰模型通常不适合做补全。" />
           </span>
-          <Select
-            value={systemPrompt}
-            onValueChange={(v) => setSystemPrompt(v as "full" | "lite")}
-          >
-            <SelectTrigger className="h-7 w-28 text-[11px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="full">full prompt</SelectItem>
-              <SelectItem value="lite">lite prompt</SelectItem>
-            </SelectContent>
-          </Select>
+          <span className="flex items-center gap-1">
+            <Select
+              value={systemPrompt}
+              onValueChange={(v) => setSystemPrompt(v as "full" | "lite")}
+            >
+              <SelectTrigger className="h-7 w-28 text-[11px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="full">full prompt</SelectItem>
+                <SelectItem value="lite">lite prompt</SelectItem>
+              </SelectContent>
+            </Select>
+            <InfoHint text="full 使用完整系统提示词（工具规范、路径规则等）；lite 更短、更省 token，适合小模型，但会丢失部分工具使用约束。" />
+          </span>
         </div>
       </FieldRow>
-      <FieldRow label="Tags">
+      <FieldRow
+        label="Tags"
+        info="逗号分隔的标记。reasoning 表示跨工具调用轮次保留推理内容（推理模型通常需要）；lite 仅作标记，系统提示词长度由 Sampling 右侧的 full/lite 决定。"
+      >
         <Input
           value={tags}
           onChange={(e) => setTags(e.target.value)}
@@ -1013,23 +1104,79 @@ function ModelEditor({
           className="h-8 font-mono text-[11px]"
         />
       </FieldRow>
-      <JsonField
-        label="Params"
-        value={paramsText}
-        onChange={setParamsText}
-        placeholder='[{"key":"reasoning_effort","location":"body","type":"string","map":{"low":"low","xhigh":"max"}}]'
+      <StructuredJsonField
+        label="Params（请求参数）"
+        info="声明该模型额外发送的请求参数。表单模式适合大多数情况；JSON 模式可编辑全部字段。留空（[]）表示不额外发送参数。"
+        valueText={paramsText}
+        onChangeText={setParamsText}
+        parse={parseParamsArray}
+        emptyValue={[] as ParamDef[]}
+        renderForm={(value, onChange) => (
+          <ParamsForm value={value} onChange={onChange} />
+        )}
+        placeholder={`[
+  {
+    "key": "reasoning_effort",
+    "location": "body",
+    "path": "reasoning_effort",
+    "type": "string",
+    "enabled": true,
+    "map": {
+      "low": "low",
+      "medium": "high",
+      "xhigh": "max"
+    }
+  }
+]`}
       />
-      <JsonField
-        label="Thinking"
-        value={thinkingText}
-        onChange={setThinkingText}
-        placeholder='{"default":"high","levels":[{"id":"off","label":"关闭","values":{"thinking.type":"disabled"}},{"id":"high","label":"高","values":{"thinking.type":"enabled"}}]}'
+      <StructuredJsonField
+        label="Thinking（思考档位）"
+        info="控制 Ctrl+I 模型选择窗底部的滑条。null 表示不显示滑条；每个档位把参数 key 映射到逻辑值，值为 null 表示该档位省略此参数。"
+        valueText={thinkingText}
+        onChangeText={setThinkingText}
+        parse={parseThinking}
+        emptyValue={null as ThinkingConfig | null}
+        renderForm={(value, onChange) => (
+          <ThinkingForm value={value} onChange={onChange} />
+        )}
+        placeholder={`{
+  "default": "high",
+  "offLabel": "关闭",
+  "levels": [
+    {
+      "id": "off",
+      "label": "关闭",
+      "values": {
+        "thinking.type": "disabled",
+        "reasoning_effort": null
+      }
+    },
+    {
+      "id": "high",
+      "label": "高",
+      "values": {
+        "thinking.type": "enabled",
+        "reasoning_effort": "high"
+      }
+    }
+  ]
+}`}
       />
-      <JsonField
-        label="Extra"
-        value={extraText}
-        onChange={setExtraText}
-        placeholder='{"stream_options":{"include_usage":true}}'
+      <StructuredJsonField
+        label="Extra（原始覆盖）"
+        info="最后合并进请求体的原始 JSON，用于厂商专有字段。优先级最高，但 model、messages、stream、tools 等传输键会被忽略。"
+        valueText={extraText}
+        onChangeText={setExtraText}
+        parse={parseExtra}
+        emptyValue={{} as JsonObject}
+        renderForm={(value, onChange) => (
+          <ExtraForm value={value} onChange={onChange} />
+        )}
+        placeholder={`{
+  "stream_options": {
+    "include_usage": true
+  }
+}`}
       />
       {error ? (
         <span className="text-[10.5px] text-destructive/80">{error}</span>
@@ -1071,12 +1218,20 @@ function ProviderAdvancedEditor({
   const [keyringAccount, setKeyringAccount] = useState(provider.keyringAccount);
   const [consoleUrl, setConsoleUrl] = useState(provider.consoleUrl ?? "");
   const [icon, setIcon] = useState(provider.icon);
-  const [paramsText, setParamsText] = useState(stringify(provider.params));
-  const [thinkingText, setThinkingText] = useState(
-    stringify(provider.thinking),
+  const [paramsText, setParamsText] = useState(
+    provider.params.length > 0 ? stringify(provider.params) : "",
   );
-  const [headersText, setHeadersText] = useState(stringify(provider.headers));
-  const [apiText, setApiText] = useState(stringify(provider.modelsApi));
+  const [thinkingText, setThinkingText] = useState(
+    provider.thinking ? stringify(provider.thinking) : "",
+  );
+  const [headersText, setHeadersText] = useState(
+    Object.keys(provider.headers).length > 0
+      ? stringify(provider.headers)
+      : "",
+  );
+  const [apiText, setApiText] = useState(
+    provider.modelsApi ? stringify(provider.modelsApi) : "",
+  );
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -1090,6 +1245,16 @@ function ProviderAdvancedEditor({
       params.error ?? thinking.error ?? headers.error ?? api.error;
     if (failure) {
       setError(`JSON 无效：${failure}`);
+      return;
+    }
+    const paramsError = validateParamKeys(params.value);
+    if (paramsError) {
+      setError(paramsError);
+      return;
+    }
+    const thinkingError = validateThinkingLevels(thinking.value);
+    if (thinkingError) {
+      setError(thinkingError);
       return;
     }
     setSaving(true);
@@ -1119,14 +1284,20 @@ function ProviderAdvancedEditor({
 
   return (
     <div className="flex flex-col gap-2 rounded-md border border-border/60 bg-muted/20 p-2.5">
-      <FieldRow label="Label">
+      <FieldRow
+        label="Label"
+        info="Provider 在设置页与模型选择窗中的显示名；不参与请求。"
+      >
         <Input
           value={label}
           onChange={(e) => setLabel(e.target.value)}
           className="h-8 text-[11.5px]"
         />
       </FieldRow>
-      <FieldRow label="Protocol">
+      <FieldRow
+        label="Protocol"
+        info="传输协议。国内厂商几乎都使用 openai-compatible；切换协议不会删除已有模型或密钥，但请求格式会随之改变。"
+      >
         <Select
           value={protocol}
           onValueChange={(v) => setProtocol(v as ProviderEntry["protocol"])}
@@ -1143,7 +1314,10 @@ function ProviderAdvancedEditor({
           </SelectContent>
         </Select>
       </FieldRow>
-      <FieldRow label="Auth">
+      <FieldRow
+        label="Auth"
+        info="鉴权方式：bearer 发送 Authorization: Bearer <key>；x-api-key 发送自定义头；none 表示不发送密钥（本地或匿名网关）。required 关闭后允许不填 Key 调用。"
+      >
         <div className="flex flex-1 items-center gap-2">
           <Select
             value={authMode}
@@ -1179,7 +1353,10 @@ function ProviderAdvancedEditor({
           ) : null}
         </div>
       </FieldRow>
-      <FieldRow label="Keyring">
+      <FieldRow
+        label="Keyring"
+        info="操作系统钥匙串中的账户名。这里只存名字，不存密钥；修改后需要重新保存该 Provider 的 API Key。"
+      >
         <Input
           value={keyringAccount}
           onChange={(e) => setKeyringAccount(e.target.value)}
@@ -1188,7 +1365,10 @@ function ProviderAdvancedEditor({
           className="h-8 font-mono text-[11px]"
         />
       </FieldRow>
-      <FieldRow label="Console">
+      <FieldRow
+        label="Console"
+        info="厂商控制台链接，仅用于卡片右上角的跳转；留空则不显示链接。"
+      >
         <Input
           value={consoleUrl}
           onChange={(e) => setConsoleUrl(e.target.value)}
@@ -1197,7 +1377,10 @@ function ProviderAdvancedEditor({
           className="h-8 font-mono text-[11px]"
         />
       </FieldRow>
-      <FieldRow label="Icon">
+      <FieldRow
+        label="Icon"
+        info="图标键：brain / cpu / globe / flash / server / plug。未知值会回退为插头图标。"
+      >
         <Input
           value={icon}
           onChange={(e) => setIcon(e.target.value)}
@@ -1206,29 +1389,90 @@ function ProviderAdvancedEditor({
           className="h-8 font-mono text-[11px]"
         />
       </FieldRow>
-      <JsonField
-        label="Params"
-        value={paramsText}
-        onChange={setParamsText}
-        placeholder="[]"
+      <StructuredJsonField
+        label="Params（Provider 共享参数）"
+        info="该 Provider 下所有模型共享的参数定义；模型重新声明同一 key 时会覆盖这里的定义。留空（[]）表示不额外发送参数。"
+        valueText={paramsText}
+        onChangeText={setParamsText}
+        parse={parseParamsArray}
+        emptyValue={[] as ParamDef[]}
+        renderForm={(value, onChange) => (
+          <ParamsForm value={value} onChange={onChange} />
+        )}
+        placeholder={`[
+  {
+    "key": "thinking.type",
+    "location": "body",
+    "path": "thinking.type",
+    "type": "string",
+    "enabled": true,
+    "enum": ["enabled", "disabled"]
+  }
+]`}
       />
-      <JsonField
-        label="Thinking"
-        value={thinkingText}
-        onChange={setThinkingText}
-        placeholder="null"
+      <StructuredJsonField
+        label="Thinking（Provider 兜底档位）"
+        info="模型没有声明自己的 thinking 时使用这里的档位。null 表示默认不显示思考滑条；具体映射写法见“表单”模式或文档。"
+        valueText={thinkingText}
+        onChangeText={setThinkingText}
+        parse={parseThinking}
+        emptyValue={null as ThinkingConfig | null}
+        renderForm={(value, onChange) => (
+          <ThinkingForm value={value} onChange={onChange} />
+        )}
+        placeholder={`{
+  "default": "high",
+  "offLabel": "关闭",
+  "levels": [
+    {
+      "id": "off",
+      "label": "关闭",
+      "values": {
+        "thinking.type": "disabled"
+      }
+    },
+    {
+      "id": "high",
+      "label": "高",
+      "values": {
+        "thinking.type": "enabled",
+        "reasoning_effort": "high"
+      }
+    }
+  ]
+}`}
       />
-      <JsonField
-        label="Headers"
-        value={headersText}
-        onChange={setHeadersText}
-        placeholder='{"HTTP-Referer":"https://terax.ai"}'
+      <StructuredJsonField
+        label="Headers（静态请求头）"
+        info="每次请求都会附带的固定请求头。不要在这里放 API Key（会被自动移除并告警）；适合 HTTP-Referer、X-Title 等非密钥头。"
+        valueText={headersText}
+        onChangeText={setHeadersText}
+        parse={parseHeaders}
+        emptyValue={{} as Record<string, string>}
+        renderForm={(value, onChange) => (
+          <HeadersForm value={value} onChange={onChange} />
+        )}
+        placeholder={`{
+  "HTTP-Referer": "https://terax.ai",
+  "X-Title": "Terax"
+}`}
       />
-      <JsonField
-        label="Models API"
-        value={apiText}
-        onChange={setApiText}
-        placeholder='{"path":"/models","itemsPath":"data","idPath":"id"}'
+      <StructuredJsonField
+        label="Models API（模型列表接口）"
+        info="描述厂商的模型列表接口。关闭（null）后该 Provider 只能手动添加模型；path 是接口路径，itemsPath 是响应中数组的位置，idPath 是数组中模型 ID 的字段。"
+        valueText={apiText}
+        onChangeText={setApiText}
+        parse={parseModelsApi}
+        emptyValue={null}
+        renderForm={(value, onChange) => (
+          <ModelsApiForm value={value} onChange={onChange} />
+        )}
+        placeholder={`{
+  "path": "/models",
+  "itemsPath": "data",
+  "idPath": "id",
+  "labelPath": "name"
+}`}
       />
       {error ? (
         <span className="text-[10.5px] text-destructive/80">{error}</span>
@@ -1243,31 +1487,6 @@ function ProviderAdvancedEditor({
           {saving ? "Saving…" : "Save provider settings"}
         </Button>
       </div>
-    </div>
-  );
-}
-
-function JsonField({
-  label,
-  value,
-  onChange,
-  placeholder,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-}) {
-  return (
-    <div className="flex flex-col gap-1">
-      <span className="text-[10.5px] text-muted-foreground">{label} (JSON)</span>
-      <Textarea
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        spellCheck={false}
-        className="min-h-16 resize-y font-mono text-[10.5px] leading-relaxed"
-      />
     </div>
   );
 }
@@ -1290,7 +1509,10 @@ function DefaultsBlock({
     <div className="flex flex-col gap-3">
       <Label>Defaults</Label>
       <div className="flex flex-col gap-2.5 rounded-lg border border-border/60 bg-card/60 px-3 py-2.5">
-        <FieldRow label="Chat model">
+        <FieldRow
+          label="Chat model"
+          info="新会话默认使用的模型。删除该模型后会自动回退到配置中的第一个可用模型。"
+        >
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -1390,7 +1612,10 @@ function AutocompleteRow({
 
   return (
     <>
-      <FieldRow label="Autocomplete">
+      <FieldRow
+        label="Autocomplete"
+        info="编辑器行内补全使用的模型与触发方式。建议选择低延迟、便宜的模型；关闭后不会发起任何补全请求。"
+      >
         <div className="flex flex-1 items-center gap-2">
           <Switch
             checked={enabled}
@@ -1439,7 +1664,10 @@ function AutocompleteRow({
         </div>
       </FieldRow>
       {enabled ? (
-        <FieldRow label="Trigger">
+        <FieldRow
+          label="Trigger"
+          info="Automatic：输入时自动请求补全，可能增加延迟与费用；Manual：只在快捷键触发时请求。"
+        >
           <Select
             value={trigger}
             onValueChange={(v) =>
@@ -1487,7 +1715,10 @@ function VoiceBlock() {
         <span className="text-[12.5px] font-medium">Voice input</span>
       </div>
 
-      <FieldRow label="Provider">
+      <FieldRow
+        label="Provider"
+        info="语音转写服务。OpenAI/Groq 使用独立于模型 Provider 的钥匙串账户；Whisper.cpp 完全离线运行。"
+      >
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -1521,7 +1752,10 @@ function VoiceBlock() {
       </FieldRow>
 
       {sttProvider !== "whispercpp" ? (
-        <FieldRow label="API key">
+        <FieldRow
+          label="API key"
+          info="语音转写专用 Key，只保存到钥匙串。它不属于任何模型 Provider，删除模型 Provider 不会影响它。"
+        >
           {currentKey ? (
             <div className="flex flex-1 items-center gap-1.5">
               <code className="flex-1 truncate rounded bg-muted/40 px-2 py-1 font-mono text-[11px] text-muted-foreground">
@@ -1574,7 +1808,10 @@ function VoiceBlock() {
       ) : null}
 
       {sttProvider === "groq" ? (
-        <FieldRow label="Model">
+        <FieldRow
+          label="Model"
+          info="Groq 的转写模型名称，通常为 whisper-large-v3-turbo。必须与 Groq 控制台中的模型 ID 一致。"
+        >
           <Input
             value={groqModelDraft}
             onChange={(e) => setGroqModelDraft(e.target.value)}
@@ -1590,7 +1827,10 @@ function VoiceBlock() {
       ) : null}
 
       {sttProvider === "whispercpp" ? (
-        <FieldRow label="Base URL">
+        <FieldRow
+          label="Base URL"
+          info="本地 Whisper.cpp 服务地址，必须指向本机回环地址（localhost / 127.x.x.x），否则会被拒绝以防音频外传。"
+        >
           <Input
             value={urlDraft}
             onChange={(e) => setUrlDraft(e.target.value)}
@@ -1646,15 +1886,18 @@ function StatusLine({ test }: { test: TestState }) {
 
 function FieldRow({
   label,
+  info,
   children,
 }: {
   label: string;
+  info?: string;
   children: React.ReactNode;
 }) {
   return (
     <div className="flex items-center gap-3">
-      <span className="w-16 shrink-0 text-[11px] tracking-tight text-muted-foreground">
-        {label}
+      <span className="flex w-20 shrink-0 items-center gap-1 text-[11px] tracking-tight text-muted-foreground">
+        <span className="truncate">{label}</span>
+        {info ? <InfoHint text={info} /> : null}
       </span>
       <div className="flex flex-1 items-center">{children}</div>
     </div>

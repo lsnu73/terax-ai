@@ -50,10 +50,11 @@
 - 关键依赖：[keyring.ts] →（`secrets_get` / `secrets_set` / `secrets_get_all`）→ [Rust secrets 模块]。
 - 易错点：钥匙串账户列表来自当前配置快照；配置未 hydrate 时读取会得到空列表（见对应 pitfall）。
 
-### 模型设置页与思考滑块  `src/settings/sections/ModelsSection.tsx`、`src/modules/ai/components/AiStatusBarControls.tsx`
-- 职责：前者负责 Provider/模型的增删改、连通性测试、模型列表拉取与高级 JSON 编辑；后者在 Ctrl+I 模型选择窗底部渲染思考滑块。
+### 模型设置页与思考滑块  `src/settings/sections/ModelsSection.tsx`、`src/settings/sections/models/StructuredFields.tsx`、`src/modules/ai/components/AiStatusBarControls.tsx`
+- 职责：ModelsSection 负责 Provider/模型的增删改、连通性测试、模型列表拉取与高级 JSON 编辑；StructuredFields 为结构化 JSON 字段提供「表单 / JSON」双模式编辑（Params/Thinking/Extra/Headers/Models API）与 InfoHint 悬浮说明；AiStatusBarControls 在 Ctrl+I 模型选择窗底部渲染思考滑块。
 - 关键依赖：[ModelsSection] → [useAiConfigStore.replace] → [persist.writeAiConfig] →（Tauri 事件 `terax://ai-models-changed`）→ [主窗口]。
-- 易错点：UI 与手改 JSON 必须走同一条 `normalizeAiConfig`；滑块档位来自所选模型自己的阶梯，无阶梯时不渲染。
+- 易错点：UI 与手改 JSON 必须走同一条 `normalizeAiConfig`；滑块档位来自所选模型自己的阶梯，无阶梯时不渲染；表单组件的值同步陷阱见 pitfalls/2026-10-28-form-editor-value-sync.md。
+- 决策依据：见 decisions/2026-10-28-form-json-dual-mode.md
 
 ## 构建与打包
 

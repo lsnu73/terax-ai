@@ -31,3 +31,8 @@
   - 违反代价：已保存的 API Key 全部表现为“未配置”，AI 输入框不可用（见 pitfalls/2026-10-28-keys-before-config-hydration.md）。
   - 强制点：`src/modules/ai/hooks/useAiBootstrap.ts` 的密钥 effect 以 `configHydrated` 门控并依赖 `config`；`src/settings/sections/ModelsSection.tsx` 的 `getAllKeys()` effect 依赖 `config`。
   - ⚠️ 此条暂无自动化测试强制，靠启动时序评审与手工回归把关。
+
+- **INV-008** 设置页每个面向用户的配置项必须提供 info 悬浮说明，写清「改变它的后果」和「该填什么」；不能靠字段名让用户猜语义。
+  - 违反代价：用户面对 `Thinking (JSON) = null` 这类正常但无解释的取值时无从下手（2026-10-28 实际反馈）。
+  - 强制点：`src/settings/sections/models/StructuredFields.tsx` 的 `InfoHint` 组件；`ModelsSection.tsx` 的 `FieldRow` 接受 `info` 参数。
+  - ⚠️ 此条暂无代码强制，属口头约定，靠新增设置项时的评审把关。
