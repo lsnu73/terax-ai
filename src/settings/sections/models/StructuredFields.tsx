@@ -431,63 +431,71 @@ function KeyValueEditor({
     onChange(out);
   };
 
+  const addRowButton = (
+    <Button
+      size="sm"
+      variant="outline"
+      onClick={() =>
+        setRows([...rows, { id: nextKeyValueId(), key: "", value: "" }])
+      }
+      className="h-6 gap-1 self-start px-2 text-[10px]"
+    >
+      <HugeiconsIcon icon={Add01Icon} size={10} strokeWidth={2} />
+      {addLabel}
+    </Button>
+  );
+
   return (
     <div className="flex flex-col gap-1.5">
       {rows.length === 0 ? (
-        <span className="text-[10px] text-muted-foreground/70">
-          {t("settings.models.structured.noKeyValues")}
-        </span>
-      ) : null}
-      {rows.map((row, index) => (
-        <div key={row.id} className="flex items-center gap-1.5">
-          <Input
-            value={row.key}
-            onChange={(e) =>
-              commit(
-                rows.map((item, i) =>
-                  i === index ? { ...item, key: e.target.value } : item,
-                ),
-              )
-            }
-            placeholder={keyPlaceholder}
-            spellCheck={false}
-            className="h-7 w-40 shrink-0 font-mono text-[10.5px]"
-          />
-          <Input
-            value={row.value}
-            onChange={(e) =>
-              commit(
-                rows.map((item, i) =>
-                  i === index ? { ...item, value: e.target.value } : item,
-                ),
-              )
-            }
-            placeholder={valuePlaceholder}
-            spellCheck={false}
-            className="h-7 min-w-0 flex-1 font-mono text-[10.5px]"
-          />
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={() => commit(rows.filter((_, i) => i !== index))}
-            title={t("settings.models.structured.removeRow")}
-            className="size-6 shrink-0 text-muted-foreground hover:text-destructive"
-          >
-            <HugeiconsIcon icon={Cancel01Icon} size={10} strokeWidth={1.75} />
-          </Button>
+        <div className="flex flex-col items-start gap-1.5 rounded-md border border-dashed border-border/50 px-2 py-2">
+          <span className="text-[10px] text-muted-foreground/70">
+            {t("settings.models.structured.noKeyValues")}
+          </span>
+          {addRowButton}
         </div>
-      ))}
-      <Button
-        size="sm"
-        variant="outline"
-        onClick={() =>
-          setRows([...rows, { id: nextKeyValueId(), key: "", value: "" }])
-        }
-        className="h-6 gap-1 self-start px-2 text-[10px]"
-      >
-        <HugeiconsIcon icon={Add01Icon} size={10} strokeWidth={2} />
-        {addLabel}
-      </Button>
+      ) : (
+        rows.map((row, index) => (
+          <div key={row.id} className="flex items-center gap-1.5">
+            <Input
+              value={row.key}
+              onChange={(e) =>
+                commit(
+                  rows.map((item, i) =>
+                    i === index ? { ...item, key: e.target.value } : item,
+                  ),
+                )
+              }
+              placeholder={keyPlaceholder}
+              spellCheck={false}
+              className="h-7 w-40 shrink-0 font-mono text-[10.5px]"
+            />
+            <Input
+              value={row.value}
+              onChange={(e) =>
+                commit(
+                  rows.map((item, i) =>
+                    i === index ? { ...item, value: e.target.value } : item,
+                  ),
+                )
+              }
+              placeholder={valuePlaceholder}
+              spellCheck={false}
+              className="h-7 min-w-0 flex-1 font-mono text-[10.5px]"
+            />
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => commit(rows.filter((_, i) => i !== index))}
+              title={t("settings.models.structured.removeRow")}
+              className="size-6 shrink-0 text-muted-foreground hover:text-destructive"
+            >
+              <HugeiconsIcon icon={Cancel01Icon} size={10} strokeWidth={1.75} />
+            </Button>
+          </div>
+        ))
+      )}
+      {rows.length > 0 ? addRowButton : null}
     </div>
   );
 }
@@ -504,13 +512,39 @@ export function ParamsForm({
   const update = (index: number, patch: Partial<ParamDef>) => {
     onChange(rows.map((row, i) => (i === index ? { ...row, ...patch } : row)));
   };
+  const addParamButton = (
+    <Button
+      size="sm"
+      variant="outline"
+      onClick={() =>
+        onChange([
+          ...rows,
+          {
+            key: "",
+            label: "",
+            location: "body",
+            path: "",
+            type: "string",
+            enabled: true,
+          },
+        ])
+      }
+      className="h-7 gap-1 self-start px-2 text-[10.5px]"
+    >
+      <HugeiconsIcon icon={Add01Icon} size={11} strokeWidth={2} />
+      {t("settings.models.structured.addParam")}
+    </Button>
+  );
 
   return (
     <div className="flex flex-col gap-2">
       {rows.length === 0 ? (
-        <p className="rounded-md border border-dashed border-border/50 px-2 py-2 text-[10px] leading-relaxed text-muted-foreground/80">
-          {t("settings.models.structured.paramsEmpty")}
-        </p>
+        <div className="flex flex-col items-start gap-1.5 rounded-md border border-dashed border-border/50 px-2 py-2">
+          <p className="text-[10px] leading-relaxed text-muted-foreground/80">
+            {t("settings.models.structured.paramsEmpty")}
+          </p>
+          {addParamButton}
+        </div>
       ) : null}
       {rows.map((row, index) => (
         <div
@@ -731,27 +765,7 @@ export function ParamsForm({
           </MiniField>
         </div>
       ))}
-      <Button
-        size="sm"
-        variant="outline"
-        onClick={() =>
-          onChange([
-            ...rows,
-            {
-              key: "",
-              label: "",
-              location: "body",
-              path: "",
-              type: "string",
-              enabled: true,
-            },
-          ])
-        }
-        className="h-7 gap-1 self-start px-2 text-[10.5px]"
-      >
-        <HugeiconsIcon icon={Add01Icon} size={11} strokeWidth={2} />
-        {t("settings.models.structured.addParam")}
-      </Button>
+      {rows.length > 0 ? addParamButton : null}
     </div>
   );
 }

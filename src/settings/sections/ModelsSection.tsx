@@ -1158,17 +1158,18 @@ function ModelEditor({
           className="h-8 font-mono text-[11px]"
         />
       </FieldRow>
-      <StructuredJsonField
-        label={t("settings.models.modelEditor.params.label")}
-        info={t("settings.models.modelEditor.params.info")}
-        valueText={paramsText}
-        onChangeText={setParamsText}
-        parse={parseParamsArray}
-        emptyValue={[] as ParamDef[]}
-        renderForm={(value, onChange) => (
-          <ParamsForm value={value} onChange={onChange} />
-        )}
-        placeholder={`[
+      <div className="flex flex-col gap-4 pt-1">
+        <StructuredJsonField
+          label={t("settings.models.modelEditor.params.label")}
+          info={t("settings.models.modelEditor.params.info")}
+          valueText={paramsText}
+          onChangeText={setParamsText}
+          parse={parseParamsArray}
+          emptyValue={[] as ParamDef[]}
+          renderForm={(value, onChange) => (
+            <ParamsForm value={value} onChange={onChange} />
+          )}
+          placeholder={`[
   {
     "key": "reasoning_effort",
     "location": "body",
@@ -1182,18 +1183,18 @@ function ModelEditor({
     }
   }
 ]`}
-      />
-      <StructuredJsonField
-        label={t("settings.models.modelEditor.thinking.label")}
-        info={t("settings.models.modelEditor.thinking.info")}
-        valueText={thinkingText}
-        onChangeText={setThinkingText}
-        parse={parseThinking}
-        emptyValue={null as ThinkingConfig | null}
-        renderForm={(value, onChange) => (
-          <ThinkingForm value={value} onChange={onChange} />
-        )}
-        placeholder={`{
+        />
+        <StructuredJsonField
+          label={t("settings.models.modelEditor.thinking.label")}
+          info={t("settings.models.modelEditor.thinking.info")}
+          valueText={thinkingText}
+          onChangeText={setThinkingText}
+          parse={parseThinking}
+          emptyValue={null as ThinkingConfig | null}
+          renderForm={(value, onChange) => (
+            <ThinkingForm value={value} onChange={onChange} />
+          )}
+          placeholder={`{
   "default": "high",
   "offLabel": "关闭",
   "levels": [
@@ -1215,23 +1216,24 @@ function ModelEditor({
     }
   ]
 }`}
-      />
-      <StructuredJsonField
-        label={t("settings.models.modelEditor.extra.label")}
-        info={t("settings.models.modelEditor.extra.info")}
-        valueText={extraText}
-        onChangeText={setExtraText}
-        parse={parseExtra}
-        emptyValue={{} as JsonObject}
-        renderForm={(value, onChange) => (
-          <ExtraForm value={value} onChange={onChange} />
-        )}
-        placeholder={`{
+        />
+        <StructuredJsonField
+          label={t("settings.models.modelEditor.extra.label")}
+          info={t("settings.models.modelEditor.extra.info")}
+          valueText={extraText}
+          onChangeText={setExtraText}
+          parse={parseExtra}
+          emptyValue={{} as JsonObject}
+          renderForm={(value, onChange) => (
+            <ExtraForm value={value} onChange={onChange} />
+          )}
+          placeholder={`{
   "stream_options": {
     "include_usage": true
   }
 }`}
-      />
+        />
+      </div>
       {error ? (
         <span className="text-[10.5px] text-destructive/80">{error}</span>
       ) : null}
@@ -1444,17 +1446,18 @@ function ProviderAdvancedEditor({
           className="h-8 font-mono text-[11px]"
         />
       </FieldRow>
-      <StructuredJsonField
-        label={t("settings.models.advanced.params.label")}
-        info={t("settings.models.advanced.params.info")}
-        valueText={paramsText}
-        onChangeText={setParamsText}
-        parse={parseParamsArray}
-        emptyValue={[] as ParamDef[]}
-        renderForm={(value, onChange) => (
-          <ParamsForm value={value} onChange={onChange} />
-        )}
-        placeholder={`[
+      <div className="flex flex-col gap-4 pt-1">
+        <StructuredJsonField
+          label={t("settings.models.advanced.params.label")}
+          info={t("settings.models.advanced.params.info")}
+          valueText={paramsText}
+          onChangeText={setParamsText}
+          parse={parseParamsArray}
+          emptyValue={[] as ParamDef[]}
+          renderForm={(value, onChange) => (
+            <ParamsForm value={value} onChange={onChange} />
+          )}
+          placeholder={`[
   {
     "key": "thinking.type",
     "location": "body",
@@ -1464,18 +1467,18 @@ function ProviderAdvancedEditor({
     "enum": ["enabled", "disabled"]
   }
 ]`}
-      />
-      <StructuredJsonField
-        label={t("settings.models.advanced.thinking.label")}
-        info={t("settings.models.advanced.thinking.info")}
-        valueText={thinkingText}
-        onChangeText={setThinkingText}
-        parse={parseThinking}
-        emptyValue={null as ThinkingConfig | null}
-        renderForm={(value, onChange) => (
-          <ThinkingForm value={value} onChange={onChange} />
-        )}
-        placeholder={`{
+        />
+        <StructuredJsonField
+          label={t("settings.models.advanced.thinking.label")}
+          info={t("settings.models.advanced.thinking.info")}
+          valueText={thinkingText}
+          onChangeText={setThinkingText}
+          parse={parseThinking}
+          emptyValue={null as ThinkingConfig | null}
+          renderForm={(value, onChange) => (
+            <ThinkingForm value={value} onChange={onChange} />
+          )}
+          placeholder={`{
   "default": "high",
   "offLabel": "关闭",
   "levels": [
@@ -1496,39 +1499,40 @@ function ProviderAdvancedEditor({
     }
   ]
 }`}
-      />
-      <StructuredJsonField
-        label={t("settings.models.advanced.headers.label")}
-        info={t("settings.models.advanced.headers.info")}
-        valueText={headersText}
-        onChangeText={setHeadersText}
-        parse={parseHeaders}
-        emptyValue={{} as Record<string, string>}
-        renderForm={(value, onChange) => (
-          <HeadersForm value={value} onChange={onChange} />
-        )}
-        placeholder={`{
+        />
+        <StructuredJsonField
+          label={t("settings.models.advanced.headers.label")}
+          info={t("settings.models.advanced.headers.info")}
+          valueText={headersText}
+          onChangeText={setHeadersText}
+          parse={parseHeaders}
+          emptyValue={{} as Record<string, string>}
+          renderForm={(value, onChange) => (
+            <HeadersForm value={value} onChange={onChange} />
+          )}
+          placeholder={`{
   "HTTP-Referer": "https://terax.ai",
   "X-Title": "Terax"
 }`}
-      />
-      <StructuredJsonField
-        label={t("settings.models.advanced.modelsApi.label")}
-        info={t("settings.models.advanced.modelsApi.info")}
-        valueText={apiText}
-        onChangeText={setApiText}
-        parse={parseModelsApi}
-        emptyValue={null}
-        renderForm={(value, onChange) => (
-          <ModelsApiForm value={value} onChange={onChange} />
-        )}
-        placeholder={`{
+        />
+        <StructuredJsonField
+          label={t("settings.models.advanced.modelsApi.label")}
+          info={t("settings.models.advanced.modelsApi.info")}
+          valueText={apiText}
+          onChangeText={setApiText}
+          parse={parseModelsApi}
+          emptyValue={null}
+          renderForm={(value, onChange) => (
+            <ModelsApiForm value={value} onChange={onChange} />
+          )}
+          placeholder={`{
   "path": "/models",
   "itemsPath": "data",
   "idPath": "id",
   "labelPath": "name"
 }`}
-      />
+        />
+      </div>
       {error ? (
         <span className="text-[10.5px] text-destructive/80">{error}</span>
       ) : null}

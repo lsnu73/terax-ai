@@ -252,7 +252,7 @@ export const settingsModels = {
     paramMap: "Value mapping (map)",
     paramMapInfo:
       "Logical level value -> actual value sent. A null value omits this param at that level (used to turn off thinking).",
-    paramMapKeyPlaceholder: "logical value, e.g. medium",
+    paramMapKeyPlaceholder: "logical value",
     paramMapValuePlaceholder: "value sent, e.g. high; null omits",
     paramMapAdd: "Add mapping",
     paramDescription: "Note (optional)",
@@ -273,20 +273,20 @@ export const settingsModels = {
     levelRemove: "Remove this level",
     levelId: "Level ID",
     levelIdInfo:
-      "Stable identifier saved to preferences; users who selected it fall back to the default level after a change.",
+      "Unique identifier for this level: the slider choice is stored in preferences under this ID. Changing an existing level's ID invalidates previously saved selections, which fall back to the default level.",
     levelLabel: "Display name",
     levelLabelPlaceholder: "Low / High / Max",
     levelValues: "Level param values",
     levelValuesInfo:
       "Param key -> logical value. A null value means this level doesn't send that param; e.g. to turn off thinking, send thinking.type=disabled and omit reasoning_effort.",
-    levelValuesKeyPlaceholder: "param key, e.g. reasoning_effort",
+    levelValuesKeyPlaceholder: "param key",
     levelValuesValuePlaceholder: "logical value, e.g. high; null omits",
     levelValuesAdd: "Add param value",
     addLevel: "Add level",
-    extraKeyPlaceholder: "key, e.g. stream_options or thinking.type",
+    extraKeyPlaceholder: "e.g. stream_options",
     extraValuePlaceholder: 'value, e.g. {"include_usage":true} / true / high',
     extraAdd: "Add extra field",
-    headerKeyPlaceholder: "header name, e.g. HTTP-Referer",
+    headerKeyPlaceholder: "e.g. HTTP-Referer",
     headerValuePlaceholder: "header value",
     headerAdd: "Add header",
     modelsApiDisabled:
