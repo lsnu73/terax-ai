@@ -14,6 +14,9 @@ export const settingsModelsZh: typeof settingsModels = {
     reload: "从磁盘重新加载",
     reloadInfo:
       "从磁盘重新读取 JSON。设置页里尚未保存的修改会被丢弃；如果文件刚被外部编辑过，必须先点这里才能看到新配置。",
+    open: "在系统中打开",
+    openInfo:
+      "在系统默认文件管理器中打开 terax-ai-models.json 所在目录（支持第三方资源管理器）。",
   },
   providers: {
     label: "Provider",
@@ -106,7 +109,9 @@ export const settingsModelsZh: typeof settingsModels = {
       autocompleteInfo:
         "关闭后该模型不会出现在编辑器的行内补全选择器中；云端旗舰模型通常不适合做补全。",
       promptInfo:
-        "full 使用完整系统提示词（工具规范、路径规则等）；lite 更短、更省 token，适合小模型，但会丢失部分工具使用约束。",
+        "该模型使用的基础系统提示词。“跟随上级”取 Provider 的设置（Provider 也未设置时取全局默认）；full 使用完整提示词（工具规范、路径规则等）；lite 更短、更省 token，适合小模型；“自定义提示词”使用「系统提示词管理」中编写的文本。",
+      promptInherit: "跟随上级",
+      promptCustom: "自定义提示词",
     },
     tags: {
       label: "Tags",
@@ -154,6 +159,12 @@ export const settingsModelsZh: typeof settingsModels = {
       label: "Icon",
       info: "图标键：brain / cpu / globe / flash / server / plug。未知值会回退为插头图标。",
     },
+    systemPrompt: {
+      label: "提示词",
+      info: "该 Provider 下所有模型使用的基础提示词档位；模型在 Sampling 里单独选择时会覆盖此项。“跟随全局默认”使用「系统提示词管理」里的默认提示词。",
+      inherit: "跟随全局默认",
+      custom: "自定义提示词",
+    },
     params: {
       label: "Params（Provider 共享参数）",
       info: "该 Provider 下所有模型共享的参数定义；模型重新声明同一 key 时会覆盖这里的定义。留空（[]）表示不额外发送参数。",
@@ -194,6 +205,27 @@ export const settingsModelsZh: typeof settingsModels = {
       auto: "自动（输入时）",
       manual: "手动（快捷键）",
     },
+  },
+  prompts: {
+    label: "系统提示词管理",
+    info: "管理会话的基础系统提示词。full / lite 是内置的两套，可查看、修改并随时恢复默认；自定义提示词完全由你编写。生效优先级：模型 > Provider > 这里的全局默认。",
+    globalLabel: "默认提示词",
+    globalInfo:
+      "所有 Provider 缺省使用的基础提示词档位。Provider 高级设置或模型 Sampling 中单独选择时会覆盖这里的设置。",
+    tabFull: "full prompt",
+    tabLite: "lite prompt",
+    tabCustom: "自定义提示词",
+    edited: "已修改",
+    save: "保存",
+    restore: "恢复默认提示词",
+    editInfo:
+      "这里编辑的是内置提示词的覆盖版本，保存后立即对新会话生效；“恢复默认提示词”会删除你的修改。",
+    customInfo:
+      "自定义提示词会整体替换内置基础提示词。为保住工具能力，一段固定的工具协议说明会自动追加在末尾（下方预览）；写得太简略会导致工具行为退化。",
+    customPlaceholder: "在这里编写你自己的系统提示词…",
+    tailLabel: "自动追加的工具协议（只读预览）：",
+    agentsPointer:
+      "代理页的“自定义指令”与“代理人格”会追加在基础提示词之后，不受这里的替换影响。",
   },
   validation: {
     paramKeyRequired:

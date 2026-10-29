@@ -19,6 +19,23 @@
         "modelId": {
           "type": "string",
           "description": "Default chat model id. Empty means the first configured model."
+        },
+        "systemPrompt": {
+          "$ref": "#/$defs/systemPromptKind",
+          "description": "Global base prompt kind. Absent means full."
+        }
+      }
+    },
+    "prompts": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "User-edited prompt text overrides, managed from Settings > Models > System prompt management. Absent keys use the built-in text; custom has no built-in.",
+      "properties": {
+        "full": { "type": "string" },
+        "lite": { "type": "string" },
+        "custom": {
+          "type": "string",
+          "description": "Replaces the base prompt entirely; the tool protocol tail is always appended at runtime."
         }
       }
     },
@@ -30,6 +47,11 @@
   "$defs": {
     "json": {
       "description": "Any JSON value."
+    },
+    "systemPromptKind": {
+      "type": "string",
+      "enum": ["full", "lite", "custom"],
+      "description": "Base prompt kind. full/lite are built-in texts; custom uses prompts.custom with the tool protocol tail appended. Absent at model/provider level inherits upward (model > provider > global)."
     },
     "paramDef": {
       "type": "object",
@@ -128,7 +150,7 @@
         "outputTokens": { "type": "integer", "minimum": 1, "default": 4096 },
         "supportsTemperature": { "type": "boolean", "default": true },
         "supportsAutocomplete": { "type": "boolean", "default": true },
-        "systemPrompt": { "type": "string", "enum": ["full", "lite"], "default": "full" },
+        "systemPrompt": { "$ref": "#/$defs/systemPromptKind" },
         "params": {
           "type": "array",
           "items": { "$ref": "#/$defs/paramDef" }
@@ -187,6 +209,7 @@
           "description": "Static headers. Secret headers are stripped during normalisation."
         },
         "modelsApi": { "$ref": "#/$defs/modelsApi" },
+        "systemPrompt": { "$ref": "#/$defs/systemPromptKind" },
         "params": {
           "type": "array",
           "items": { "$ref": "#/$defs/paramDef" }

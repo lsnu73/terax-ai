@@ -1,17 +1,21 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
+  type AiConfig,
+  builtinSystemPrompt,
   defaultAiConfig,
   getModelContextLimit,
+  type ModelEntry,
   normalizeAiConfig,
+  type ProviderEntry,
   providerNeedsKey,
   resolveModel,
   resolveRequestParams,
+  selectSystemPromptForModel,
   setAiConfig,
+  systemPromptKind,
+  TOOL_PROTOCOL_TAIL,
   thinkingLevels,
   tryResolveModel,
-  type AiConfig,
-  type ModelEntry,
-  type ProviderEntry,
 } from "./config";
 
 const PARAMS = [
@@ -194,6 +198,43 @@ describe("normalizeAiConfig", () => {
     });
     expect(result.config.providers[0].thinking).toBeNull();
   });
+
+  it("keeps valid systemPrompt kinds at all levels and drops invalid ones", () => {
+    const result = normalizeAiConfig({
+      defaults: { modelId: "m1", systemPrompt: "lite" },
+      providers: [
+        {
+          id: "p",
+          systemPrompt: "custom",
+          models: [
+            { id: "m1", systemPrompt: "full" },
+            { id: "m2", systemPrompt: "nonsense" },
+          ],
+        },
+      ],
+    });
+    expect(result.config.defaults.systemPrompt).toBe("lite");
+    expect(result.config.providers[0].systemPrompt).toBe("custom");
+    expect(result.config.providers[0].models[0].systemPrompt).toBe("full");
+    expect(result.config.providers[0].models[1].systemPrompt).toBeUndefined();
+  });
+
+  it("parses prompt text overrides and drops empty ones", () => {
+    const result = normalizeAiConfig({
+      providers: [{ id: "p", models: [{ id: "m1" }] }],
+      prompts: { full: "  hello  ", lite: "", custom: "mine" },
+    });
+    expect(result.config.prompts).toEqual({
+      full: "  hello  ",
+      custom: "mine",
+    });
+
+    const empty = normalizeAiConfig({
+      providers: [{ id: "p", models: [{ id: "m1" }] }],
+      prompts: { full: "   " },
+    });
+    expect(empty.config.prompts).toBeUndefined();
+  });
 });
 
 describe("resolveRequestParams", () => {
@@ -328,6 +369,66 @@ describe("resolveRequestParams", () => {
     expect(resolveRequestParams(p, p.models[0], "off").body).toEqual({
       enable_thinking: false,
     });
+  });
+});
+
+describe("system prompt resolution", () => {
+  it("resolves the kind through model > provider > global, defaulting to full", () => {
+    const bare = model({ systemPrompt: undefined });
+    setAiConfig(
+      config([provider({ systemPrompt: undefined, models: [bare] })]),
+    );
+    expect(systemPromptKind("glm-test")).toBe("full");
+
+    setAiConfig({
+      ...config([provider({ systemPrompt: undefined, models: [bare] })]),
+      defaults: { modelId: "glm-test", systemPrompt: "lite" },
+    });
+    expect(systemPromptKind("glm-test")).toBe("lite");
+
+    setAiConfig(config([provider({ systemPrompt: "custom", models: [bare] })]));
+    expect(systemPromptKind("glm-test")).toBe("custom");
+
+    setAiConfig(
+      config([
+        provider({
+          systemPrompt: "lite",
+          models: [model({ systemPrompt: "full" })],
+        }),
+      ]),
+    );
+    expect(systemPromptKind("glm-test")).toBe("full");
+  });
+
+  it("appends the tool protocol tail to custom prompts", () => {
+    const cfg = config([
+      provider({ models: [model({ systemPrompt: "custom" })] }),
+    ]);
+    setAiConfig({ ...cfg, prompts: { custom: "You are a terse helper." } });
+    const prompt = selectSystemPromptForModel("glm-test");
+    expect(prompt.startsWith("You are a terse helper.")).toBe(true);
+    expect(prompt).toContain(TOOL_PROTOCOL_TAIL);
+  });
+
+  it("falls back to the builtin full prompt when custom text is empty", () => {
+    const cfg = config([
+      provider({ models: [model({ systemPrompt: "custom" })] }),
+    ]);
+    setAiConfig({ ...cfg, prompts: { custom: "   " } });
+    expect(selectSystemPromptForModel("glm-test")).toBe(
+      builtinSystemPrompt("full"),
+    );
+  });
+
+  it("prefers user overrides over builtin full/lite text", () => {
+    setAiConfig({ ...config([provider()]), prompts: { full: "MY FULL" } });
+    expect(selectSystemPromptForModel("glm-test")).toBe("MY FULL");
+
+    const liteCfg = config([
+      provider({ models: [model({ systemPrompt: "lite" })] }),
+    ]);
+    setAiConfig({ ...liteCfg, prompts: { lite: "MY LITE" } });
+    expect(selectSystemPromptForModel("glm-test")).toBe("MY LITE");
   });
 });
 

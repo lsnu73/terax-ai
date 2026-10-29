@@ -575,6 +575,9 @@ function CustomInstructionsBlock({ value }: { value: string }) {
         placeholder={t("settings.agents.customInstructions.placeholder")}
         className="min-h-[100px] resize-y bg-card/60 font-sans text-[12px] leading-relaxed border border-border"
       />
+      <p className="text-[10.5px] text-muted-foreground">
+        {t("settings.agents.customInstructions.pointer")}
+      </p>
     </div>
   );
 }

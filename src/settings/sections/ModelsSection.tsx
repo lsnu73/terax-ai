@@ -1,3 +1,4 @@
+import { ProviderIcon } from "@/components/ProviderIcon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,35 +17,41 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { ProviderIcon } from "@/components/ProviderIcon";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
+  type AiConfig,
+  builtinProviders,
+  builtinSystemPrompt,
+  getAiConfigFilePath,
   type JsonObject,
   type ModelEntry,
   type ParamDef,
   type ProviderEntry,
-  type ThinkingConfig,
-  builtinProviders,
-  getAiConfigFilePath,
   providerSupportsKey,
+  type SystemPromptKind,
+  type SystemPromptOverrides,
+  type ThinkingConfig,
+  TOOL_PROTOCOL_TAIL,
   thinkingLevels,
   useAiConfigStore,
 } from "@/modules/ai/config";
 import {
   clearKey,
   getAllKeys,
-  setKey,
   type ProviderKeys,
+  setKey,
 } from "@/modules/ai/lib/keyring";
 import {
+  type FetchedModel,
   fetchProviderModels,
   testProviderConnection,
-  type FetchedModel,
 } from "@/modules/ai/lib/providerHttp";
 import { useChatStore } from "@/modules/ai/store/chatStore";
 import { currentLocale, t as i18nT } from "@/modules/i18n";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import {
+  type AutocompleteTrigger,
   emitKeysChanged,
   setAutocompleteEnabled,
   setAutocompleteModelId,
@@ -52,20 +59,21 @@ import {
   setAutocompleteTrigger,
   setFavoriteModelIds,
   setRecentModelIds,
-  type AutocompleteTrigger,
 } from "@/modules/settings/store";
 import {
   Add01Icon,
   ArrowDown01Icon,
+  ArrowTurnBackwardIcon,
   ArrowUpRight01Icon,
   Cancel01Icon,
   CheckmarkCircle02Icon,
   ChevronDown,
   Edit02Icon,
+  FolderOpenIcon,
   RefreshIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openPath, openUrl } from "@tauri-apps/plugin-opener";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SectionHeader } from "../components/SectionHeader";
@@ -75,13 +83,13 @@ import {
   InfoHint,
   ModelsApiForm,
   ParamsForm,
-  StructuredJsonField,
-  ThinkingForm,
   parseExtra,
   parseHeaders,
   parseModelsApi,
   parseParamsArray,
   parseThinking,
+  StructuredJsonField,
+  ThinkingForm,
 } from "./models/StructuredFields";
 
 type TestState =
@@ -336,11 +344,27 @@ export function ModelsSection() {
 
       <div className="flex flex-col gap-2 rounded-lg border border-border/60 bg-card/60 px-3 py-2.5">
         <div className="flex items-center justify-between gap-2">
-          <span className="flex items-center gap-1 text-[11px] font-medium tracking-tight text-muted-foreground">
+          <span className="text-[11px] font-medium tracking-tight text-muted-foreground">
             {t("settings.models.configFile.label")}
-            <InfoHint text={t("settings.models.configFile.info")} />
           </span>
-          <span className="flex items-center gap-1">
+          <span className="flex items-center gap-1.5">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!filePath}
+              onClick={() => {
+                // openPath 走 ShellExecute "open" 动词，尊重系统默认文件管理器；
+                // revealItemInDir 在 Windows 上强制 explorer.exe，忽略第三方资源管理器。
+                const dir = filePath.split(/[\\/]/).slice(0, -1).join("/");
+                void openPath(dir || filePath).catch((error: unknown) => {
+                  console.error("openPath failed:", error);
+                });
+              }}
+              className="h-7 gap-1.5 px-2.5 text-[11px]"
+            >
+              <HugeiconsIcon icon={FolderOpenIcon} size={12} strokeWidth={2} />
+              {t("settings.models.configFile.open")}
+            </Button>
             <Button
               size="sm"
               variant="outline"
@@ -350,12 +374,13 @@ export function ModelsSection() {
               <HugeiconsIcon icon={RefreshIcon} size={12} strokeWidth={2} />
               {t("settings.models.configFile.reload")}
             </Button>
-            <InfoHint text={t("settings.models.configFile.reloadInfo")} />
           </span>
         </div>
-        <code className="truncate font-mono text-[10.5px] text-muted-foreground">
-          {filePath || "terax-ai-models.json"}
-        </code>
+        <div className="flex flex-col gap-1 text-[10.5px] leading-relaxed text-muted-foreground">
+          <p>{t("settings.models.configFile.info")}</p>
+          <p>{t("settings.models.configFile.reloadInfo")}</p>
+          <p>{t("settings.models.configFile.openInfo")}</p>
+        </div>
         {warnings.length > 0 ? (
           <div className="flex flex-col gap-0.5 rounded-md border border-amber-500/30 bg-amber-500/5 px-2 py-1.5">
             {warnings.map((warning) => (
@@ -375,6 +400,13 @@ export function ModelsSection() {
         defaultModelId={config.defaults.modelId}
         onPickDefault={async (modelId) => {
           await replace({ ...config, defaults: { modelId } });
+        }}
+      />
+
+      <PromptsBlock
+        config={config}
+        onReplace={async (next) => {
+          await replace(next);
         }}
       />
 
@@ -689,32 +721,54 @@ function ProviderCard({
             </FieldRow>
           ) : null}
 
-          <div className="flex items-center gap-2">
-            {provider.modelsApi ? (
-              <>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => void fetchModels()}
-                  disabled={fetching || !provider.baseURL.trim()}
-                  className="h-7 gap-1.5 px-2.5 text-[11px]"
-                >
-                  <HugeiconsIcon icon={RefreshIcon} size={12} strokeWidth={2} />
-                  {t("settings.models.provider.fetchModels")}
-                </Button>
-                <span className="font-mono text-[10.5px] text-muted-foreground">
-                  GET {provider.modelsApi.path}
-                </span>
-                <InfoHint
-                  text={t("settings.models.provider.fetchModelsInfo")}
-                />
-              </>
-            ) : (
-              <span className="text-[10.5px] text-muted-foreground">
-                {t("settings.models.provider.noModelsApi")}
-              </span>
-            )}
+          <div className="flex items-center justify-between">
+            <span className="flex items-center gap-1">
+              <Label>
+                {t("settings.models.provider.modelsLabel", {
+                  count: provider.models.length,
+                })}
+              </Label>
+              <InfoHint text={t("settings.models.provider.modelsInfo")} />
+            </span>
+            <span className="flex items-center gap-1.5">
+              {provider.modelsApi ? (
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void fetchModels()}
+                    disabled={fetching || !provider.baseURL.trim()}
+                    className="h-7 gap-1.5 px-2.5 text-[11px]"
+                  >
+                    <HugeiconsIcon
+                      icon={RefreshIcon}
+                      size={12}
+                      strokeWidth={2}
+                    />
+                    {t("settings.models.provider.fetchModels")}
+                  </Button>
+                  <InfoHint
+                    text={t("settings.models.provider.fetchModelsInfo")}
+                  />
+                </>
+              ) : null}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setAdding((v) => !v)}
+                className="h-7 gap-1.5 px-2.5 text-[11px]"
+              >
+                <HugeiconsIcon icon={Add01Icon} size={12} strokeWidth={2} />
+                {t("settings.models.provider.addModel")}
+              </Button>
+            </span>
           </div>
+
+          {!provider.modelsApi ? (
+            <p className="text-[10.5px] text-muted-foreground">
+              {t("settings.models.provider.noModelsApi")}
+            </p>
+          ) : null}
 
           <StatusLine test={test} />
 
@@ -763,26 +817,6 @@ function ProviderCard({
               </div>
             </div>
           ) : null}
-
-          <div className="flex items-center justify-between">
-            <span className="flex items-center gap-1">
-              <Label>
-                {t("settings.models.provider.modelsLabel", {
-                  count: provider.models.length,
-                })}
-              </Label>
-              <InfoHint text={t("settings.models.provider.modelsInfo")} />
-            </span>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setAdding((v) => !v)}
-              className="h-7 gap-1.5 px-2.5 text-[11px]"
-            >
-              <HugeiconsIcon icon={Add01Icon} size={12} strokeWidth={2} />
-              {t("settings.models.provider.addModel")}
-            </Button>
-          </div>
 
           {provider.models.length === 0 && !adding ? (
             <p className="text-[10.5px] leading-relaxed text-muted-foreground">
@@ -850,7 +884,6 @@ function defaultModelFor(id: string, provider: ProviderEntry): ModelEntry {
     outputTokens: 4_096,
     supportsTemperature: true,
     supportsAutocomplete: true,
-    systemPrompt: "full",
     params: [],
     thinking: null,
     extra: {},
@@ -952,7 +985,9 @@ function ModelEditor({
   const [autocomplete, setAutocomplete] = useState(
     initial.supportsAutocomplete,
   );
-  const [systemPrompt, setSystemPrompt] = useState(initial.systemPrompt);
+  const [systemPrompt, setSystemPrompt] = useState<
+    SystemPromptKind | "inherit"
+  >(initial.systemPrompt ?? "inherit");
   const [tags, setTags] = useState(initial.tags.join(", "));
   const [paramsText, setParamsText] = useState(
     initial.params.length > 0 ? stringify(initial.params) : "",
@@ -1029,7 +1064,7 @@ function ModelEditor({
         outputTokens: Math.round(output),
         supportsTemperature: temperature,
         supportsAutocomplete: autocomplete,
-        systemPrompt,
+        ...(systemPrompt === "inherit" ? {} : { systemPrompt }),
         params: params.value ?? [],
         thinking: thinking.value ?? null,
         extra: extra.value ?? {},
@@ -1130,14 +1165,22 @@ function ModelEditor({
           <span className="flex items-center gap-1">
             <Select
               value={systemPrompt}
-              onValueChange={(v) => setSystemPrompt(v as "full" | "lite")}
+              onValueChange={(v) =>
+                setSystemPrompt(v as SystemPromptKind | "inherit")
+              }
             >
-              <SelectTrigger className="h-7 w-28 text-[11px]">
+              <SelectTrigger className="h-7 w-32 text-[11px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="inherit">
+                  {t("settings.models.modelEditor.sampling.promptInherit")}
+                </SelectItem>
                 <SelectItem value="full">full prompt</SelectItem>
                 <SelectItem value="lite">lite prompt</SelectItem>
+                <SelectItem value="custom">
+                  {t("settings.models.modelEditor.sampling.promptCustom")}
+                </SelectItem>
               </SelectContent>
             </Select>
             <InfoHint
@@ -1277,6 +1320,9 @@ function ProviderAdvancedEditor({
   const [keyringAccount, setKeyringAccount] = useState(provider.keyringAccount);
   const [consoleUrl, setConsoleUrl] = useState(provider.consoleUrl ?? "");
   const [icon, setIcon] = useState(provider.icon);
+  const [systemPrompt, setSystemPrompt] = useState<
+    SystemPromptKind | "inherit"
+  >(provider.systemPrompt ?? "inherit");
   const [paramsText, setParamsText] = useState(
     provider.params.length > 0 ? stringify(provider.params) : "",
   );
@@ -1327,6 +1373,7 @@ function ProviderAdvancedEditor({
         keyringAccount: keyringAccount.trim() || `${provider.id}-api-key`,
         consoleUrl: consoleUrl.trim() || undefined,
         icon: icon.trim() || "plug",
+        systemPrompt: systemPrompt === "inherit" ? undefined : systemPrompt,
         params: params.value ?? [],
         thinking: thinking.value ?? null,
         headers: headers.value ?? {},
@@ -1446,6 +1493,31 @@ function ProviderAdvancedEditor({
           className="h-8 font-mono text-[11px]"
         />
       </FieldRow>
+      <FieldRow
+        label={t("settings.models.advanced.systemPrompt.label")}
+        info={t("settings.models.advanced.systemPrompt.info")}
+      >
+        <Select
+          value={systemPrompt}
+          onValueChange={(v) =>
+            setSystemPrompt(v as SystemPromptKind | "inherit")
+          }
+        >
+          <SelectTrigger className="h-8 w-44 text-[11px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="inherit">
+              {t("settings.models.advanced.systemPrompt.inherit")}
+            </SelectItem>
+            <SelectItem value="full">full prompt</SelectItem>
+            <SelectItem value="lite">lite prompt</SelectItem>
+            <SelectItem value="custom">
+              {t("settings.models.advanced.systemPrompt.custom")}
+            </SelectItem>
+          </SelectContent>
+        </Select>
+      </FieldRow>
       <div className="flex flex-col gap-4 pt-1">
         <StructuredJsonField
           label={t("settings.models.advanced.params.label")}
@@ -1547,6 +1619,194 @@ function ProviderAdvancedEditor({
             ? t("settings.models.advanced.saving")
             : t("settings.models.advanced.save")}
         </Button>
+      </div>
+    </div>
+  );
+}
+
+const PROMPT_TABS: readonly SystemPromptKind[] = ["full", "lite", "custom"];
+
+/**
+ * 系统提示词管理：查看/编辑 full 与 lite 的覆盖文本（可恢复内置默认），
+ * 或编写完全自定义的提示词；并设置所有 Provider 缺省使用的档位。
+ * 草稿在本地编辑，点「保存」才写入配置文件；代理页的追加层不受影响。
+ */
+function PromptsBlock({
+  config,
+  onReplace,
+}: {
+  config: AiConfig;
+  onReplace: (next: AiConfig) => Promise<void>;
+}) {
+  const { t } = useTranslation();
+  const [tab, setTab] = useState<SystemPromptKind>("full");
+  // 草稿绑定到当时的 tab 与覆盖文本;外部重载/保存成功后基准变化,草稿自动失效
+  const [edit, setEdit] = useState<{
+    tab: SystemPromptKind;
+    base: string | undefined;
+    text: string;
+  } | null>(null);
+
+  const tabLabel = (kind: SystemPromptKind) =>
+    kind === "custom"
+      ? t("settings.models.prompts.tabCustom")
+      : kind === "lite"
+        ? t("settings.models.prompts.tabLite")
+        : t("settings.models.prompts.tabFull");
+
+  const overrideText = config.prompts?.[tab];
+  const builtinText = tab === "custom" ? "" : builtinSystemPrompt(tab);
+  const draft =
+    edit && edit.tab === tab && edit.base === overrideText ? edit.text : null;
+  const shownText = draft ?? overrideText ?? builtinText;
+  const overridden = !!overrideText?.trim();
+  const dirty = draft !== null && draft !== (overrideText ?? builtinText);
+
+  const writePrompts = async (prompts: SystemPromptOverrides) => {
+    const next = { ...config };
+    if (Object.keys(prompts).length > 0) next.prompts = prompts;
+    else delete next.prompts;
+    await onReplace(next);
+  };
+
+  const save = async () => {
+    if (draft === null) return;
+    const prompts: SystemPromptOverrides = { ...config.prompts };
+    if (draft.trim()) prompts[tab] = draft;
+    else delete prompts[tab];
+    await writePrompts(prompts);
+  };
+
+  const restore = async () => {
+    const prompts = { ...config.prompts };
+    delete prompts[tab];
+    await writePrompts(prompts);
+    setEdit(null);
+  };
+
+  return (
+    <div className="flex flex-col gap-3">
+      <span className="flex items-center gap-1">
+        <Label>{t("settings.models.prompts.label")}</Label>
+        <InfoHint text={t("settings.models.prompts.info")} />
+      </span>
+      <div className="flex flex-col gap-2.5 rounded-lg border border-border/60 bg-card/60 px-3 py-2.5">
+        <FieldRow
+          label={t("settings.models.prompts.globalLabel")}
+          info={t("settings.models.prompts.globalInfo")}
+        >
+          <Select
+            value={config.defaults.systemPrompt ?? "full"}
+            onValueChange={(v) =>
+              void onReplace({
+                ...config,
+                defaults: {
+                  ...config.defaults,
+                  systemPrompt: v as SystemPromptKind,
+                },
+              })
+            }
+          >
+            <SelectTrigger className="h-8 w-36 text-[11px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PROMPT_TABS.map((kind) => (
+                <SelectItem key={kind} value={kind} className="text-[11.5px]">
+                  {tabLabel(kind)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FieldRow>
+
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-0.5 rounded-md border border-border/50 bg-muted/30 p-0.5">
+            {PROMPT_TABS.map((kind) => (
+              <button
+                key={kind}
+                type="button"
+                onClick={() => setTab(kind)}
+                className={cn(
+                  "rounded px-2 py-0.5 text-[10px] transition-colors",
+                  tab === kind
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {tabLabel(kind)}
+                {config.prompts?.[kind]?.trim() ? (
+                  <span className="ml-1 text-[9px] text-primary">
+                    {t("settings.models.prompts.edited")}
+                  </span>
+                ) : null}
+              </button>
+            ))}
+          </div>
+          <span className="flex items-center gap-1.5">
+            {tab !== "custom" ? (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!overridden}
+                onClick={() => void restore()}
+                className="h-7 gap-1.5 px-2.5 text-[11px]"
+              >
+                <HugeiconsIcon
+                  icon={ArrowTurnBackwardIcon}
+                  size={12}
+                  strokeWidth={2}
+                />
+                {t("settings.models.prompts.restore")}
+              </Button>
+            ) : null}
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!dirty}
+              onClick={() => void save()}
+              className="h-7 px-2.5 text-[11px]"
+            >
+              {t("settings.models.prompts.save")}
+            </Button>
+            <InfoHint
+              text={
+                tab === "custom"
+                  ? t("settings.models.prompts.customInfo")
+                  : t("settings.models.prompts.editInfo")
+              }
+            />
+          </span>
+        </div>
+
+        <Textarea
+          value={shownText}
+          onChange={(e) =>
+            setEdit({ tab, base: overrideText, text: e.target.value })
+          }
+          placeholder={
+            tab === "custom"
+              ? t("settings.models.prompts.customPlaceholder")
+              : undefined
+          }
+          spellCheck={false}
+          className="max-h-72 min-h-36 font-mono text-[10.5px] leading-relaxed"
+        />
+
+        {tab === "custom" ? (
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] text-muted-foreground">
+              {t("settings.models.prompts.tailLabel")}
+            </span>
+            <pre className="max-h-24 overflow-auto rounded-md border border-border/50 bg-muted/30 p-2 font-mono text-[9.5px] leading-relaxed whitespace-pre-wrap text-muted-foreground/80">
+              {TOOL_PROTOCOL_TAIL}
+            </pre>
+          </div>
+        ) : null}
+
+        <p className="text-[10.5px] text-muted-foreground">
+          {t("settings.models.prompts.agentsPointer")}
+        </p>
       </div>
     </div>
   );

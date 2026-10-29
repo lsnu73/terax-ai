@@ -5,6 +5,7 @@ import type {
   ModelEntry,
   ModelInfo,
   ProviderEntry,
+  SystemPromptKind,
 } from "./types";
 
 /**
@@ -50,7 +51,10 @@ export function getProviderIconKey(id: string): string {
   return findProvider(id)?.icon ?? "plug";
 }
 
-export function toModelInfo(provider: ProviderEntry, model: ModelEntry): ModelInfo {
+export function toModelInfo(
+  provider: ProviderEntry,
+  model: ModelEntry,
+): ModelInfo {
   return {
     id: model.id,
     provider: provider.id,
@@ -137,15 +141,25 @@ export function autocompleteDefaultModel(providerId: string): string {
   return findProvider(providerId)?.models[0]?.id ?? "";
 }
 
-export function systemPromptKind(modelId: string): "full" | "lite" {
-  return findModel(modelId)?.model.systemPrompt ?? "full";
+/** 三级继承链：模型 > Provider > 全局，全缺省时为 "full"。 */
+export function systemPromptKind(modelId: string): SystemPromptKind {
+  const info = findModel(modelId);
+  return (
+    info?.model.systemPrompt ??
+    info?.providerEntry.systemPrompt ??
+    current.defaults.systemPrompt ??
+    "full"
+  );
 }
 
 export function selectSystemPromptForModel(modelId: string): string {
-  return selectSystemPrompt(systemPromptKind(modelId));
+  return selectSystemPrompt(systemPromptKind(modelId), current.prompts);
 }
 
-export function allKeyringAccounts(): { providerId: string; account: string }[] {
+export function allKeyringAccounts(): {
+  providerId: string;
+  account: string;
+}[] {
   return current.providers
     .filter((p) => providerSupportsKey(p))
     .map((p) => ({ providerId: p.id, account: p.keyringAccount }));

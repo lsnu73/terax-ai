@@ -61,6 +61,22 @@ export type ThinkingConfig = {
   levels: ThinkingLevel[];
 };
 
+/**
+ * 系统提示词档位：full/lite 为内置两套，custom 使用用户在设置页编写的文本。
+ * 三个层级都可配置：模型 > Provider > 全局（AiDefaults），缺省逐层向上继承。
+ */
+export type SystemPromptKind = "full" | "lite" | "custom";
+
+/**
+ * 用户在「系统提示词管理」里编辑过的提示词文本覆盖。
+ * 缺省的键表示该档使用内置版本；custom 没有内置版本，缺省即「未编写」。
+ */
+export type SystemPromptOverrides = {
+  full?: string;
+  lite?: string;
+  custom?: string;
+};
+
 export type ModelEntry = {
   /** 发送给厂商的模型 ID，在整份配置中全局唯一。 */
   id: string;
@@ -72,8 +88,8 @@ export type ModelEntry = {
   supportsTemperature: boolean;
   /** 为 false 时该模型不出现在行内补全选择器中。 */
   supportsAutocomplete: boolean;
-  /** 取 "lite" 时使用精简版系统提示词。 */
-  systemPrompt: "full" | "lite";
+  /** 缺省时跟随 Provider / 全局设置；"custom" 使用 AiConfig.prompts.custom。 */
+  systemPrompt?: SystemPromptKind;
   params: ParamDef[];
   thinking: ThinkingConfig | null;
   /** 原始逃生口：在所有参数之后合并进请求体。 */
@@ -118,6 +134,8 @@ export type ProviderEntry = {
   /** 每次请求都会携带的静态头（可包含非密钥头）。 */
   headers: Record<string, string>;
   modelsApi: ModelsApiConfig | null;
+  /** 该 Provider 下所有模型共享的系统提示词档位；缺省跟随全局设置。 */
+  systemPrompt?: SystemPromptKind;
   /** 该 Provider 下所有模型共享的参数。 */
   params: ParamDef[];
   /** 模型未自行声明思考档位时的兜底阶梯。 */
@@ -131,12 +149,16 @@ export type ProviderEntry = {
 
 export type AiDefaults = {
   modelId: string;
+  /** 全局系统提示词档位；缺省为 "full"。 */
+  systemPrompt?: SystemPromptKind;
 };
 
 export type AiConfig = {
   version: number;
   defaults: AiDefaults;
   providers: ProviderEntry[];
+  /** 用户在设置页覆盖过的提示词文本；只在实际修改后才写入。 */
+  prompts?: SystemPromptOverrides;
 };
 
 /** 已解析的 (Provider, Model) 组合，交给 UI 与请求链路使用。 */

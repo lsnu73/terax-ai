@@ -11,6 +11,8 @@ export const settingsAgentsZh: typeof settingsAgents = {
     placeholder:
       "例如：始终用简洁的要点回复。优先用 pnpm 而不是 npm。我的机器是 M 系列 Mac。",
     save: "保存",
+    pointer:
+      "此指令会追加在基础系统提示词之后；想查看或替换基础提示词本身，请到「模型 → 系统提示词管理」。",
   },
   agents: {
     label: "代理",

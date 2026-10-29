@@ -10,6 +10,8 @@ export const settingsAgents = {
     placeholder:
       "e.g. Always reply in concise bullet points. Prefer pnpm over npm. My machine is an M-series Mac.",
     save: "Save",
+    pointer:
+      'These instructions are appended after the base system prompt. To view or replace the base prompt itself, go to "Models → System prompt management".',
   },
   agents: {
     label: "Agents",

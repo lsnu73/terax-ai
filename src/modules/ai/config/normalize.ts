@@ -11,6 +11,8 @@ import type {
   ParamType,
   ProtocolId,
   ProviderEntry,
+  SystemPromptKind,
+  SystemPromptOverrides,
   ThinkingConfig,
   ThinkingLevel,
 } from "./types";
@@ -82,6 +84,19 @@ const PROTOCOLS: ReadonlySet<string> = new Set([
   "google",
 ]);
 
+const SYSTEM_PROMPT_KINDS: ReadonlySet<string> = new Set([
+  "full",
+  "lite",
+  "custom",
+]);
+
+/** 非法值直接丢弃：缺省即「继承上一级」，无需兜底默认值。 */
+function normalizeSystemPromptKind(raw: unknown): SystemPromptKind | undefined {
+  return SYSTEM_PROMPT_KINDS.has(str(raw))
+    ? (raw as SystemPromptKind)
+    : undefined;
+}
+
 export function normalizeParam(raw: unknown): ParamDef | null {
   if (!isRec(raw)) return null;
   const key = str(raw.key).trim();
@@ -102,9 +117,7 @@ export function normalizeParam(raw: unknown): ParamDef | null {
     location,
     path: str(raw.path).trim() || key,
     type,
-    ...(raw.default !== undefined
-      ? { default: jsonValue(raw.default) }
-      : {}),
+    ...(raw.default !== undefined ? { default: jsonValue(raw.default) } : {}),
     ...(enumValues && enumValues.length > 0 ? { enum: enumValues } : {}),
     ...(map && Object.keys(map).length > 0 ? { map } : {}),
     enabled: raw.enabled !== false,
@@ -123,7 +136,7 @@ function normalizeThinking(raw: unknown): ThinkingConfig | null {
     if (!isRec(item)) continue;
     const id = str(item.id).trim();
     if (!id || seen.has(id)) continue;
-    const values = isRec(item.values) ? jsonMap(item.values) ?? {} : {};
+    const values = isRec(item.values) ? (jsonMap(item.values) ?? {}) : {};
     seen.add(id);
     levels.push({ id, label: str(item.label) || id, values });
   }
@@ -151,14 +164,13 @@ function normalizeModel(raw: unknown): ModelEntry | null {
   return {
     id,
     label: str(raw.label).trim() || id,
-    inputTokens: Math.max(
-      1_000,
-      Math.round(num(raw.inputTokens, 128_000)),
-    ),
+    inputTokens: Math.max(1_000, Math.round(num(raw.inputTokens, 128_000))),
     outputTokens: Math.max(1, Math.round(num(raw.outputTokens, 4_096))),
     supportsTemperature: bool(raw.supportsTemperature, true),
     supportsAutocomplete: bool(raw.supportsAutocomplete, true),
-    systemPrompt: raw.systemPrompt === "lite" ? "lite" : "full",
+    ...(normalizeSystemPromptKind(raw.systemPrompt)
+      ? { systemPrompt: normalizeSystemPromptKind(raw.systemPrompt) }
+      : {}),
     params,
     thinking: normalizeThinking(raw.thinking),
     extra: isRec(raw.extra) ? jsonObject(raw.extra) : {},
@@ -245,6 +257,9 @@ function normalizeProvider(
     auth,
     headers,
     modelsApi: normalizeModelsApi(raw.modelsApi),
+    ...(normalizeSystemPromptKind(raw.systemPrompt)
+      ? { systemPrompt: normalizeSystemPromptKind(raw.systemPrompt) }
+      : {}),
     params,
     thinking: normalizeThinking(raw.thinking),
     models,
@@ -268,7 +283,11 @@ export type NormalizeResult = {
 export function normalizeAiConfig(raw: unknown): NormalizeResult {
   const warnings: string[] = [];
   if (!isRec(raw)) {
-    return { config: defaultAiConfig(), warnings: ["Configuration is not an object"], empty: true };
+    return {
+      config: defaultAiConfig(),
+      warnings: ["Configuration is not an object"],
+      empty: true,
+    };
   }
 
   const rawProviders = Array.isArray(raw.providers) ? raw.providers : null;
@@ -314,11 +333,27 @@ export function normalizeAiConfig(raw: unknown): NormalizeResult {
   const defaultModelId =
     defaultsRaw && modelIds.has(defaultsRaw) ? defaultsRaw : firstModelId;
 
+  const defaultSystemPrompt = isRec(raw.defaults)
+    ? normalizeSystemPromptKind(raw.defaults.systemPrompt)
+    : undefined;
+
+  const prompts: SystemPromptOverrides = {};
+  if (isRec(raw.prompts)) {
+    for (const kind of ["full", "lite", "custom"] as const) {
+      const text = str(raw.prompts[kind]);
+      if (text.trim()) prompts[kind] = text;
+    }
+  }
+
   return {
     config: {
       version: Math.max(1, Math.round(num(raw.version, 1))),
-      defaults: { modelId: defaultModelId },
+      defaults: {
+        modelId: defaultModelId,
+        ...(defaultSystemPrompt ? { systemPrompt: defaultSystemPrompt } : {}),
+      },
       providers,
+      ...(Object.keys(prompts).length > 0 ? { prompts } : {}),
     },
     warnings,
     empty: providers.length === 0,

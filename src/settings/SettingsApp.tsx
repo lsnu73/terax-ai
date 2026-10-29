@@ -157,7 +157,7 @@ export function SettingsApp() {
       <WindowActivityBridge />
 
       <main className="min-h-0 flex-1 overflow-y-auto px-8 pt-6 pb-7 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <div className="mx-auto w-full max-w-160">
+        <div className="mx-auto w-full">
           {ActiveSection && <ActiveSection />}
         </div>
       </main>

@@ -53,7 +53,7 @@
 | `src/modules/ai/config/params.ts` | 参数合并、映射、路径写入、保护键 | `resolveRequestParams()` |
 | `src/modules/ai/config/persist.ts` | `terax-ai-models.json` 读写、重新加载、跨窗口事件 | `readAiConfig` / `writeAiConfig` |
 | `src/modules/ai/config/store.ts` | React 状态（Zustand）+ 启动 hydration | `useAiConfigStore` |
-| `src/modules/ai/config/prompts.ts` | 系统提示词 | `selectSystemPrompt()` |
+| `src/modules/ai/config/prompts.ts` | 系统提示词（内置 full/lite、自定义尾段、覆盖解析） | `selectSystemPrompt()` / `builtinSystemPrompt()` / `TOOL_PROTOCOL_TAIL` |
 | `src/modules/ai/lib/agent.ts` | **唯一**的协议分支；模型缓存；参数注入；`streamText` | `buildLanguageModel` |
 | `src/modules/ai/lib/providerHttp.ts` | 连通性测试、模型列表拉取、鉴权头 | `testProviderConnection` / `fetchProviderModels` |
 | `src/modules/ai/lib/keyring.ts` | 钥匙串读写 | `getAllKeys` / `setKey` |
@@ -61,6 +61,17 @@
 | `src/modules/ai/components/AiStatusBarControls.tsx` | Ctrl+I 模型选择窗 + 思考滑块 | React 组件 |
 
 依赖方向单向：UI → registry/store → 纯数据。`registry` 不依赖任何 UI；请求链路不依赖 React。
+
+### 1.1 系统提示词三级继承与文本覆盖
+
+`systemPrompt` 档位（`full` / `lite` / `custom`）可配置在三个层级，解析链为 **模型 > Provider > 全局（`defaults.systemPrompt`）**，全部缺省时为 `full`（`registry.systemPromptKind`）。设置页里模型与 Provider 的选择器含「跟随上级 / 跟随全局」选项，对应字段缺省。
+
+提示词文本本身也可被覆盖：`AiConfig.prompts`（`{ full?, lite?, custom? }`）保存用户在「设置 → 模型 → 系统提示词管理」里编辑过的文本，只在实际修改后写入。解析时（`prompts.selectSystemPrompt`）：
+
+- `full` / `lite` 有覆盖文本则用覆盖文本，否则用内置版本；
+- `custom` 使用 `prompts.custom` 并**强制拼接 `TOOL_PROTOCOL_TAIL`**（最小工具清单与审批规则），防止自定义文本丢掉工具协议；`custom` 为空时回退内置 `full`。
+
+代理页的「自定义指令 / 代理人格 / 片段」是**追加层**（`agent.ts` 的 `buildStableSystem` 拼在基础提示词之后），与本模块管理的**基础层**互不影响，两个页面各有互指文案。
 
 ---
 
@@ -259,7 +270,7 @@ GLM-5.2（`low/medium → high`，`xhigh → max`，`none/minimal → 放弃思�
 }
 ```
 
-`thinking: null` 表示继承 Provider 的档位；`models: []` 表示尚未录入模型。
+`thinking: null` 表示继承 Provider 的档位；`models: []` 表示尚未录入模型。`systemPrompt` 缺省（不写该字段）表示跟随上级；Provider 级同理跟随全局，见 1.1。
 
 ### 4.3 校验策略
 

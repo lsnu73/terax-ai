@@ -1,3 +1,5 @@
+import type { SystemPromptKind, SystemPromptOverrides } from "./types";
+
 export const MAX_AGENT_STEPS = 24;
 
 const SYSTEM_PROMPT = `You are Terax, an AI agent embedded in a developer terminal emulator. You are a hands-on engineer, not a chat bot — your job is to *do* the work, not narrate it.
@@ -65,6 +67,37 @@ Rules:
 - bash_list before any dev server; reuse if already running.
 - Concise. No filler, no recap of the diff.`;
 
-export function selectSystemPrompt(kind: "full" | "lite"): string {
+/**
+ * 自定义提示词后强制拼接的最小工具协议。
+ * custom 档会整体替换内置基础提示词，但工具清单与审批规则必须保留，
+ * 否则 agent 不知道有哪些工具可用、审批卡如何工作。
+ */
+export const TOOL_PROTOCOL_TAIL = `# Tool protocol (mandatory, appended to the custom prompt above)
+Available tools: read_file, list_directory, grep, glob, get_terminal_output, edit, multi_edit, write_file, create_directory, bash_run, bash_background, bash_logs, bash_list, bash_kill, suggest_command, open_preview, todo_write, run_subagent.
+- Mutating tools (edit, multi_edit, write_file, create_directory, bash_run, bash_background) pause for an in-UI approval card; after approval, continue without asking again.
+- edit/multi_edit require a prior read_file on the same path in this session.
+- Use bash_run only for short-lived commands; dev servers and watchers go to bash_background.
+- Bare filenames resolve against active_terminal_cwd from the <env> block.`;
+
+/** 内置版本原文，供设置页展示「恢复默认」前的基准。 */
+export function builtinSystemPrompt(kind: "full" | "lite"): string {
   return kind === "lite" ? SYSTEM_PROMPT_LITE : SYSTEM_PROMPT;
+}
+
+/**
+ * 解析某一档位的最终提示词文本。
+ * full/lite 优先取用户覆盖文本；custom 取用户文本并强制拼接工具协议尾段，
+ * 未编写 custom 文本时回退到内置 full。
+ */
+export function selectSystemPrompt(
+  kind: SystemPromptKind,
+  overrides?: SystemPromptOverrides,
+): string {
+  if (kind === "custom") {
+    const custom = overrides?.custom?.trim();
+    if (!custom) return SYSTEM_PROMPT;
+    return `${custom}\n\n${TOOL_PROTOCOL_TAIL}`;
+  }
+  const edited = overrides?.[kind]?.trim();
+  return edited ? (overrides?.[kind] ?? "") : builtinSystemPrompt(kind);
 }

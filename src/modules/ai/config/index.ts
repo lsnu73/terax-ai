@@ -1,21 +1,30 @@
-export type {
-  AiConfig,
-  AuthConfig,
-  JsonObject,
-  JsonValue,
-  ModelEntry,
-  ModelInfo,
-  ModelsApiConfig,
-  ParamDef,
-  ParamLocation,
-  ParamType,
-  ProtocolId,
-  ProviderEntry,
-  ResolvedRequestParams,
-  ThinkingConfig,
-  ThinkingLevel,
-} from "./types";
-
+export {
+  BUILTIN_PROVIDER_IDS,
+  builtinProviders,
+  defaultAiConfig,
+} from "./defaults";
+export { normalizeAiConfig, normalizeParam } from "./normalize";
+export {
+  mergeParamDefs,
+  PROTECTED_BODY_KEYS,
+  resolveRequestParams,
+  thinkingDefaultLevelId,
+  thinkingLevelIndex,
+  thinkingLevels,
+} from "./params";
+export {
+  AI_CONFIG_STORE_PATH,
+  getAiConfigFilePath,
+  onAiConfigChange,
+  readAiConfig,
+  writeAiConfig,
+} from "./persist";
+export {
+  builtinSystemPrompt,
+  MAX_AGENT_STEPS,
+  selectSystemPrompt,
+  TOOL_PROTOCOL_TAIL,
+} from "./prompts";
 export {
   allKeyringAccounts,
   autocompleteDefaultModel,
@@ -41,27 +50,26 @@ export {
   toModelInfo,
   tryResolveModel,
 } from "./registry";
-
-export {
-  mergeParamDefs,
-  PROTECTED_BODY_KEYS,
-  resolveRequestParams,
-  thinkingDefaultLevelId,
-  thinkingLevelIndex,
-  thinkingLevels,
-} from "./params";
-
-export { builtinProviders, BUILTIN_PROVIDER_IDS, defaultAiConfig } from "./defaults";
-export { normalizeAiConfig, normalizeParam } from "./normalize";
-export {
-  AI_CONFIG_STORE_PATH,
-  getAiConfigFilePath,
-  onAiConfigChange,
-  readAiConfig,
-  writeAiConfig,
-} from "./persist";
 export { getAiConfigSnapshot, useAiConfigStore } from "./store";
-export { MAX_AGENT_STEPS, selectSystemPrompt } from "./prompts";
+export type {
+  AiConfig,
+  AuthConfig,
+  JsonObject,
+  JsonValue,
+  ModelEntry,
+  ModelInfo,
+  ModelsApiConfig,
+  ParamDef,
+  ParamLocation,
+  ParamType,
+  ProtocolId,
+  ProviderEntry,
+  ResolvedRequestParams,
+  SystemPromptKind,
+  SystemPromptOverrides,
+  ThinkingConfig,
+  ThinkingLevel,
+} from "./types";
 
 /** 动态 ID 就是普通字符串；保留别名只为让调用处更易读。 */
 export type ModelId = string;
