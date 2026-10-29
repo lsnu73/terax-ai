@@ -110,7 +110,7 @@ export const settingsModels = {
       autocompleteInfo:
         "When off, this model won't appear in the editor's inline completion picker; cloud flagship models usually aren't suitable for completion.",
       promptInfo:
-        'Base system prompt for this model. "Follow parent" takes the provider\'s setting (and above that, the global default); full uses the complete prompt (tool specs, path rules, etc.); lite is shorter and cheaper on tokens, suits small models; "Custom prompt" uses the text written under "System prompt management".',
+        'Base system prompt for this model. "Follow parent" takes the provider\'s setting (and above that, the global default); full uses the complete prompt (tool specs, path rules, etc.); lite is shorter and cheaper on tokens, suits small models; "Custom prompt" uses the text written under "AI Behavior → System prompt management".',
       promptInherit: "Follow parent",
       promptCustom: "Custom prompt",
     },
@@ -162,7 +162,7 @@ export const settingsModels = {
     },
     systemPrompt: {
       label: "Prompt",
-      info: 'Base prompt kind for all models under this provider; a model picking its own kind in Sampling overrides this. "Follow global default" uses the default prompt set under "System prompt management".',
+      info: 'Base prompt kind for all models under this provider; a model picking its own kind in Sampling overrides this. "Follow global default" uses the default prompt set under "AI Behavior → System prompt management".',
       inherit: "Follow global default",
       custom: "Custom prompt",
     },
@@ -206,27 +206,6 @@ export const settingsModels = {
       auto: "Automatic (as you type)",
       manual: "Manual (shortcut)",
     },
-  },
-  prompts: {
-    label: "System prompt management",
-    info: "Manage the base system prompt for sessions. full / lite are the two built-in prompts; view, edit and restore them to default anytime. A custom prompt is written entirely by you. Precedence: model > provider > the global default here.",
-    globalLabel: "Default prompt",
-    globalInfo:
-      "Base prompt kind used by all providers unless overridden. Picking a kind in a provider's advanced settings or a model's Sampling overrides this.",
-    tabFull: "full prompt",
-    tabLite: "lite prompt",
-    tabCustom: "Custom prompt",
-    edited: "edited",
-    save: "Save",
-    restore: "Restore default prompt",
-    editInfo:
-      'You are editing an override of the built-in prompt; it takes effect for new sessions right after saving. "Restore default prompt" discards your changes.',
-    customInfo:
-      "A custom prompt replaces the built-in base prompt entirely. To keep tool use working, a fixed tool-protocol section is always appended at the end (preview below); an overly brief prompt will degrade tool behavior.",
-    customPlaceholder: "Write your own system prompt here…",
-    tailLabel: "Tool protocol appended automatically (read-only preview):",
-    agentsPointer:
-      'The "Custom instructions" and "Agent personas" on the Agents page are appended after the base prompt and are not affected by what you replace here.',
   },
   validation: {
     paramKeyRequired:
@@ -283,7 +262,7 @@ export const settingsModels = {
     paramDefaultPlaceholder: "empty / high / 1024 / true",
     paramMap: "Value mapping (map)",
     paramMapInfo:
-      "Logical level value -> actual value sent. A null value omits this param at that level (used to turn off thinking).",
+      "Translates a Thinking level's logical value into the actual value sent to the provider. A translated value of null omits this param at that level (used to turn off thinking).",
     paramMapKeyPlaceholder: "logical value",
     paramMapValuePlaceholder: "value sent, e.g. high; null omits",
     paramMapAdd: "Add mapping",
@@ -310,7 +289,7 @@ export const settingsModels = {
     levelLabelPlaceholder: "Low / High / Max",
     levelValues: "Level param values",
     levelValuesInfo:
-      "Param key -> logical value. A null value means this level doesn't send that param; e.g. to turn off thinking, send thinking.type=disabled and omit reasoning_effort.",
+      "Assigns each param key the logical value used at this level. A null value means this level doesn't send that param; e.g. to turn off thinking, send thinking.type=disabled and omit reasoning_effort.",
     levelValuesKeyPlaceholder: "param key",
     levelValuesValuePlaceholder: "logical value, e.g. high; null omits",
     levelValuesAdd: "Add param value",

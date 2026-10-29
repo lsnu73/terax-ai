@@ -87,24 +87,44 @@ function withOptionalField<T>(base: T, key: string, value: unknown): T {
 }
 
 /** 小号信息图标 + 悬浮说明。每个图标自带 Provider，避免设置窗口漏包 Provider。 */
-export function InfoHint({ text }: { text: string }) {
+export function InfoHint({
+  text,
+  nested = false,
+}: {
+  text: string;
+  /** true 时渲染为 span,可合法嵌进 <button> 内部（按钮右侧内嵌提示）。 */
+  nested?: boolean;
+}) {
   const { t } = useTranslation();
+  const icon = (
+    <HugeiconsIcon icon={InformationCircleIcon} size={11} strokeWidth={1.75} />
+  );
   return (
     <TooltipProvider delayDuration={150}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <button
-            type="button"
-            aria-label={t("settings.models.structured.infoAria")}
-            onClick={(e) => e.stopPropagation()}
-            className="inline-flex shrink-0 cursor-help items-center text-muted-foreground/50 transition-colors hover:text-foreground"
-          >
-            <HugeiconsIcon
-              icon={InformationCircleIcon}
-              size={11}
-              strokeWidth={1.75}
-            />
-          </button>
+          {nested ? (
+            // biome-ignore lint/a11y/useSemanticElements: 嵌在 <button> 内部时不能再用 button,否则产生非法的按钮嵌套
+            <span
+              role="button"
+              tabIndex={0}
+              aria-label={t("settings.models.structured.infoAria")}
+              onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => e.stopPropagation()}
+              className="inline-flex shrink-0 cursor-help items-center text-muted-foreground/50 transition-colors hover:text-foreground"
+            >
+              {icon}
+            </span>
+          ) : (
+            <button
+              type="button"
+              aria-label={t("settings.models.structured.infoAria")}
+              onClick={(e) => e.stopPropagation()}
+              className="inline-flex shrink-0 cursor-help items-center text-muted-foreground/50 transition-colors hover:text-foreground"
+            >
+              {icon}
+            </button>
+          )}
         </TooltipTrigger>
         <TooltipContent
           side="top"

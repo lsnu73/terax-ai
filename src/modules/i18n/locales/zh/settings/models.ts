@@ -109,7 +109,7 @@ export const settingsModelsZh: typeof settingsModels = {
       autocompleteInfo:
         "关闭后该模型不会出现在编辑器的行内补全选择器中；云端旗舰模型通常不适合做补全。",
       promptInfo:
-        "该模型使用的基础系统提示词。“跟随上级”取 Provider 的设置（Provider 也未设置时取全局默认）；full 使用完整提示词（工具规范、路径规则等）；lite 更短、更省 token，适合小模型；“自定义提示词”使用「系统提示词管理」中编写的文本。",
+        "该模型使用的基础系统提示词。“跟随上级”取 Provider 的设置（Provider 也未设置时取全局默认）；full 使用完整提示词（工具规范、路径规则等）；lite 更短、更省 token，适合小模型；“自定义提示词”使用「AI 行为 → 系统提示词管理」中编写的文本。",
       promptInherit: "跟随上级",
       promptCustom: "自定义提示词",
     },
@@ -161,7 +161,7 @@ export const settingsModelsZh: typeof settingsModels = {
     },
     systemPrompt: {
       label: "提示词",
-      info: "该 Provider 下所有模型使用的基础提示词档位；模型在 Sampling 里单独选择时会覆盖此项。“跟随全局默认”使用「系统提示词管理」里的默认提示词。",
+      info: "该 Provider 下所有模型使用的基础提示词档位；模型在 Sampling 里单独选择时会覆盖此项。“跟随全局默认”使用「AI 行为 → 系统提示词管理」里的默认提示词。",
       inherit: "跟随全局默认",
       custom: "自定义提示词",
     },
@@ -206,27 +206,6 @@ export const settingsModelsZh: typeof settingsModels = {
       manual: "手动（快捷键）",
     },
   },
-  prompts: {
-    label: "系统提示词管理",
-    info: "管理会话的基础系统提示词。full / lite 是内置的两套，可查看、修改并随时恢复默认；自定义提示词完全由你编写。生效优先级：模型 > Provider > 这里的全局默认。",
-    globalLabel: "默认提示词",
-    globalInfo:
-      "所有 Provider 缺省使用的基础提示词档位。Provider 高级设置或模型 Sampling 中单独选择时会覆盖这里的设置。",
-    tabFull: "full prompt",
-    tabLite: "lite prompt",
-    tabCustom: "自定义提示词",
-    edited: "已修改",
-    save: "保存",
-    restore: "恢复默认提示词",
-    editInfo:
-      "这里编辑的是内置提示词的覆盖版本，保存后立即对新会话生效；“恢复默认提示词”会删除你的修改。",
-    customInfo:
-      "自定义提示词会整体替换内置基础提示词。为保住工具能力，一段固定的工具协议说明会自动追加在末尾（下方预览）；写得太简略会导致工具行为退化。",
-    customPlaceholder: "在这里编写你自己的系统提示词…",
-    tailLabel: "自动追加的工具协议（只读预览）：",
-    agentsPointer:
-      "代理页的“自定义指令”与“代理人格”会追加在基础提示词之后，不受这里的替换影响。",
-  },
   validation: {
     paramKeyRequired:
       "Params 第 {{index}} 项的 Key 不能为空（没有 Key 的参数会被丢弃）。",
@@ -257,7 +236,7 @@ export const settingsModelsZh: typeof settingsModels = {
     paramRemove: "删除该参数",
     paramKey: "Key（逻辑键）",
     paramKeyInfo:
-      "思考档位通过这个键引用参数；同一 Provider 下重复声明会覆盖旧定义。",
+      "Thinking 档位通过这个键引用参数；同一 Provider 下重复声明会覆盖旧定义。",
     paramLabel: "显示名（可选）",
     paramLabelPlaceholder: "思考强度",
     paramLocation: "位置",
@@ -278,7 +257,7 @@ export const settingsModelsZh: typeof settingsModels = {
     paramDefaultPlaceholder: "留空 / high / 1024 / true",
     paramMap: "取值映射 map",
     paramMapInfo:
-      "逻辑档位值 -> 实际发送值。值为 null 表示该档位省略此参数（用于关闭思考）。",
+      "把 Thinking 档位的逻辑取值翻译成实际发送给厂商的值。翻译结果为 null 表示该档位省略此参数（用于关闭思考）。",
     paramMapKeyPlaceholder: "逻辑值，如 medium",
     paramMapValuePlaceholder: "发送值，如 high；写 null 表示省略",
     paramMapAdd: "添加映射",
@@ -304,7 +283,7 @@ export const settingsModelsZh: typeof settingsModels = {
     levelLabelPlaceholder: "低 / 高 / 最高",
     levelValues: "档位参数值",
     levelValuesInfo:
-      "参数 key -> 逻辑值。值为 null 表示该档位不发送这个参数；例如关闭思考时可发送 thinking.type=disabled 并省略 reasoning_effort。",
+      "为每个参数 key 指定该档位使用的逻辑取值。取值为 null 表示该档位不发送这个参数；例如关闭思考时可发送 thinking.type=disabled 并省略 reasoning_effort。",
     levelValuesKeyPlaceholder: "参数 key",
     levelValuesValuePlaceholder: "逻辑值，如 high；null 表示省略",
     levelValuesAdd: "添加参数值",

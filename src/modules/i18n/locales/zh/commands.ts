@@ -49,7 +49,7 @@ export const commandsZh: typeof commands = {
     toggleHiddenFiles: "切换隐藏文件",
   },
   ai: {
-    toggleAgent: "切换 AI 代理",
+    toggleAgent: "切换 AI 角色",
     askAboutSelection: "就选中内容询问 AI",
   },
   disabled: {

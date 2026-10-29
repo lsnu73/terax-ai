@@ -17,12 +17,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
-  type AiConfig,
   builtinProviders,
-  builtinSystemPrompt,
   getAiConfigFilePath,
   type JsonObject,
   type ModelEntry,
@@ -30,9 +27,7 @@ import {
   type ProviderEntry,
   providerSupportsKey,
   type SystemPromptKind,
-  type SystemPromptOverrides,
   type ThinkingConfig,
-  TOOL_PROTOCOL_TAIL,
   thinkingLevels,
   useAiConfigStore,
 } from "@/modules/ai/config";
@@ -63,7 +58,6 @@ import {
 import {
   Add01Icon,
   ArrowDown01Icon,
-  ArrowTurnBackwardIcon,
   ArrowUpRight01Icon,
   Cancel01Icon,
   CheckmarkCircle02Icon,
@@ -403,13 +397,6 @@ export function ModelsSection() {
         }}
       />
 
-      <PromptsBlock
-        config={config}
-        onReplace={async (next) => {
-          await replace(next);
-        }}
-      />
-
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <Label>{t("settings.models.providers.label")}</Label>
@@ -656,8 +643,11 @@ function ProviderCard({
                 className="h-8 px-3 text-[11px]"
               >
                 {t("settings.models.provider.test")}
+                <InfoHint
+                  text={t("settings.models.provider.testInfo")}
+                  nested
+                />
               </Button>
-              <InfoHint text={t("settings.models.provider.testInfo")} />
             </div>
           </FieldRow>
 
@@ -732,25 +722,20 @@ function ProviderCard({
             </span>
             <span className="flex items-center gap-1.5">
               {provider.modelsApi ? (
-                <>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => void fetchModels()}
-                    disabled={fetching || !provider.baseURL.trim()}
-                    className="h-7 gap-1.5 px-2.5 text-[11px]"
-                  >
-                    <HugeiconsIcon
-                      icon={RefreshIcon}
-                      size={12}
-                      strokeWidth={2}
-                    />
-                    {t("settings.models.provider.fetchModels")}
-                  </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => void fetchModels()}
+                  disabled={fetching || !provider.baseURL.trim()}
+                  className="h-7 gap-1.5 px-2.5 text-[11px]"
+                >
+                  <HugeiconsIcon icon={RefreshIcon} size={12} strokeWidth={2} />
+                  {t("settings.models.provider.fetchModels")}
                   <InfoHint
                     text={t("settings.models.provider.fetchModelsInfo")}
+                    nested
                   />
-                </>
+                </Button>
               ) : null}
               <Button
                 size="sm"
@@ -864,8 +849,11 @@ function ProviderCard({
                 )}
               />
               {t("settings.models.provider.advancedToggle")}
+              <InfoHint
+                text={t("settings.models.provider.advancedInfo")}
+                nested
+              />
             </button>
-            <InfoHint text={t("settings.models.provider.advancedInfo")} />
           </div>
           {advanced ? (
             <ProviderAdvancedEditor provider={provider} onSave={onUpdate} />
@@ -1619,194 +1607,6 @@ function ProviderAdvancedEditor({
             ? t("settings.models.advanced.saving")
             : t("settings.models.advanced.save")}
         </Button>
-      </div>
-    </div>
-  );
-}
-
-const PROMPT_TABS: readonly SystemPromptKind[] = ["full", "lite", "custom"];
-
-/**
- * 系统提示词管理：查看/编辑 full 与 lite 的覆盖文本（可恢复内置默认），
- * 或编写完全自定义的提示词；并设置所有 Provider 缺省使用的档位。
- * 草稿在本地编辑，点「保存」才写入配置文件；代理页的追加层不受影响。
- */
-function PromptsBlock({
-  config,
-  onReplace,
-}: {
-  config: AiConfig;
-  onReplace: (next: AiConfig) => Promise<void>;
-}) {
-  const { t } = useTranslation();
-  const [tab, setTab] = useState<SystemPromptKind>("full");
-  // 草稿绑定到当时的 tab 与覆盖文本;外部重载/保存成功后基准变化,草稿自动失效
-  const [edit, setEdit] = useState<{
-    tab: SystemPromptKind;
-    base: string | undefined;
-    text: string;
-  } | null>(null);
-
-  const tabLabel = (kind: SystemPromptKind) =>
-    kind === "custom"
-      ? t("settings.models.prompts.tabCustom")
-      : kind === "lite"
-        ? t("settings.models.prompts.tabLite")
-        : t("settings.models.prompts.tabFull");
-
-  const overrideText = config.prompts?.[tab];
-  const builtinText = tab === "custom" ? "" : builtinSystemPrompt(tab);
-  const draft =
-    edit && edit.tab === tab && edit.base === overrideText ? edit.text : null;
-  const shownText = draft ?? overrideText ?? builtinText;
-  const overridden = !!overrideText?.trim();
-  const dirty = draft !== null && draft !== (overrideText ?? builtinText);
-
-  const writePrompts = async (prompts: SystemPromptOverrides) => {
-    const next = { ...config };
-    if (Object.keys(prompts).length > 0) next.prompts = prompts;
-    else delete next.prompts;
-    await onReplace(next);
-  };
-
-  const save = async () => {
-    if (draft === null) return;
-    const prompts: SystemPromptOverrides = { ...config.prompts };
-    if (draft.trim()) prompts[tab] = draft;
-    else delete prompts[tab];
-    await writePrompts(prompts);
-  };
-
-  const restore = async () => {
-    const prompts = { ...config.prompts };
-    delete prompts[tab];
-    await writePrompts(prompts);
-    setEdit(null);
-  };
-
-  return (
-    <div className="flex flex-col gap-3">
-      <span className="flex items-center gap-1">
-        <Label>{t("settings.models.prompts.label")}</Label>
-        <InfoHint text={t("settings.models.prompts.info")} />
-      </span>
-      <div className="flex flex-col gap-2.5 rounded-lg border border-border/60 bg-card/60 px-3 py-2.5">
-        <FieldRow
-          label={t("settings.models.prompts.globalLabel")}
-          info={t("settings.models.prompts.globalInfo")}
-        >
-          <Select
-            value={config.defaults.systemPrompt ?? "full"}
-            onValueChange={(v) =>
-              void onReplace({
-                ...config,
-                defaults: {
-                  ...config.defaults,
-                  systemPrompt: v as SystemPromptKind,
-                },
-              })
-            }
-          >
-            <SelectTrigger className="h-8 w-36 text-[11px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {PROMPT_TABS.map((kind) => (
-                <SelectItem key={kind} value={kind} className="text-[11.5px]">
-                  {tabLabel(kind)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </FieldRow>
-
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-0.5 rounded-md border border-border/50 bg-muted/30 p-0.5">
-            {PROMPT_TABS.map((kind) => (
-              <button
-                key={kind}
-                type="button"
-                onClick={() => setTab(kind)}
-                className={cn(
-                  "rounded px-2 py-0.5 text-[10px] transition-colors",
-                  tab === kind
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {tabLabel(kind)}
-                {config.prompts?.[kind]?.trim() ? (
-                  <span className="ml-1 text-[9px] text-primary">
-                    {t("settings.models.prompts.edited")}
-                  </span>
-                ) : null}
-              </button>
-            ))}
-          </div>
-          <span className="flex items-center gap-1.5">
-            {tab !== "custom" ? (
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={!overridden}
-                onClick={() => void restore()}
-                className="h-7 gap-1.5 px-2.5 text-[11px]"
-              >
-                <HugeiconsIcon
-                  icon={ArrowTurnBackwardIcon}
-                  size={12}
-                  strokeWidth={2}
-                />
-                {t("settings.models.prompts.restore")}
-              </Button>
-            ) : null}
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={!dirty}
-              onClick={() => void save()}
-              className="h-7 px-2.5 text-[11px]"
-            >
-              {t("settings.models.prompts.save")}
-            </Button>
-            <InfoHint
-              text={
-                tab === "custom"
-                  ? t("settings.models.prompts.customInfo")
-                  : t("settings.models.prompts.editInfo")
-              }
-            />
-          </span>
-        </div>
-
-        <Textarea
-          value={shownText}
-          onChange={(e) =>
-            setEdit({ tab, base: overrideText, text: e.target.value })
-          }
-          placeholder={
-            tab === "custom"
-              ? t("settings.models.prompts.customPlaceholder")
-              : undefined
-          }
-          spellCheck={false}
-          className="max-h-72 min-h-36 font-mono text-[10.5px] leading-relaxed"
-        />
-
-        {tab === "custom" ? (
-          <div className="flex flex-col gap-1">
-            <span className="text-[10px] text-muted-foreground">
-              {t("settings.models.prompts.tailLabel")}
-            </span>
-            <pre className="max-h-24 overflow-auto rounded-md border border-border/50 bg-muted/30 p-2 font-mono text-[9.5px] leading-relaxed whitespace-pre-wrap text-muted-foreground/80">
-              {TOOL_PROTOCOL_TAIL}
-            </pre>
-          </div>
-        ) : null}
-
-        <p className="text-[10.5px] text-muted-foreground">
-          {t("settings.models.prompts.agentsPointer")}
-        </p>
       </div>
     </div>
   );

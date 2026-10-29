@@ -47,7 +47,7 @@ export const commands = {
     toggleHiddenFiles: "Toggle hidden files",
   },
   ai: {
-    toggleAgent: "Toggle AI agent",
+    toggleAgent: "Toggle AI role",
     askAboutSelection: "Ask AI about selection",
   },
   disabled: {

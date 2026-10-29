@@ -155,10 +155,10 @@ export const ai = {
     multiEditCount_other: "{{count}} edits · review in the diff tab",
   },
   agents: {
-    title: "Agent: {{name}}",
+    title: "Role: {{name}}",
     builtIn: "Built-in",
     custom: "Custom",
-    manage: "Manage agents…",
+    manage: "Manage roles…",
     builtin: {
       coder: {
         name: "Coder",

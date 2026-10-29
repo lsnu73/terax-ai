@@ -147,10 +147,10 @@ export const aiZh: typeof ai = {
     multiEditCount_other: "{{count}} 处编辑 · 在 diff 标签页中审查",
   },
   agents: {
-    title: "Agent：{{name}}",
+    title: "角色：{{name}}",
     builtIn: "内置",
     custom: "自定义",
-    manage: "管理 Agent…",
+    manage: "管理角色…",
     builtin: {
       coder: {
         name: "Coder",

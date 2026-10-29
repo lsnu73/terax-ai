@@ -7,12 +7,27 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
   AGENT_ICONS,
   agentDisplay,
 } from "@/modules/ai/components/AgentSwitcher";
+import {
+  type AiConfig,
+  builtinSystemPrompt,
+  type SystemPromptKind,
+  type SystemPromptOverrides,
+  TOOL_PROTOCOL_TAIL,
+  useAiConfigStore,
+} from "@/modules/ai/config";
 import {
   type Agent,
   type AgentIconId,
@@ -32,6 +47,7 @@ import { usePreferencesStore } from "@/modules/settings/preferences";
 import { setCustomInstructions } from "@/modules/settings/store";
 import {
   Add01Icon,
+  ArrowTurnBackwardIcon,
   CheckmarkCircle02Icon,
   Delete02Icon,
   Edit02Icon,
@@ -41,6 +57,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SectionHeader } from "../components/SectionHeader";
+import { InfoHint } from "./models/StructuredFields";
 
 const ICON_OPTIONS: AgentIconId[] = [
   "coder",
@@ -80,6 +97,8 @@ export function AgentsSection() {
         title={t("settings.agents.header.title")}
         description={t("settings.agents.header.description")}
       />
+
+      <PromptsBlock />
 
       <CustomInstructionsBlock value={customInstructions} />
 
@@ -578,6 +597,201 @@ function CustomInstructionsBlock({ value }: { value: string }) {
       <p className="text-[10.5px] text-muted-foreground">
         {t("settings.agents.customInstructions.pointer")}
       </p>
+    </div>
+  );
+}
+
+const PROMPT_TABS: readonly SystemPromptKind[] = ["full", "lite", "custom"];
+
+/**
+ * 系统提示词管理：查看/编辑 full 与 lite 的覆盖文本（可恢复内置默认），
+ * 或编写完全自定义的提示词；并设置所有 Provider 缺省使用的档位。
+ * 草稿在本地编辑，点「保存」才写入配置文件；本页的角色/指令/片段是追加层，
+ * 拼在基础提示词之后，不受这里替换的影响。
+ */
+function PromptsBlock() {
+  const { t } = useTranslation();
+  const config = useAiConfigStore((s) => s.config);
+  const replace = useAiConfigStore((s) => s.replace);
+  const [tab, setTab] = useState<SystemPromptKind>("full");
+  // 草稿绑定到当时的 tab 与覆盖文本;外部重载/保存成功后基准变化,草稿自动失效
+  const [edit, setEdit] = useState<{
+    tab: SystemPromptKind;
+    base: string | undefined;
+    text: string;
+  } | null>(null);
+
+  const tabLabel = (kind: SystemPromptKind) =>
+    kind === "custom"
+      ? t("settings.agents.prompts.tabCustom")
+      : kind === "lite"
+        ? t("settings.agents.prompts.tabLite")
+        : t("settings.agents.prompts.tabFull");
+
+  const onReplace = async (next: AiConfig) => {
+    await replace(next);
+  };
+
+  const overrideText = config.prompts?.[tab];
+  const builtinText = tab === "custom" ? "" : builtinSystemPrompt(tab);
+  const draft =
+    edit && edit.tab === tab && edit.base === overrideText ? edit.text : null;
+  const shownText = draft ?? overrideText ?? builtinText;
+  const overridden = !!overrideText?.trim();
+  const dirty = draft !== null && draft !== (overrideText ?? builtinText);
+
+  const writePrompts = async (prompts: SystemPromptOverrides) => {
+    const next = { ...config };
+    if (Object.keys(prompts).length > 0) next.prompts = prompts;
+    else delete next.prompts;
+    await onReplace(next);
+  };
+
+  const save = async () => {
+    if (draft === null) return;
+    const prompts: SystemPromptOverrides = { ...config.prompts };
+    if (draft.trim()) prompts[tab] = draft;
+    else delete prompts[tab];
+    await writePrompts(prompts);
+  };
+
+  const restore = async () => {
+    const prompts = { ...config.prompts };
+    delete prompts[tab];
+    await writePrompts(prompts);
+    setEdit(null);
+  };
+
+  return (
+    <div className="flex flex-col gap-3">
+      <span className="flex items-center gap-1">
+        <Label>{t("settings.agents.prompts.label")}</Label>
+        <InfoHint text={t("settings.agents.prompts.info")} />
+      </span>
+      <div className="flex flex-col gap-2.5 rounded-lg border border-border/60 bg-card/60 px-3 py-2.5">
+        <div className="flex items-center gap-3">
+          <span className="flex w-20 shrink-0 items-center gap-1 text-[11px] tracking-tight text-muted-foreground">
+            <span className="truncate">
+              {t("settings.agents.prompts.globalLabel")}
+            </span>
+            <InfoHint text={t("settings.agents.prompts.globalInfo")} />
+          </span>
+          <div className="flex flex-1 items-center">
+            <Select
+              value={config.defaults.systemPrompt ?? "full"}
+              onValueChange={(v) =>
+                void onReplace({
+                  ...config,
+                  defaults: {
+                    ...config.defaults,
+                    systemPrompt: v as SystemPromptKind,
+                  },
+                })
+              }
+            >
+              <SelectTrigger className="h-8 w-36 text-[11px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PROMPT_TABS.map((kind) => (
+                  <SelectItem key={kind} value={kind} className="text-[11.5px]">
+                    {tabLabel(kind)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-0.5 rounded-md border border-border/50 bg-muted/30 p-0.5">
+            {PROMPT_TABS.map((kind) => (
+              <button
+                key={kind}
+                type="button"
+                onClick={() => setTab(kind)}
+                className={cn(
+                  "rounded px-2 py-0.5 text-[10px] transition-colors",
+                  tab === kind
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {tabLabel(kind)}
+                {config.prompts?.[kind]?.trim() ? (
+                  <span className="ml-1 text-[9px] text-primary">
+                    {t("settings.agents.prompts.edited")}
+                  </span>
+                ) : null}
+              </button>
+            ))}
+          </div>
+          <span className="flex items-center gap-1.5">
+            {tab !== "custom" ? (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!overridden}
+                onClick={() => void restore()}
+                className="h-7 gap-1.5 px-2.5 text-[11px]"
+              >
+                <HugeiconsIcon
+                  icon={ArrowTurnBackwardIcon}
+                  size={12}
+                  strokeWidth={2}
+                />
+                {t("settings.agents.prompts.restore")}
+              </Button>
+            ) : null}
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!dirty}
+              onClick={() => void save()}
+              className="h-7 px-2.5 text-[11px]"
+            >
+              {t("settings.agents.prompts.save")}
+              <InfoHint
+                text={
+                  tab === "custom"
+                    ? t("settings.agents.prompts.customInfo")
+                    : t("settings.agents.prompts.editInfo")
+                }
+                nested
+              />
+            </Button>
+          </span>
+        </div>
+
+        <Textarea
+          value={shownText}
+          onChange={(e) =>
+            setEdit({ tab, base: overrideText, text: e.target.value })
+          }
+          placeholder={
+            tab === "custom"
+              ? t("settings.agents.prompts.customPlaceholder")
+              : undefined
+          }
+          spellCheck={false}
+          className="max-h-72 min-h-36 font-mono text-[10.5px] leading-relaxed"
+        />
+
+        {tab === "custom" ? (
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] text-muted-foreground">
+              {t("settings.agents.prompts.tailLabel")}
+            </span>
+            <pre className="max-h-24 overflow-auto rounded-md border border-border/50 bg-muted/30 p-2 font-mono text-[9.5px] leading-relaxed whitespace-pre-wrap text-muted-foreground/80">
+              {TOOL_PROTOCOL_TAIL}
+            </pre>
+          </div>
+        ) : null}
+
+        <p className="text-[10.5px] text-muted-foreground">
+          {t("settings.agents.prompts.layersPointer")}
+        </p>
+      </div>
     </div>
   );
 }

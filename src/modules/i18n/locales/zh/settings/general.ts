@@ -65,7 +65,7 @@ export const settingsGeneralZh: typeof settingsGeneral = {
     fontFamily: {
       title: "字体",
       description:
-        "用于显示图标的 Nerd Font 名称（如 \"CaskaydiaCove Nerd Font Mono\"）。留空则自动检测。",
+        '用于显示图标的 Nerd Font 名称（如 "CaskaydiaCove Nerd Font Mono"）。留空则自动检测。',
       placeholder: "自动检测",
     },
     fontWeight: {
@@ -81,7 +81,8 @@ export const settingsGeneralZh: typeof settingsGeneral = {
       descriptionUnintegrated: "此 Shell 不支持命令块和目录跟踪。",
       descriptionWsl:
         "集成终端使用的 Shell。WSL 空间使用发行版的登录 Shell。已有标签页保持原 Shell 不变。",
-      descriptionDefault: "新终端标签页使用的 Shell。已有标签页保持原 Shell 不变。",
+      descriptionDefault:
+        "新终端标签页使用的 Shell。已有标签页保持原 Shell 不变。",
       auto: "自动",
     },
     workspaceEnv: {
@@ -93,7 +94,8 @@ export const settingsGeneralZh: typeof settingsGeneral = {
     },
     letterSpacing: {
       title: "字符间距",
-      description: "字符之间的额外水平间距（px）。使用 Nerd Fonts 时可设为负值收紧间距。",
+      description:
+        "字符之间的额外水平间距（px）。使用 Nerd Fonts 时可设为负值收紧间距。",
     },
     fontSize: {
       title: "字号",
@@ -101,7 +103,8 @@ export const settingsGeneralZh: typeof settingsGeneral = {
     },
     scrollback: {
       title: "回滚行数",
-      description: "每个终端保留的历史行数。数值越大占用内存越多（约 3 KB / 行）。",
+      description:
+        "每个终端保留的历史行数。数值越大占用内存越多（约 3 KB / 行）。",
       lines: "{{lines}} 行",
     },
     confirmClose: {

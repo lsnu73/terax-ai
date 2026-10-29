@@ -3,8 +3,29 @@ import type { settingsAgents } from "../../en/settings/agents";
 /** 设置窗口 · Agents 区块。 */
 export const settingsAgentsZh: typeof settingsAgents = {
   header: {
-    title: "代理",
-    description: "AI 使用的角色设定与片段。在输入栏切换代理。",
+    title: "AI 行为",
+    description: "AI 的基础系统提示词、角色与片段。在输入栏切换角色。",
+  },
+  prompts: {
+    label: "系统提示词管理",
+    info: "管理会话的基础系统提示词。full / lite 是内置的两套，可查看、修改并随时恢复默认；自定义提示词完全由你编写。生效优先级：模型 > Provider > 这里的全局默认。",
+    globalLabel: "默认提示词",
+    globalInfo:
+      "所有 Provider 缺省使用的基础提示词档位。「模型」页里 Provider 高级设置或模型 Sampling 中单独选择时会覆盖这里的设置。",
+    tabFull: "full prompt",
+    tabLite: "lite prompt",
+    tabCustom: "自定义提示词",
+    edited: "已修改",
+    save: "保存",
+    restore: "恢复默认提示词",
+    editInfo:
+      "这里编辑的是内置提示词的覆盖版本，保存后立即对新会话生效；“恢复默认提示词”会删除你的修改。",
+    customInfo:
+      "自定义提示词会整体替换内置基础提示词。为保住工具能力，一段固定的工具协议说明会自动追加在末尾（下方预览）；写得太简略会导致工具行为退化。",
+    customPlaceholder: "在这里编写你自己的系统提示词…",
+    tailLabel: "自动追加的工具协议（只读预览）：",
+    layersPointer:
+      "本页的“自定义指令”“角色”与“片段”会追加在基础提示词之后，不受这里的替换影响。",
   },
   customInstructions: {
     label: "自定义指令",
@@ -12,17 +33,17 @@ export const settingsAgentsZh: typeof settingsAgents = {
       "例如：始终用简洁的要点回复。优先用 pnpm 而不是 npm。我的机器是 M 系列 Mac。",
     save: "保存",
     pointer:
-      "此指令会追加在基础系统提示词之后；想查看或替换基础提示词本身，请到「模型 → 系统提示词管理」。",
+      "此指令会追加在基础系统提示词之后；想查看或替换基础提示词本身，见上方「系统提示词管理」。",
   },
   agents: {
-    label: "代理",
-    new: "新建代理",
-    defaultName: "新代理",
+    label: "角色",
+    new: "新建角色",
+    defaultName: "新角色",
   },
   card: {
     builtIn: "内置",
     active: "使用中",
-    use: "使用此代理",
+    use: "使用此角色",
     edit: "编辑",
     delete: "删除",
   },
@@ -35,13 +56,13 @@ export const settingsAgentsZh: typeof settingsAgents = {
     emptyPost: "插入。",
   },
   agentDialog: {
-    newTitle: "新建代理",
-    editTitle: "编辑代理",
+    newTitle: "新建角色",
+    editTitle: "编辑角色",
     icon: "图标",
     name: "名称",
     namePlaceholder: "例如：测试工程师",
     description: "描述",
-    descriptionPlaceholder: "一句话 — 显示在代理选择器中",
+    descriptionPlaceholder: "一句话 — 显示在角色选择器中",
     instructions: "指令",
     instructionsPlaceholder:
       "角色设定与规则。会追加到 Terax 的核心系统提示词之后。",
