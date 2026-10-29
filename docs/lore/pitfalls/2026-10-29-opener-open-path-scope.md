@@ -14,7 +14,7 @@ tauri-plugin-opener 的权限与 scope 是两层：`allow-open-path` 只放行 `
 
 对比：`opener:default` 里的 `allow-default-urls` 自带 http/https/mailto/tel 的 scope，所以 `openUrl` 开箱可用；`openPath` 没有任何默认 scope，必须自己声明。
 
-## 已采用的修复
+## 已采用的修复（已被同日的 Rust 命令方案取代）
 
 在 capability 里把字符串权限换成带 `allow` scope 的对象形式，白名单精确到应用数据目录（`$APPDATA` 会被 `PathResolver::parse` 解析，跨平台有效）：
 
@@ -29,6 +29,16 @@ tauri-plugin-opener 的权限与 scope 是两层：`allow-open-path` 只放行 `
 ```
 
 注意目录本身和 `/**` 子项要分开列，前者不匹配后者。scope 条目可带 `app` 字段限定打开程序，缺省匹配「默认程序」（即 `openPath` 不传 `with` 的调用方式）。
+
+## 当前实现（2026-10-29 后续改造）
+
+「在系统中打开」不再调用插件的 `openPath`，改由 Rust 命令 `open_ai_config_dir`（`src-tauri/src/modules/file_manager.rs`）处理：
+
+- 目录在 Rust 侧用 `app_data_dir()` 计算，前端无法传入任意路径，因此不再需要 `opener:allow-open-path` 的 path scope；
+- capability 中的 `opener:allow-open-path` 对象条目已移除，只保留 `opener:default`（`openUrl` 与 `revealItemInDir` 仍在使用）；
+- 需要第三方文件管理器优先的原因见 `2026-10-29-opener-forces-explorer.md`。
+
+上面的 scope 结论仍然有效，只是当前调用路径不再经过插件。
 
 ## 复发防护
 

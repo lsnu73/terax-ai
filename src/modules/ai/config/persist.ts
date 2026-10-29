@@ -1,4 +1,4 @@
-import { appDataDir } from "@tauri-apps/api/path";
+import { invoke } from "@tauri-apps/api/core";
 import { emit, listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { LazyStore } from "@tauri-apps/plugin-store";
 import { defaultAiConfig } from "./defaults";
@@ -91,13 +91,14 @@ export async function writeAiConfig(config: AiConfig): Promise<void> {
   await emit(AI_CONFIG_CHANGED_EVENT);
 }
 
-export async function getAiConfigFilePath(): Promise<string> {
-  try {
-    const dir = await appDataDir();
-    return `${dir.replace(/[\\/]+$/, "")}/${AI_CONFIG_STORE_PATH}`;
-  } catch {
-    return AI_CONFIG_STORE_PATH;
-  }
+/**
+ * 在系统文件管理器中打开配置文件所在目录。
+ *
+ * 用哪种文件管理器由 Rust 侧决定：已注册或已安装的第三方资源管理器优先，
+ * 没有时才回退到系统资源管理器。目录也在 Rust 侧计算，避免前后端拼路径不一致。
+ */
+export async function openAiConfigDir(): Promise<void> {
+  await invoke("open_ai_config_dir");
 }
 
 /** 跨窗口通知（设置窗口 → 主窗口）。 */

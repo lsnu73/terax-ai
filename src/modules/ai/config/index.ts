@@ -14,8 +14,8 @@ export {
 } from "./params";
 export {
   AI_CONFIG_STORE_PATH,
-  getAiConfigFilePath,
   onAiConfigChange,
+  openAiConfigDir,
   readAiConfig,
   writeAiConfig,
 } from "./persist";

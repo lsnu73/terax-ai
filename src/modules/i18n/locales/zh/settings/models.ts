@@ -16,7 +16,8 @@ export const settingsModelsZh: typeof settingsModels = {
       "从磁盘重新读取 JSON。设置页里尚未保存的修改会被丢弃；如果文件刚被外部编辑过，必须先点这里才能看到新配置。",
     open: "在系统中打开",
     openInfo:
-      "在系统默认文件管理器中打开 terax-ai-models.json 所在目录（支持第三方资源管理器）。",
+      "优先使用已注册或已安装的第三方文件管理器（如 Total Commander、Directory Opus、One Commander），没有检测到时使用系统资源管理器打开 terax-ai-models.json 所在目录。",
+    openFailed: "无法打开目录：{{error}}",
   },
   providers: {
     label: "Provider",

@@ -341,6 +341,7 @@ pub fn run() {
             get_launch_dir,
             get_launch_files,
             open_settings_window,
+            modules::file_manager::open_ai_config_dir,
             agent::agent_enable_hooks,
             agent::agent_hooks_status,
             secrets::secrets_get,

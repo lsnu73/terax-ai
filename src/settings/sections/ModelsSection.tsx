@@ -20,9 +20,9 @@ import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import {
   builtinProviders,
-  getAiConfigFilePath,
   type JsonObject,
   type ModelEntry,
+  openAiConfigDir,
   type ParamDef,
   type ProviderEntry,
   providerSupportsKey,
@@ -67,7 +67,7 @@ import {
   RefreshIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { openPath, openUrl } from "@tauri-apps/plugin-opener";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SectionHeader } from "../components/SectionHeader";
@@ -163,12 +163,11 @@ export function ModelsSection() {
   const reload = useAiConfigStore((s) => s.reload);
   const replace = useAiConfigStore((s) => s.replace);
   const [keys, setKeys] = useState<ProviderKeys>({});
-  const [filePath, setFilePath] = useState("");
+  const [openError, setOpenError] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
 
   useEffect(() => {
     void init();
-    void getAiConfigFilePath().then(setFilePath);
   }, [init]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: 读取 registry 快照
@@ -345,13 +344,13 @@ export function ModelsSection() {
             <Button
               size="sm"
               variant="outline"
-              disabled={!filePath}
               onClick={() => {
-                // openPath 走 ShellExecute "open" 动词，尊重系统默认文件管理器；
-                // revealItemInDir 在 Windows 上强制 explorer.exe，忽略第三方资源管理器。
-                const dir = filePath.split(/[\\/]/).slice(0, -1).join("/");
-                void openPath(dir || filePath).catch((error: unknown) => {
-                  console.error("openPath failed:", error);
+                setOpenError(null);
+                void openAiConfigDir().catch((error: unknown) => {
+                  console.error("open config dir failed:", error);
+                  setOpenError(
+                    error instanceof Error ? error.message : String(error),
+                  );
                 });
               }}
               className="h-7 gap-1.5 px-2.5 text-[11px]"
@@ -374,6 +373,11 @@ export function ModelsSection() {
           <p>{t("settings.models.configFile.info")}</p>
           <p>{t("settings.models.configFile.reloadInfo")}</p>
           <p>{t("settings.models.configFile.openInfo")}</p>
+          {openError ? (
+            <p className="text-destructive">
+              {t("settings.models.configFile.openFailed", { error: openError })}
+            </p>
+          ) : null}
         </div>
         {warnings.length > 0 ? (
           <div className="flex flex-col gap-0.5 rounded-md border border-amber-500/30 bg-amber-500/5 px-2 py-1.5">

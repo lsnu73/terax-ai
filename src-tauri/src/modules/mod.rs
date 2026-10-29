@@ -5,6 +5,7 @@ pub mod app_menu;
 #[cfg(feature = "bench")]
 pub mod bench;
 pub mod control;
+pub mod file_manager;
 pub mod fs;
 pub mod git;
 pub mod history;

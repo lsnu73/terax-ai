@@ -14,7 +14,8 @@ export const settingsModels = {
       "Re-reads the JSON from disk. Unsaved changes on this page are discarded; if the file was just edited externally, you must click here to see the new configuration.",
     open: "Open in file manager",
     openInfo:
-      "Opens the folder containing terax-ai-models.json in your system default file manager (third-party file managers are respected).",
+      "Opens the folder containing terax-ai-models.json in a third-party file manager when one is registered or installed, and falls back to the system file manager.",
+    openFailed: "Could not open the folder: {{error}}",
   },
   providers: {
     label: "Providers",
