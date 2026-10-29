@@ -100,8 +100,6 @@ export function AgentsSection() {
 
       <PromptsBlock />
 
-      <CustomInstructionsBlock value={customInstructions} />
-
       <section className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <Label>{t("settings.agents.agents.label")}</Label>
@@ -138,6 +136,8 @@ export function AgentsSection() {
         </div>
       </section>
 
+      <CustomInstructionsBlock value={customInstructions} />
+
       <section className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <div className="flex flex-col">
@@ -145,7 +145,7 @@ export function AgentsSection() {
             <span className="text-[10.5px] text-muted-foreground">
               {t("settings.agents.snippets.hintPre")}{" "}
               <code className="rounded bg-muted/50 px-1 font-mono">
-                #handle
+                {t("settings.agents.snippets.token")}
               </code>
               {t("settings.agents.snippets.hintPost")}
             </span>
@@ -172,7 +172,9 @@ export function AgentsSection() {
         {snippets.length === 0 ? (
           <div className="rounded-lg border border-dashed border-border/60 bg-card/30 px-4 py-6 text-center text-[11px] text-muted-foreground">
             {t("settings.agents.snippets.emptyPre")}{" "}
-            <code className="font-mono">#handle</code>{" "}
+            <code className="font-mono">
+              {t("settings.agents.snippets.token")}
+            </code>{" "}
             {t("settings.agents.snippets.emptyPost")}
           </div>
         ) : (
@@ -774,7 +776,7 @@ function PromptsBlock() {
               : undefined
           }
           spellCheck={false}
-          className="max-h-72 min-h-36 font-mono text-[10.5px] leading-relaxed"
+          className="max-h-72 min-h-36 overflow-y-hidden font-mono text-[10.5px] leading-relaxed focus:overflow-y-auto"
         />
 
         {tab === "custom" ? (

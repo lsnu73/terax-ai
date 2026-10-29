@@ -3,7 +3,7 @@ export const settingsAgents = {
   header: {
     title: "AI Behavior",
     description:
-      "Base system prompt, roles and snippets the AI uses. Switch roles from the input bar.",
+      "Base system prompt, roles and snippets the AI uses. Switch roles from the input bar. Final system = base prompt (full/lite, model-level) + TERAX.md memory + active role + custom instructions.",
   },
   prompts: {
     label: "System prompt management",
@@ -48,7 +48,8 @@ export const settingsAgents = {
   },
   snippets: {
     label: "Snippets",
-    hintPre: "Reusable instructions you can drop into any prompt with",
+    hintPre: "Reusable instructions you can insert in the AI input with",
+    token: "#keyword",
     hintPost: ".",
     new: "New snippet",
     emptyPre: "No snippets yet. Create one and insert it with",
@@ -69,17 +70,17 @@ export const settingsAgents = {
   snippetDialog: {
     newTitle: "New snippet",
     editTitle: "Edit snippet",
-    handle: "Handle",
+    handle: "Keyword",
     handleErrorRequired: "Required.",
     handleErrorInvalid: "Lowercase letters, digits, and dashes only.",
     handleErrorInUse: "Already in use.",
     name: "Name",
     namePlaceholder: "e.g. Pre-merge review checklist",
     description: "Description",
-    descriptionPlaceholder: "One line — shown in the # picker",
+    descriptionPlaceholder: "One-line summary shown in the list",
     content: "Content",
     contentPlaceholder:
-      "Inserted into the prompt as a <snippet> block when you use #handle.",
+      "Write the prompt you want to reuse here, then enter #keyword to quickly insert this snippet",
   },
   common: {
     cancel: "Cancel",

@@ -4,7 +4,8 @@ import type { settingsAgents } from "../../en/settings/agents";
 export const settingsAgentsZh: typeof settingsAgents = {
   header: {
     title: "AI 行为",
-    description: "AI 的基础系统提示词、角色与片段。在输入栏切换角色。",
+    description:
+      "AI 的基础系统提示词、角色与片段。在输入栏切换角色。最终 system = 基础提示词(full/lite,模型级) + TERAX.md 记忆 + 激活的角色 + 用户自定义指令。",
   },
   prompts: {
     label: "系统提示词管理",
@@ -49,10 +50,11 @@ export const settingsAgentsZh: typeof settingsAgents = {
   },
   snippets: {
     label: "片段",
-    hintPre: "可复用的指令，在任何提示词中通过",
+    hintPre: "可复用的指令，在 AI 输入框中用",
+    token: "#关键词",
     hintPost: "插入。",
     new: "新建片段",
-    emptyPre: "还没有片段。创建一个，然后在 AI 输入框中用",
+    emptyPre: "还没有片段。创建一个，然后在 AI输入框中用",
     emptyPost: "插入。",
   },
   agentDialog: {
@@ -70,16 +72,17 @@ export const settingsAgentsZh: typeof settingsAgents = {
   snippetDialog: {
     newTitle: "新建片段",
     editTitle: "编辑片段",
-    handle: "句柄",
+    handle: "关键词",
     handleErrorRequired: "必填。",
     handleErrorInvalid: "仅限小写字母、数字和连字符。",
     handleErrorInUse: "已被占用。",
     name: "名称",
     namePlaceholder: "例如：合并前审查清单",
     description: "描述",
-    descriptionPlaceholder: "一句话 — 显示在 # 选择器中",
+    descriptionPlaceholder: "一句话简介，用于在列表中展示",
     content: "内容",
-    contentPlaceholder: "使用 #handle 时，会作为 <snippet> 块插入提示词。",
+    contentPlaceholder:
+      "在这里编写你要复用的提示词，后续输入 #关键词 快速插入该片段",
   },
   common: {
     cancel: "取消",

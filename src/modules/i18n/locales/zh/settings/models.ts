@@ -10,7 +10,7 @@ export const settingsModelsZh: typeof settingsModels = {
   loading: "加载中…",
   configFile: {
     label: "配置文件",
-    info: "Provider、模型、请求参数与思考档位都保存在这个文件里。可以直接用编辑器修改，但修改后需要点击 Reload from disk 才会生效。",
+    info: "Provider、模型、请求参数与思考档位都保存在这个文件里。可以直接用编辑器修改，但修改后需要重新加载才会生效。",
     reload: "从磁盘重新加载",
     reloadInfo:
       "从磁盘重新读取 JSON。设置页里尚未保存的修改会被丢弃；如果文件刚被外部编辑过，必须先点这里才能看到新配置。",

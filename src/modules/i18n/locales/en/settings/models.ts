@@ -8,7 +8,7 @@ export const settingsModels = {
   loading: "Loading…",
   configFile: {
     label: "Configuration file",
-    info: "Providers, models, request params and thinking levels are all stored in this file. You can edit it directly, but changes only take effect after clicking Reload from disk.",
+    info: "Providers, models, request params and thinking levels are all stored in this file. You can edit it directly, but changes only take effect after reloading.",
     reload: "Reload from disk",
     reloadInfo:
       "Re-reads the JSON from disk. Unsaved changes on this page are discarded; if the file was just edited externally, you must click here to see the new configuration.",
