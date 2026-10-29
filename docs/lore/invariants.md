@@ -41,3 +41,12 @@
   - 违反代价：闭合 `settings/store → … → i18n → preferences → store` 这类循环，入口顶层 await 模块 TDZ 崩溃，窗口永不显示且无任何报错输出（见 pitfalls/2026-10-28-i18n-circular-import-tdz.md）。
   - 强制点：`i18n/index.ts` 对 preferences 的引用是 `initI18n()` 内的动态 `await import`；反向（上层模块 import i18n 用 `t()`）合法且鼓励。
   - ⚠️ 此条暂无自动化强制，靠代码评审把关。
+
+- **INV-010** 任何新增的用户可见文案必须进 `src/modules/i18n/locales/` 字典且 en/zh 同步，禁止在组件里直接写英文字面量；发给 LLM 的 prompt、持久化数据默认值、专有名词除外（完整边界见 decisions/2026-10-28-i18n-architecture.md）。
+  - 违反代价：界面中英混杂；只加 en 不加 zh 时中文用户看到英文兜底。
+  - 强制点：zh 字典以 `: typeof en` 声明，en/zh 键不同构会让 `tsc` 编译失败——「漏译」在编译期必然暴露；「组件里新写死英文」暂无代码强制，靠评审把关。
+
+- **INV-011** 设置页表单中，一个区块的空态提示与其主操作按钮必须放进同一个容器（虚线框），且相邻区块之间的间距必须明显大于区块内部元素的间距；按钮不得游离在两个区块之间、与上下等距。
+  - 违反代价：按钮与相邻区块标题等距时，用户无法判断按钮属于上方还是下方区块（2026-10-29 实际反馈：Params 的「添加参数」被误认为可能属于 Thinking）。
+  - 强制点：`src/settings/sections/models/StructuredFields.tsx` 的 `ParamsForm` / `KeyValueEditor` 空态把提示与按钮收进同一虚线框；`ModelsSection.tsx` 两个编辑器把结构化字段包进独立的 `gap-4` 容器。
+  - ⚠️ 此条暂无代码强制，属口头约定，靠评审把关；固定宽度输入框（如 `w-40`）里的占位提示同理必须能在该宽度内完整显示，长示例放 InfoHint 而非 placeholder。

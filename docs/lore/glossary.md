@@ -16,3 +16,7 @@
 - **双模式字段（StructuredJsonField）**：`src/settings/sections/models/StructuredFields.tsx` 的通用组件，给结构化 JSON 字段提供「表单 / JSON」切换；默认表单，两种视图共享同一份文本。易与普通 JSON 文本域混淆——它额外负责空值 placeholder、切换时 pretty-print 与保存前校验。
 - **emptyValue**：`StructuredJsonField` 的「视为空」基准值（如 `[]` / `null` / `{}`）；值等于它时序列化为空字符串，JSON 模式显示格式化示例 placeholder。改某个字段的空值语义时先改这里。
 - **InfoHint**：`StructuredFields.tsx` 的信息图标组件（自带 TooltipProvider），`ModelsSection` 的 `FieldRow` 通过 `info` 参数挂载；INV-008 要求每个配置项都有它。
+- **labelKey 模式**：结构化配置表（快捷键表 `shortcuts.ts`、命令表 `commands.ts`、设置页选项表等）不存文案原文，存 i18n 键名（`labelKey`/`titleKey`/`descriptionKey`），渲染处再 `t()`。改动文案只动字典，不碰配置表。
+- **模块级 `t()`**：`src/modules/i18n/index.ts` 导出的非 React 翻译函数，供 toast、校验函数、原生通知等组件外上下文使用；组件内一律用 `react-i18next` 的 `useTranslation()`。注意测试环境 i18next 未初始化时它返回 `undefined`，相关测试需 `vi.mock("@/modules/i18n")` 或在 `beforeAll` 初始化。
+- **双字典同构**：`locales/zh/*.ts` 用 `: typeof <en导出>` 声明，键结构被 `tsc` 强制与英文一致；en 是唯一基准语言，加键先加 en。
+- **语言偏好（language）**：`terax-settings.json` 的 `language` 键（`"system" | "en" | "zh"`），`system` 由 `resolveLanguage()` 按 `navigator.language` 判定；切换经 prefs-changed 事件跨窗口即时生效，无需重启。
