@@ -10,4 +10,4 @@
 - 2026-10-28 i18n 全量提取收尾：decisions 修订 i18n 架构条目（补「字典组织约定」「翻译边界：LLM prompt/持久化数据/专有名词/Rust 层不翻」）；invariants 新增 1 条（INV-010 新增文案必须 en/zh 同步进字典，zh 靠 `typeof en` 编译期强制）；glossary 新增 4 个术语（labelKey 模式、模块级 t()、双字典同构、语言偏好）。无新增坑点。
 - 2026-10-29 归档模型设置页表单视觉分组修复（空态提示与按钮收进同一虚线框、结构化区块间距拉开、档位 ID 提示重写、窄输入框占位符截断修复）：invariants 新增 1 条（INV-011 空态提示与操作按钮同容器、区块间距大于内部间距，口头约定）。无新增决策与坑点。
 - 2026-10-29 归档终端测试 mock 漂移修复（b37cda2 后 window 桩补监听器、模型桩补 wordRangeAt/lineEndColumn、合成点击拉开列距避免被 trackClick 误判为双击、10 万级压测用例显式超时）：pitfalls 新增 1 条（手写 mock 与被测对象新增依赖漂移）。无新增约束与决策。
-- 2026-10-29 归档设置页四项改造（内容宽度跟随窗口、配置文件改为「在系统中打开」按钮、获取模型列表按钮移位、系统提示词管理模块）：decisions 新增 1 条（系统提示词三级继承 + 文本覆盖 + 自定义强制拼接工具协议尾段）；architecture/model-configuration.md 新增 1.1 节；ai-models.schema.json 增补 prompts/三级 systemPrompt。无新增约束与坑点。
+- 2026-10-29 归档设置页四项改造（内容宽度跟随窗口、配置文件改为「在系统中打开」按钮、获取模型列表按钮移位、系统提示词管理模块）：decisions 新增 1 条（系统提示词三级继承 + 文本覆盖 + 自定义强制拼接工具协议尾段）；architecture/model-configuration.md 新增 1.1 节；ai-models.schema.json 增补 prompts/三级 systemPrompt；pitfalls 新增 1 条（opener allow-open-path 需同时声明 path scope，字符串权限只放行命令不放行路径）。无新增约束。

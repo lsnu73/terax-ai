@@ -21,7 +21,13 @@
     "core:event:allow-listen",
     "core:event:allow-unlisten",
     "opener:default",
-    "opener:allow-open-path",
+    {
+      "identifier": "opener:allow-open-path",
+      "allow": [
+        { "path": "$APPDATA/app.crynta.terax" },
+        { "path": "$APPDATA/app.crynta.terax/**" }
+      ]
+    },
     "log:default",
     "os:default",
     "notification:default",
