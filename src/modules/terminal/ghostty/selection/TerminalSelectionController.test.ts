@@ -192,9 +192,11 @@ describe("terminal selection pointer ownership", () => {
     const changes = fixture.onChange.mock.calls.length;
     fixture.pointer("pointermove", 75);
     expect(fixture.onChange).toHaveBeenCalledTimes(changes);
-    fixture.pointer("pointerdown", 25);
+    // 第二次点击必须与首次点击（第 1 列）拉开列距：500ms 内相邻位置的
+    // pointerdown 会被 trackClick 判定为双击，进入选词模式而非单击。
+    fixture.pointer("pointerdown", 55);
     fixture.controller.reconcile();
-    fixture.pointer("pointerup", 25);
+    fixture.pointer("pointerup", 55);
     expect(fixture.tracked()).toBeNull();
     fixture.controller.dispose();
   });
@@ -212,8 +214,9 @@ describe("terminal selection pointer ownership", () => {
     fixture.pointer("pointermove", 45);
     expect(fixture.controller.value?.anchor).toEqual({ line: 1, column: 2 });
     fixture.pointer("pointerup", 45);
-    fixture.pointer("pointerdown", 15);
-    fixture.pointer("lostpointercapture", 15);
+    // 同上：远离首次点击（第 1 列），避免被 trackClick 判定为双击。
+    fixture.pointer("pointerdown", 55);
+    fixture.pointer("lostpointercapture", 55);
     expect(fixture.tracked()).toBeNull();
     fixture.pointer("pointermove", 45);
     expect(fixture.controller.value).toBeNull();
@@ -328,6 +331,11 @@ function dragFixture(
         tracked = value;
       },
       bufferLineAtViewportRow: (row: number) => row,
+      wordRangeAt: (point: { line: number; column: number }) => ({
+        start: point.column,
+        end: point.column,
+      }),
+      lineEndColumn: () => 79,
       scrollBy: vi.fn(() => false),
     } as unknown as GhosttyTerminalModelApi);
   const onChange = vi.fn();
