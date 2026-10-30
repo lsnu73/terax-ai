@@ -64,7 +64,7 @@
   - 代码索引：见 [atlas/features/终端命令与结果块.md](../atlas/features/终端命令与结果块.md)。
 
 - **INV-014** Ctrl+R 永久保留给终端历史命令搜索，任何全局快捷键默认绑定、用户旧偏好或新录制绑定都不得抢占它。
-  - 违反代价：window 捕获阶段的全局处理器先截获按键，终端和共享命令编辑器无法搜索历史；设置页还会保存一个实际失效的快捷键。
-  - 强制点：`src/modules/shortcuts/lib/useGlobalShortcuts.ts` 在匹配前排除 `isTerminalHistoryBinding`；`src/settings/sections/ShortcutsSection.tsx` 拒绝保存并显示冲突警告；`src/modules/terminal/block/lib/historyPopover.ts` 绑定 Ctrl+R。
+  - 违反代价：window 捕获阶段的全局处理器先截获按键，终端 Shell 无法收到 Ctrl+R，PSReadLine 或 readline 的反向历史搜索失效；设置页还会保存一个实际失效的快捷键。
+  - 强制点：`src/modules/shortcuts/lib/useGlobalShortcuts.ts` 在匹配前排除 `isTerminalHistoryBinding`；`src/settings/sections/ShortcutsSection.tsx` 拒绝保存并显示冲突警告；按键到达 Shell 后由 PSReadLine 或 readline 自行处理。
   - 注意：此条暂无自动化测试强制，靠跨模块代码评审把关。
   - 代码索引：见 [atlas/features/终端命令与结果块.md](../atlas/features/终端命令与结果块.md)。

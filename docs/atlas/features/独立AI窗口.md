@@ -6,7 +6,7 @@
 
 ## 1. 业务需求
 
-用户通过 Ctrl/Cmd+I 打开或关闭独立 AI 窗口，在窗口底部使用完整 Composer。窗口可以移动到屏幕任意位置，不受主窗口边界限制。主窗口终端下方不再显示 AI 输入区，但所有终端自己的 ShellInput 必须保留。
+用户通过 Ctrl/Cmd+I 打开或关闭独立 AI 窗口，在窗口底部使用完整 Composer。窗口可以移动到屏幕任意位置，不受主窗口边界限制。主窗口终端下方不再显示 AI 输入区，终端保持自己的原生提示符输入。
 
 ## 2. 入口与调用链
 
@@ -48,7 +48,6 @@ AiWindowComposer.submit
 | `src/modules/ai/lib/aiWindowBridge.ts` | 跨窗口契约 | 快照、prefill 和结构化命令类型 |
 | `src/modules/ai/components/AgentRunBridge.tsx` | 主窗口聊天桥 | 唯一聊天引擎，处理命令并镜像流式状态 |
 | `src/modules/ai/lib/aiWindow.ts` | 窗口开关与 prefill | 失败时回滚乐观状态 |
-| `src/app/components/WorkspaceInputBar.tsx` | 主窗口底部输入区 | 所有终端统一保留 ShellInput，不作为 AI Composer |
 
 ## 4. 数据流与关键流程
 
@@ -79,4 +78,5 @@ AiWindowComposer.submit
 ## 7. 变更记录
 
 - 2026-10-30：删除 docked AI 输入区和旧 DOM mini 窗口，迁移完整 Composer 到原生独立窗口，默认快捷键改为 Mod+I，并建立单聊天引擎的跨窗口快照与命令桥。
-- 2026-10-30：复核 Composer chips 与终端统一块化造成的时间戳漂移；文件、选区和命令 chips 仍由共享 ChipsRow 展示，ShellInput 改为所有终端统一保留，AI 窗口桥接不变。
+- 2026-10-30：复核 Composer chips 与终端统一块化造成的时间戳漂移；文件、选区和命令 chips 仍由共享 ChipsRow 展示，AI 窗口桥接不变。
+- 2026-10-30：复核块输入方式修正造成的时间戳漂移；终端恢复原生提示符输入，底部共享输入区已删除，AI 窗口与 prefill 链路不变。

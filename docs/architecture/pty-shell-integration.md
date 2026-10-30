@@ -5,12 +5,13 @@ This guide elaborates on `TERAX.md`. If anything here conflicts with `TERAX.md`,
 ## Session model
 
 Every terminal session enables the OSC 133 block pipeline. There is no separate
-command-block session type. Direct terminal input remains active until OSC 133
-confirms prompt input, so unsupported shells stay usable. Bash before 4.4 lacks
-PS0 and emits `OSC 133;B;terax_blocks=0`, retaining its native prompt instead of
-activating Terax's shared command bar. This `plain` mode is an input fallback,
-not a different tab kind. Shell command labels stay bounded; block rerun uses
-the complete command submitted through Terax, never a truncated OSC label.
+command-block session type, and the shell prompt stays visible and directly
+usable in every mode. `TERAX_BLOCKS=1` only reserves blank gap rows above each
+prompt for block chrome; it never suppresses the prompt. Bash before 4.4 lacks
+PS0 and emits `OSC 133;B;terax_blocks=0`, which keeps it in `plain` mode with no
+gap rows and no block chrome. Shell command labels stay bounded; block rerun
+uses either a command submitted through Terax or a shell-reported command line
+below the 256-character truncation cap, never a truncated OSC label.
 
 A terminal tab maps to one PTY session. Sessions live in `PtyState` (`src-tauri/src/modules/pty/mod.rs:20`):
 

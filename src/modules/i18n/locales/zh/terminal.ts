@@ -21,15 +21,6 @@ export const terminalZh: typeof terminal = {
     exitCode: "退出码 {{code}}",
     commandFallback: "命令",
   },
-  watermark: {
-    browseHistory: "浏览你的命令历史",
-    autocomplete: "自动补全路径和命令",
-    switchShellAi: "在 Shell 和 AI 之间切换",
-    openAi: "打开 AI 助手",
-  },
-  shellInput: {
-    placeholder: "运行命令  -  ↑ 历史记录  {{shortcut}} 切换到 AI",
-  },
   pane: {
     unableToDisplay: "无法显示终端",
     unableToStart: "无法启动终端",

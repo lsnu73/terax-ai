@@ -43,13 +43,13 @@
 - 职责：终端仿真与渲染核心（含 WebGPU surface），被主应用引用（根包 19 处 import）。
 - 对外暴露：`lib/core.ts`。
 
-### 终端命令与结果块  `src/modules/terminal/`、`src/app/components/WorkspaceInputBar.tsx`
-- 职责：所有终端统一按 OSC 133 边界呈现命令和结果块，提供共享输入、块右键操作与历史搜索。
-- 对外暴露：`GhosttyBlocks.blockAtLine`、`BlockContextMenu`、`GhosttyBlockOverlay`、共享 ShellInput。
-- 关键依赖：[Shell OSC 133] → [Ghostty tracked pins] → [块控制器与覆盖层]；[终端右键] → [选区优先判断] → [块命中与菜单]；[Ctrl+R] → [全局分发跳过] → [CodeMirror 历史弹层或 Shell]。
+### 终端命令与结果块  `src/modules/terminal/`、`src-tauri/src/modules/pty/scripts/`
+- 职责：所有终端统一按 OSC 133 边界呈现命令和结果块，保持原生提示符与直接输入，提供块右键操作。
+- 对外暴露：`GhosttyBlocks.blockAtLine`、`BlockContextMenu`、`GhosttyBlockOverlay`。
+- 关键依赖：[Shell OSC 133] → [Ghostty tracked pins] → [块控制器与覆盖层]；[终端右键] → [选区优先判断] → [块命中与菜单]；[Ctrl+R] → [全局分发跳过] → [Shell 原生历史搜索]。
 - 代码索引：见 [atlas/features/终端命令与结果块.md](../atlas/features/终端命令与结果块.md)
 - 决策依据：见 decisions/2026-10-30-终端统一命令与结果块.md
-- 易错点：选区菜单与块菜单必须互斥（INV-013）；Ctrl+R 必须同时受全局分发和设置保存两层保护（INV-014）；`plain` 只是输入回退，不是独立终端类型。
+- 易错点：选区菜单与块菜单必须互斥（INV-013）；Ctrl+R 必须同时受全局分发和设置保存两层保护（INV-014）；`TERAX_BLOCKS=1` 只预留块头间隔空行，绝不能隐藏原生提示符；`plain` 表示缺少命令边界上报，不是独立终端类型。
 
 ### 终端链接打开  `src/modules/terminal/lib/terminalLinks.ts`、`src/modules/terminal/ghostty/`
 - 职责：把终端中的 URL 分到系统浏览器或 Terax 内置预览。

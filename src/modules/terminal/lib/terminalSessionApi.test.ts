@@ -8,7 +8,6 @@ import {
   clearFocusedTerminal,
   disposeSession,
   leafCwd,
-  leafGridSelection,
   whenSessionReady,
   writeToSession,
 } from "./terminalSessionApi";
@@ -52,10 +51,9 @@ describe("terminalSessionApi", () => {
     expect(writeToSession(8, "data")).toBe(false);
   });
 
-  it("routes cwd and grid selection to the owning Ghostty model", () => {
+  it("routes cwd to the owning Ghostty model", () => {
     vi.mocked(ghosttySession.hasGhosttySession).mockReturnValue(true);
     expect(leafCwd(7)).toBe("/workspace");
-    expect(leafGridSelection(7)).toBe("selected output");
   });
 
   it("clears and disposes focused Ghostty sessions through the Ghostty session", () => {
@@ -77,7 +75,7 @@ describe("terminalSessionApi", () => {
   });
 
   it("releases precreated block state when a leaf closes before initialization", () => {
-    ensureGhosttyBlocks(12).draft = "pending input";
+    ensureGhosttyBlocks(12);
     disposeSession(12);
     expect(ghosttyBlocks(12)).toBeUndefined();
   });

@@ -17,12 +17,6 @@ export const appZh: typeof app = {
   workspace: {
     unsavedBeforeSwitch: "请先保存或关闭未保存的编辑器标签页，再切换工作区。",
   },
-  workspaceInput: {
-    modeShell: "终端",
-    modeAi: "AI",
-    branchTooltip: "分支：{{branch}}",
-    typeInTerminal: "直接在终端中输入",
-  },
   closeDialog: {
     unsavedTitle: "未保存的更改",
     unsavedTitled: "“{{title}}”有未保存的更改。仍要关闭吗？",

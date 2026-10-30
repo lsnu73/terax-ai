@@ -313,17 +313,11 @@ export function submitToGhosttySession(leafId: number, text: string): boolean {
   if (accepted) {
     const blocks = ghosttyBlocks(leafId);
     if (blocks) {
-      blocks.everSubmitted = true;
       blocks.controller?.submitted(text);
       blocks.changed();
     }
   }
   return accepted;
-}
-
-export function interruptGhosttySession(leafId: number): boolean {
-  const session = sessions.get(leafId);
-  return session?.writer.enqueue(Uint8Array.of(3)) ?? false;
 }
 
 export function clearGhosttySession(leafId: number): boolean {
@@ -336,20 +330,11 @@ export function clearGhosttySession(leafId: number): boolean {
 }
 
 export function pasteIntoGhosttySession(leafId: number, text: string): boolean {
-  const blocks = ghosttyBlocks(leafId);
-  if (blocks?.getMode() === "prompt" && blocks.paste) {
-    blocks.paste(text);
-    return true;
-  }
   const session = sessions.get(leafId);
   if (!session?.input) return false;
   session.input.paste(text);
   session.surface?.focus();
   return true;
-}
-
-export function ghosttySelectionForLeaf(leafId: number): string | null {
-  return sessions.get(leafId)?.surface?.getSelection() ?? null;
 }
 
 export function ghosttyCwdForLeaf(leafId: number): string | null {
@@ -702,9 +687,6 @@ async function initializeSessionGeneration(
   const blockSession = ghosttyBlocks(session.leafId);
   if (blockSession) {
     blockSession.cellHeight = () => session.surface?.cellSize().height ?? 0;
-    // The shell/prompt input switch only depends on the block mode, so it runs
-    // when the mode changes instead of after every PTY chunk.
-    blockSession.modeEffect = () => applyBlockInputMode(session);
   }
   await blockSession?.attach(model, () => session.surface?.requestFrame());
   if (!alive()) {
@@ -864,12 +846,6 @@ function createGhosttyInput(
   model: GhosttyTerminalModelApi,
   surface: GhosttySurface,
 ): GhosttyInputController {
-  const insertPromptText = (text: string): boolean => {
-    const blocks = ghosttyBlocks(session.leafId);
-    if (blocks?.getMode() !== "prompt" || !blocks.paste) return false;
-    blocks.paste(text);
-    return true;
-  };
   return new GhosttyInputController({
     model,
     input: surface.inputElement(),
@@ -880,21 +856,8 @@ function createGhosttyInput(
     }),
     gridShiftY: () => surface.gridShiftY(),
     onData: (bytes) => {
-      if (
-        ghosttyBlocks(session.leafId)?.getMode() === "prompt" &&
-        !(bytes.length === 1 && bytes[0] === 3)
-      )
-        return;
       session.writer.enqueue(bytes);
     },
-    onKeyDown: (event) => {
-      const blocks = ghosttyBlocks(session.leafId);
-      return (
-        blocks?.getMode() === "prompt" && (blocks.keyDown?.(event) ?? false)
-      );
-    },
-    onText: insertPromptText,
-    onPaste: insertPromptText,
     getSelection: () => surface.getSelection(),
     onCopy: () => {
       const text = surface.getSelection();
@@ -906,33 +869,7 @@ function createGhosttyInput(
 }
 
 export function focusGhosttySession(leafId: number): void {
-  const session = sessions.get(leafId);
-  if (session) focusSessionSurface(session, session.surface);
-}
-
-function focusSessionSurface(
-  session: GhosttySession,
-  surface: GhosttySurface | null,
-): void {
-  const blocks = ghosttyBlocks(session.leafId);
-  if (blocks?.getMode() === "prompt" && blocks.focus) blocks.focus();
-  else surface?.focus();
-}
-
-function applyBlockInputMode(
-  session: GhosttySession,
-  surface = session.surface,
-): void {
-  const input = surface?.inputElement();
-  const blocks = ghosttyBlocks(session.leafId);
-  if (!input || !blocks) return;
-  const prompt = blocks.getMode() === "prompt";
-  const changed =
-    input.getAttribute("data-terax-block-prompt") !== String(prompt);
-  if (!changed) return;
-  input.setAttribute("data-terax-block-prompt", String(prompt));
-  surface?.setCursorEnabled(!prompt);
-  if (session.visible && session.focused) focusSessionSurface(session, surface);
+  sessions.get(leafId)?.surface?.focus();
 }
 
 /**
@@ -968,8 +905,7 @@ function attachGhosttySurface(
   surface.attach(session.container);
   surface.setVisible(true);
   surface.setFocused(session.focused);
-  applyBlockInputMode(session, surface);
-  if (session.focused) focusSessionSurface(session, surface);
+  if (session.focused) surface.focus();
 }
 
 function createWebGlFallbackSurface(

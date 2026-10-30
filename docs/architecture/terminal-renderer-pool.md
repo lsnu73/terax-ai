@@ -34,10 +34,10 @@ are still released on long invisibility. Models keep parsing until their leaves 
 Every terminal model/session owns command and result blocks, including their
 tracked native pins. Their controller and overlay load lazily, with bounded
 history and text metadata. Block presentation stops while hidden or occluded.
-The shared shell editor owns prompt input when shell integration supports it;
-interactive commands and alternate-screen applications own grid input. Both
-presentation backends apply the same input and cursor policy. Context-menu hit
-testing reads the same model and native block boundaries, never a DOM output copy.
+The native shell prompt always owns prompt input; interactive commands and
+alternate-screen applications own grid input. Both presentation backends apply
+the same input and cursor policy. Context-menu hit testing reads the same model
+and native block boundaries, never a DOM output copy.
 
 Accessible output is opt-in, lazy, bounded, and suspended with window presentation.
 It reads native text ranges without moving the renderer viewport or selection.

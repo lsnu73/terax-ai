@@ -19,15 +19,6 @@ export const terminal = {
     exitCode: "exit {{code}}",
     commandFallback: "command",
   },
-  watermark: {
-    browseHistory: "Browse your command history",
-    autocomplete: "Autocomplete paths and commands",
-    switchShellAi: "Switch between Shell and AI",
-    openAi: "Open the AI assistant",
-  },
-  shellInput: {
-    placeholder: "Run a command  -  ↑ history  {{shortcut}} switch to AI",
-  },
   pane: {
     unableToDisplay: "Unable to display terminal",
     unableToStart: "Unable to start terminal",

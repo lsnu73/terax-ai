@@ -1,6 +1,5 @@
 import { useCallback, useSyncExternalStore } from "react";
 import { BlockOverlay } from "@/modules/terminal/block/BlockOverlay";
-import { BlockWatermark } from "@/modules/terminal/block/BlockWatermark";
 import { ensureGhosttyBlocks } from "@/modules/terminal/ghostty/ghosttyBlockSessions";
 import { ghosttyBlockCellHeight } from "@/modules/terminal/ghostty/useGhosttyTerminalSession";
 import { submitToLeaf } from "@/modules/terminal/lib/terminalSessionApi";
@@ -32,22 +31,19 @@ export default function GhosttyBlockOverlay({
     onCloseSearch();
   }, [state, onCloseSearch]);
   return (
-    <>
-      <BlockWatermark leafId={leafId} subscribe={state.subscribeContent} />
-      <BlockOverlay
-        subscribe={state.subscribeViewport}
-        getVisible={getVisible}
-        searchBlock={(id, query, signal) =>
-          state.controller?.searchBlock(id, query, signal) ??
-          Promise.resolve([])
-        }
-        revealMatch={(match) => state.controller?.revealMatch(match)}
-        clearSearch={() => state.controller?.clearSearch()}
-        searchId={searchId}
-        onCloseSearch={closeSearch}
-        promptReady={mode === "prompt"}
-        onRunAgain={(command) => submitToLeaf(leafId, command)}
-      />
-    </>
+    <BlockOverlay
+      subscribe={state.subscribeViewport}
+      getVisible={getVisible}
+      searchBlock={(id, query, signal) =>
+        state.controller?.searchBlock(id, query, signal) ??
+        Promise.resolve([])
+      }
+      revealMatch={(match) => state.controller?.revealMatch(match)}
+      clearSearch={() => state.controller?.clearSearch()}
+      searchId={searchId}
+      onCloseSearch={closeSearch}
+      promptReady={mode === "prompt"}
+      onRunAgain={(command) => submitToLeaf(leafId, command)}
+    />
   );
 }

@@ -133,7 +133,6 @@ import {
   useState,
 } from "react";
 import { CloseDialogs } from "./components/CloseDialogs";
-import { WorkspaceInputBar } from "./components/WorkspaceInputBar";
 import { WorkspaceSurface } from "./components/WorkspaceSurface";
 import { useAppCloseGuard } from "./hooks/useAppCloseGuard";
 import {
@@ -1528,8 +1527,6 @@ export default function App() {
                         onSetMarkdownView={setMarkdownView}
                       />
                     </div>
-
-                    <WorkspaceInputBar activeLeafId={activeLeafId} />
                   </div>
                 </div>
               </ResizablePanel>

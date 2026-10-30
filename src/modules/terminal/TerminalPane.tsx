@@ -202,7 +202,7 @@ const GhosttyTerminalPane = memo(
                     state.model.bufferLineAtViewportRow(row),
                   );
               }
-              if (state?.getMode() === "prompt") state.focus?.();
+              session.focus();
             }}
             data-terminal-backend={backend}
           >

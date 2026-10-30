@@ -107,7 +107,7 @@ The main webview owns the only Chat engine. `AgentRunBridge` sends targeted snap
 
 `AiComposerProvider` (`src/modules/ai/lib/composer.tsx`) holds the complete Composer state inside the AI window. Attachments can be images, text files, or `selection` chips from the terminal or editor. Selections are wrapped as `<selection source="terminal|editor">…</selection>` blocks at submit time and are not pasted into the textarea. `buildComposerMessage` is the shared pure conversion used by the main-window command bridge, so snippets, slash commands, files and images keep the same wire format.
 
-The main workspace no longer mounts a docked AI input bar. Block terminals keep their own ShellInput, which is a separate terminal feature.
+The main workspace no longer mounts a docked AI input bar. Terminals keep their own native shell prompt, which is a separate terminal feature.
 
 ## Tools and approval
 

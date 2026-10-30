@@ -61,10 +61,6 @@ export class GhosttyBlocks {
     return this.integrated && !this.blockInputDisabled ? this.phase : "plain";
   }
 
-  get hasAnyBlock(): boolean {
-    return this.entries.length > 0;
-  }
-
   /**
    * Bumps whenever the set of blocks or any block's metadata can have changed
    * (start, finish, clear). Lets callers skip `visibleBlocks` while it, the
@@ -105,10 +101,14 @@ export class GhosttyBlocks {
       this.phase = "running";
       if (!event.marker) return;
       if (this.live) this.finish(event.marker, null);
-      const command =
-        this.pendingCommand ||
-        decodeBlockCommand(event.command ?? "").slice(0, 8192);
-      const canRerun = !!this.pendingCommand && this.pendingCommandComplete;
+      const raw = event.command ?? "";
+      const oscCommand = decodeBlockCommand(raw);
+      const command = this.pendingCommand || oscCommand.slice(0, 8192);
+      // Shell-reported commands are truncated at 256 characters by the
+      // integration scripts; only a payload below that cap is safe to rerun.
+      const canRerun = this.pendingCommand
+        ? this.pendingCommandComplete
+        : !!oscCommand && raw.length < 256;
       this.pendingCommand = "";
       this.pendingCommandComplete = false;
       this.live = {
@@ -267,7 +267,9 @@ export class GhosttyBlocks {
       const range = this.range(entry);
       if (!range) continue;
       const running = entry.end === null;
-      const firstLine = running ? range.start : Math.max(0, range.start - 2);
+      // Both bounds reach past the block edges: the rows above cover the
+      // command line and the header gap, the row below covers the divider.
+      const firstLine = Math.max(0, range.start - 2);
       const lastLine = running ? range.end : range.end + 1;
       if (line < firstLine || line > lastLine) continue;
       return {

@@ -17,12 +17,6 @@ export const app = {
     unsavedBeforeSwitch:
       "Save or close unsaved editor tabs before switching workspace.",
   },
-  workspaceInput: {
-    modeShell: "Shell",
-    modeAi: "AI",
-    branchTooltip: "Branch: {{branch}}",
-    typeInTerminal: "Type directly in the terminal",
-  },
   closeDialog: {
     unsavedTitle: "Unsaved Changes",
     unsavedTitled: '"{{title}}" has unsaved changes. Close anyway?',

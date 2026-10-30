@@ -160,17 +160,16 @@ and commands. The native marker ring is capped at 2,048 pins; JavaScript history
 is capped at 1,000 blocks and 512 KiB of estimated UTF-16 command/cwd text.
 Hidden/occluded block presentation stops. Block search yields after 128 rows or
 four milliseconds, retains at most 500 matches, and cancels obsolete queries.
-Block copy, search, sticky headers, Ask AI, rerun, shared shell input, and
-selection all use the same persistent Ghostty model. Block operations open from
-a context menu on the command, output, or block chrome; a nonempty text selection
-keeps the selection Ask AI UI instead.
+Block copy, search, sticky headers, Ask AI, rerun, and selection all use the
+same persistent Ghostty model. Terminals keep their native shell prompt and
+direct grid input; blocks are an overlay on top, never an input replacement.
+Block operations open from a context menu on the command, output, or block
+chrome; a nonempty text selection keeps the selection Ask AI UI instead.
 Block chrome commits with its matching renderer frame; it is recomputed only when
 the viewport origin, scrollback, size, cell height, block mode or block set
 (`GhosttyBlocks.revision`) changed, so frames that only repaint cells cost no
 block work and no React commit. The per-frame path reads cached cell metrics, never
-layout, and the shell/prompt input switch runs on block-mode changes, not per PTY
-chunk. Command-editor focus does
-not lower active-pane cadence. Divider padding is presentation-only and does not
+layout. Divider padding is presentation-only and does not
 change copied command boundaries. Scrollbars preserve native fractional positions
 and ignore delayed programmatic scroll events. Hidden output does no surface DOM
 or search-mask work until presentation resumes.
@@ -185,10 +184,10 @@ WebKit's caret animation (a display link at display rate) running at ~3 % CPU an
 ~250 wakeups/s while idle, a non-collapsed selection paints no caret (0.2 %, ~10/s).
 It re-arms after input, key release and focus, never during IME composition, and
 native Copy/Cut without terminal text must not copy the placeholder.
-Unclaimed macOS Command shortcuts reach the native menu after explicit clipboard,
-block-editor, and readline bindings, including when Kitty keyboard mode is active.
-The block prompt retains an enabled terminal input proxy for native menus and
-routes editing keys, composed text and paste back to its command editor.
+Unclaimed macOS Command shortcuts reach the native menu after explicit clipboard
+and readline bindings, including when Kitty keyboard mode is active.
+The terminal input proxy stays enabled for native menus; editing keys, composed
+text and paste go straight to the shell.
 Character drags retain a native selection pin from pointerdown, including before
 the first pointermove. Unmoved clicks and lost captures discard provisional pins.
 Key encoding supplies the base character required by Kitty keyboard mode; plain
@@ -196,21 +195,23 @@ keys and key releases also use Ghostty encoding when the application requests it
 Terminal text uses the configured font, an installed Nerd Font when detected,
 or bundled JetBrains Mono. Private-use prompt symbols require an installed font
 that supplies them; Terax does not ship a separate symbol font. Native color
-emoji remain on the system fallback path. Rerun requires the complete command
-submitted through Terax; truncated shell labels are never executed.
+emoji remain on the system fallback path. Rerun requires the complete command:
+either one submitted through Terax or a shell-reported command line below the
+256-character truncation cap; truncated shell labels are never executed.
 Primary-screen full erase, scrollback erase, and terminal reset invalidate block
 pins at parse time and clear block chrome, selection, and search. Commands after
 an erase in the same output chunk retain their new pins. Alternate-screen erases
 preserve primary block history. Block scrollbar status dots are removed along
 with their timers and history scans.
 
-Every PTY requests block integration. The shared command bar activates after
-shell integration confirms prompt input; unsupported shells keep direct terminal
-input and their native prompt. Bash before 4.4 reports
-`OSC 133;B;terax_blocks=0` because it lacks PS0. Ctrl/Cmd+Shift+T creates a
-private terminal. Ctrl+R is reserved for terminal history search: global shortcut
-dispatch never claims it, the shared command editor opens its history popover,
-and Settings rejects attempts to assign it with a conflict warning.
+Every PTY requests block integration. The shell prompt stays visible and
+directly usable in every mode; `TERAX_BLOCKS=1` only reserves blank gap rows
+above each prompt for block chrome. Bash before 4.4 reports
+`OSC 133;B;terax_blocks=0` because it lacks PS0, so it never enters block mode
+and gets no gap rows. Ctrl/Cmd+Shift+T creates a private terminal. Ctrl+R is
+reserved for the shell's own reverse history search: global shortcut dispatch
+never claims it, and Settings rejects attempts to assign it with a conflict
+warning.
 
 Settings offer Automatic or WebGL for new terminals, plus opt-in screen reader
 output. Accessible text is limited to 256 rows / 64 KiB and refreshes at most four
@@ -406,7 +407,7 @@ BYOK. Providers and models are **data-driven**, not compiled in: `terax-ai-model
 - **Sub-agents** (`agents/registry.ts`, `agents/runSubagent.ts`): named sub-agents with their own system prompts and tool subsets, invoked by the main agent via `run_subagent` tool.
 - **Sessions** (`lib/sessions.ts` + `store/chatStore.ts`): conversations are organized into named sessions. `terax-ai-sessions.json` retains only metadata and `activeId`; message arrays live in atomically replaced `conversations/session-<id>.json` files owned by Rust. Messages cross IPC as raw JSON bytes (validated by a streaming pass, never rebuilt as a document tree); every save flushes the new file (plain `fsync`) before the rename and keeps the replaced version as `session-<id>.json.bak`; mid-stream saves are scheduled at most every 2 s and at least every 4 s, while turn end, session switch and window close save durably (full flush, `F_FULLFSYNC` on Apple, plus a directory sync). A queued write for a session is replaced by a newer one, and a damaged file is set aside as `session-<id>.json.corrupt` and the load falls back to the `.bak` before the conversation reads as empty, so one bad conversation never breaks the rest. Legacy migration is per session: it removes a legacy key only after its message file is safe, never overwrites a newer file on retry, skips and reports a failing key, and deletes `terax-ai-sessions.before-message-files.json` once every conversation that copy holds, not only the ids the caller lists, reads back as a valid file (a leftover copy older than seven days with nothing to migrate is pruned at startup, and deleting a session scrubs it from the copy). Window close flushes with a timeout and never traps: a failed flush shows a "Close anyway" error once. Per-session queues and a native I/O gate serialize storage operations across page reloads; failed latest writes remain retryable, and window close flushes pending storage. `chatStore.ts` keeps a module-scoped `Map<sessionId, Chat<UIMessage>>`; `getOrCreateChat(sessionId)` lazily constructs a `Chat`, seeded with messages from a hydration map populated by `hydrateSessions()` (called once from `App.tsx`). `AgentRunBridge` mirrors active-session messages to disk on every change and auto-derives titles from the first user message. Switching the API key wipes the chat map; sessions persist.
 - **Independent AI window** (`src/ai/`, `lib/aiWindow.ts`, `lib/aiWindowBridge.ts`, `src-tauri/src/modules/ai_window.rs`): Ctrl/Cmd+I toggles a native, unparented WebviewWindow that can move anywhere on screen. Async native commands create and destroy it; `tauri-plugin-window-state` restores its geometry. The main webview owns the only Chat engine. `AgentRunBridge` sends targeted snapshots to `ai` and handles structured commands for sending, stopping, Continue, approvals, sessions, models and plans. API keys never enter snapshots.
-- **Composer** (`lib/composer.tsx`, `components/AiWindowComposer.tsx`, `lib/composerMessage.ts`): the complete Composer lives at the bottom of the independent AI window. It preserves images, text files, `@` picks, snippets, slash commands, and `selection` chips from the terminal or editor. Selections are wrapped as `<selection source="terminal|editor">…</selection>` blocks at submit. The AI webview sends a complete `ComposerSubmission` to the main webview, where `buildComposerMessage` performs the same pure conversion before the unique Chat sends it. The old docked AI input and DOM mini window are gone; the terminal ShellInput is separate and remains.
+- **Composer** (`lib/composer.tsx`, `components/AiWindowComposer.tsx`, `lib/composerMessage.ts`): the complete Composer lives at the bottom of the independent AI window. It preserves images, text files, `@` picks, snippets, slash commands, and `selection` chips from the terminal or editor. Selections are wrapped as `<selection source="terminal|editor">…</selection>` blocks at submit. The AI webview sends a complete `ComposerSubmission` to the main webview, where `buildComposerMessage` performs the same pure conversion before the unique Chat sends it. The old docked AI input and DOM mini window are gone; the terminal keeps its own native prompt input.
 - **AI HTTP transport**: binary request bodies and response packets avoid JSON byte arrays. Native requests are owned by their calling window, explicitly cancelled on abort, page reload, or window destruction, and bounded to 16 concurrent requests. A 128 KiB byte window (at most 256 packets) carries at most 64 KiB per packet and coalesces ready network chunks; the webview acknowledges validated cumulative byte boundaries once half a window has arrived, so small SSE chunks cost no per-chunk IPC, and a consumer that grants no credit for two minutes is abandoned and its request cancelled. The frontend consumer queue is capped at 192 KiB, request bodies at 64 MiB, and request metadata at 64 KiB. Consumer cancellation during startup is repeated after native registration completes. SSRF validation and DNS pinning remain in Rust.
 - **Live context bridge**: `App.tsx` calls `setLive({ getCwd, getTerminalContext, … })` so tools can read the *currently active* terminal's cwd + last 300 lines of buffer. Lazy by design - don't pre-snapshot.
 - **Tools** (`tools/tools.ts`): `read_file`, `list_directory`, `fs_search`, `fs_grep` auto-execute. `write_file`, `create_directory`, `rename`, `delete`, `run_command`, `shell_session_run`, `shell_bg_spawn` set `needsApproval: true` and the AI SDK pauses for an in-UI confirmation card. Auto-send after approval uses `lastAssistantMessageIsCompleteWithApprovalResponses`. `lib/security.ts` is a deny-list refusing obvious secret paths (`.env*`, `.ssh/`, credentials, keychain dirs) - apply on **both** read and write paths and don't bypass it.
