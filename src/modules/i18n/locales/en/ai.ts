@@ -75,6 +75,13 @@ export const ai = {
       },
     },
   },
+  approvalMode: {
+    title: "Execution approval",
+    review: "Ask me first",
+    reviewHint: "Confirm every command and file edit",
+    auto: "Auto execute",
+    autoHint: "Run commands and edits without confirmation",
+  },
   plan: {
     modeLabel: "Plan mode",
     queued_one: "· {{count}} queued",

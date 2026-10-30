@@ -204,7 +204,9 @@ export function AiComposerInput({
   return (
     <Popover open={pickerOpen}>
       <PopoverAnchor asChild>
-        <div className="flex items-start gap-2">
+        {/* flex-1：外层是 flex 行，缺了它这一层会收缩到 textarea 的默认列宽，
+            输入框就不再撑满整行。 */}
+        <div className="flex min-w-0 flex-1 items-start gap-2">
           <textarea
             ref={c.textareaRef}
             value={c.value}

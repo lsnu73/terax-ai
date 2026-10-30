@@ -70,6 +70,13 @@ export const aiZh: typeof ai = {
       },
     },
   },
+  approvalMode: {
+    title: "执行审批",
+    review: "需要我审核",
+    reviewHint: "执行命令或修改文件前先向我确认",
+    auto: "直接执行",
+    autoHint: "命令和文件修改无需确认直接执行",
+  },
   plan: {
     modeLabel: "计划模式",
     queued_one: "· {{count}} 项待审",

@@ -24,6 +24,9 @@ export type BackgroundKind = "none" | "image";
 
 export type TerminalCursorStyle = "bar" | "block" | "underline";
 
+/** AI 工具调用（命令/文件编辑等）的审批模式。 */
+export type AiApprovalMode = "review" | "auto";
+
 export const EDITOR_THEMES = [
   "kanagawa",
   "kanagawa-lotus",
@@ -157,6 +160,8 @@ export type Preferences = {
   zoomLevel: number;
   agentNotifications: boolean;
   agentNotificationSound: boolean;
+  /** AI 工具调用审批模式："review" 逐次确认；"auto" 直接执行。 */
+  aiApprovalMode: AiApprovalMode;
   agentLaunchCommands: AgentLaunchCommands;
   defaultWorkspaceEnv: string;
   shortcuts: Record<ShortcutId, KeyBinding[]>;
@@ -241,6 +246,7 @@ const KEY_LAST_WSL_DISTRO = "lastWslDistro";
 const KEY_ZOOM_LEVEL = "zoomLevel";
 const KEY_AGENT_NOTIFICATIONS = "agentNotifications";
 const KEY_AGENT_NOTIFICATION_SOUND = "agentNotificationSound";
+const KEY_AI_APPROVAL_MODE = "aiApprovalMode";
 const KEY_AGENT_LAUNCH_COMMANDS = "agentLaunchCommands";
 const KEY_DEFAULT_WORKSPACE_ENV = "defaultWorkspaceEnv";
 const KEY_SHORTCUTS = "shortcuts";
@@ -323,6 +329,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   zoomLevel: 1.0,
   agentNotifications: true,
   agentNotificationSound: true,
+  aiApprovalMode: "review",
   agentLaunchCommands: DEFAULT_AGENT_LAUNCH_COMMANDS,
   defaultWorkspaceEnv: "local",
   shortcuts: {} as Record<ShortcutId, KeyBinding[]>,
@@ -465,6 +472,9 @@ export async function loadPreferences(): Promise<Preferences> {
     agentNotificationSound:
       get<boolean>(KEY_AGENT_NOTIFICATION_SOUND) ??
       DEFAULT_PREFERENCES.agentNotificationSound,
+    aiApprovalMode: coerceAiApprovalMode(
+      get<unknown>(KEY_AI_APPROVAL_MODE),
+    ),
     agentLaunchCommands: normalizeAgentLaunchCommands(
       get<unknown>(KEY_AGENT_LAUNCH_COMMANDS),
     ),
@@ -706,6 +716,14 @@ export function coerceTerminalCursorStyle(value: unknown): TerminalCursorStyle {
 
 export async function setTerminalCursorStyle(value: unknown): Promise<void> {
   await writePref(KEY_TERMINAL_CURSOR_STYLE, coerceTerminalCursorStyle(value));
+}
+
+export function coerceAiApprovalMode(value: unknown): AiApprovalMode {
+  return value === "auto" ? "auto" : "review";
+}
+
+export async function setAiApprovalMode(value: unknown): Promise<void> {
+  await writePref(KEY_AI_APPROVAL_MODE, coerceAiApprovalMode(value));
 }
 
 export async function setTerminalFontFamily(value: string): Promise<void> {

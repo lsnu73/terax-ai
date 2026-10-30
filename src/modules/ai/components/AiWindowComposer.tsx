@@ -5,29 +5,39 @@ import {
   StopCircleIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import type { UIMessage } from "ai";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import type { AiWindowPrefill } from "../lib/aiWindowBridge";
 import {
   ACCEPTED_FILES,
   AiComposerProvider,
-  useComposer,
   type FileAttachment,
+  useComposer,
 } from "../lib/composer";
 import type { ComposerSubmission } from "../lib/composerMessage";
+import { AgentSwitcher } from "./AgentSwitcher";
 import { AiComposerInput } from "./AiComposerInput";
+import { AiContextIndicator } from "./AiContextIndicator";
+import { ApprovalModeToggle } from "./ApprovalModeToggle";
 import { ChipsRow } from "./ChipsRow";
+import { ModelPicker } from "./ModelPicker";
 
 export function AiWindowComposer({
   prefill,
   onPrefillApplied,
   onSend,
   onStop,
+  messages,
+  onSelectModel,
 }: {
   prefill: AiWindowPrefill | null;
   onPrefillApplied: () => void;
   onSend: (submission: ComposerSubmission) => Promise<void>;
   onStop: () => void;
+  /** 会话消息，供上下文用量指示器展示；快照未就绪时为 null。 */
+  messages: UIMessage[] | null;
+  onSelectModel: (id: string) => void;
 }) {
   return (
     <AiComposerProvider sendSubmission={onSend} stopSubmission={onStop}>
@@ -35,8 +45,30 @@ export function AiWindowComposer({
       <div className="shrink-0 border-t border-border/60 bg-card/40 px-3 py-2">
         <ComposerChips />
         <ComposerControls />
+        <ComposerMetaRow messages={messages} onSelectModel={onSelectModel} />
       </div>
     </AiComposerProvider>
+  );
+}
+
+/**
+ * 输入框下方的元信息行：角色切换、执行审批模式、上下文用量与模型切换。
+ */
+function ComposerMetaRow({
+  messages,
+  onSelectModel,
+}: {
+  messages: UIMessage[] | null;
+  onSelectModel: (id: string) => void;
+}) {
+  return (
+    <div className="mt-1.5 flex items-center gap-1.5">
+      <AgentSwitcher isMiniWindow />
+      <ApprovalModeToggle />
+      {messages ? <AiContextIndicator messages={messages} /> : null}
+      <div className="flex-1" />
+      <ModelPicker onSelectModel={onSelectModel} />
+    </div>
   );
 }
 
@@ -100,7 +132,9 @@ function ComposerChips() {
         onRemoveFile={composer.removeFile}
         snippets={composer.pickedSnippets}
         onRemoveSnippet={(id) => {
-          const snippet = composer.pickedSnippets.find((item) => item.id === id);
+          const snippet = composer.pickedSnippets.find(
+            (item) => item.id === id,
+          );
           composer.removeSnippet(id);
           if (!snippet) return;
           const token = new RegExp(`(^|\\s)#${snippet.handle}\\b ?`);

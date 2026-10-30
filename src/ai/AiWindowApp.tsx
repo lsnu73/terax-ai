@@ -10,25 +10,8 @@ import { Spinner } from "@/components/ui/spinner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { IS_MAC } from "@/lib/platform";
 import { cn } from "@/lib/utils";
-import { invoke } from "@tauri-apps/api/core";
-import { emitTo, listen } from "@tauri-apps/api/event";
-import {
-  Add01Icon,
-  AlertCircleIcon,
-  ArrowDown01Icon,
-  Cancel01Icon,
-  Delete02Icon,
-  FilterIcon,
-  TerminalIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
-import { AgentSwitcher } from "@/modules/ai/components/AgentSwitcher";
 import { AiChatView } from "@/modules/ai/components/AiChat";
-import { AiContextIndicator } from "@/modules/ai/components/AiContextIndicator";
 import { AiWindowComposer } from "@/modules/ai/components/AiWindowComposer";
-import { ModelPicker } from "@/modules/ai/components/ModelPicker";
 import { PlanDiffReview } from "@/modules/ai/components/PlanDiffReview";
 import { TodoStrip } from "@/modules/ai/components/TodoStrip";
 import { useAiBootstrap } from "@/modules/ai/hooks/useAiBootstrap";
@@ -46,6 +29,20 @@ import { useChatStore } from "@/modules/ai/store/chatStore";
 import { usePlanStore } from "@/modules/ai/store/planStore";
 import { useTodosStore } from "@/modules/ai/store/todoStore";
 import { useWorkspaceEnvStore } from "@/modules/workspace";
+import {
+  Add01Icon,
+  AlertCircleIcon,
+  ArrowDown01Icon,
+  Cancel01Icon,
+  Delete02Icon,
+  FilterIcon,
+  TerminalIcon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { invoke } from "@tauri-apps/api/core";
+import { emitTo, listen } from "@tauri-apps/api/event";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 const SUGGESTIONS = [
   {
@@ -215,6 +212,8 @@ export function AiWindowApp() {
           onPrefillApplied={() => setPrefill(null)}
           onSend={(submission) => sendCommand({ type: "send", submission })}
           onStop={() => void sendCommand({ type: "stop" })}
+          messages={snapshot?.messages ?? null}
+          onSelectModel={(id) => void sendCommand({ type: "select-model", id })}
         />
         <PlanDiffReview
           onRemoveOne={(id) => void sendCommand({ type: "plan-remove", id })}
@@ -259,6 +258,9 @@ function Header({
             Terax AI
           </span>
         </div>
+        {snapshot ? (
+          <SessionPicker snapshot={snapshot} onSendCommand={onSendCommand} />
+        ) : null}
         <div className="flex-1" data-tauri-drag-region />
         {busy ? (
           <span className="flex min-w-0 items-center gap-1 text-[10px] text-muted-foreground">
@@ -268,7 +270,6 @@ function Header({
             </span>
           </span>
         ) : null}
-        {snapshot ? <AiContextIndicator messages={snapshot.messages} /> : null}
         <Button
           type="button"
           size="icon"
@@ -280,18 +281,6 @@ function Header({
         >
           <HugeiconsIcon icon={Cancel01Icon} size={12} strokeWidth={1.75} />
         </Button>
-      </div>
-      <div className="flex h-9 items-center gap-1.5 px-2 pb-1.5">
-        <AgentSwitcher isMiniWindow />
-        {snapshot ? (
-          <SessionPicker snapshot={snapshot} onSendCommand={onSendCommand} />
-        ) : null}
-        <div className="flex-1" data-tauri-drag-region />
-        <ModelPicker
-          onSelectModel={(id) =>
-            void onSendCommand({ type: "select-model", id })
-          }
-        />
       </div>
     </header>
   );
@@ -309,7 +298,9 @@ function SessionPicker({
     snapshot.sessions.find((session) => session.id === snapshot.sessionId) ??
     null;
   if (!active) return null;
-  const sorted = [...snapshot.sessions].sort((a, b) => b.updatedAt - a.updatedAt);
+  const sorted = [...snapshot.sessions].sort(
+    (a, b) => b.updatedAt - a.updatedAt,
+  );
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -376,7 +367,9 @@ function SessionRow({
         active && "bg-accent/40",
       )}
     >
-      <span className="min-w-0 flex-1 truncate">{sessionTitle(session, t)}</span>
+      <span className="min-w-0 flex-1 truncate">
+        {sessionTitle(session, t)}
+      </span>
       <button
         type="button"
         data-session-delete
@@ -406,7 +399,11 @@ function EmptyState({ onPick }: { onPick: (text: string) => void }) {
   const { t } = useTranslation();
   return (
     <div className="flex h-full flex-col items-center justify-center gap-6 overflow-y-auto px-8 py-8 text-center">
-      <img src="/logo.png" alt="Terax" className="size-12 shrink-0 opacity-90" />
+      <img
+        src="/logo.png"
+        alt="Terax"
+        className="size-12 shrink-0 opacity-90"
+      />
       <div className="space-y-1.5">
         <p className="text-[14px] font-semibold tracking-tight">
           {t("ai.miniWindow.emptyTitle")}
@@ -424,7 +421,11 @@ function EmptyState({ onPick }: { onPick: (text: string) => void }) {
             className="group flex items-center gap-2.5 rounded-lg border border-border bg-card/70 px-2.5 py-2 text-left transition-colors hover:bg-muted/50"
           >
             <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted/70 text-muted-foreground group-hover:bg-foreground/5 group-hover:text-foreground">
-              <HugeiconsIcon icon={suggestion.icon} size={13} strokeWidth={1.75} />
+              <HugeiconsIcon
+                icon={suggestion.icon}
+                size={13}
+                strokeWidth={1.75}
+              />
             </div>
             <div className="min-w-0 flex-1">
               <div className="text-[12px] font-medium text-foreground">
