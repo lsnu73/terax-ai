@@ -11,6 +11,8 @@ export const settingsShortcuts = {
   clearShortcut: "Clear shortcut",
   recording: "Recording...",
   escToCancel: "(Esc to cancel)",
+  terminalHistoryConflict:
+    "Ctrl+R is reserved for terminal command history search. Choose another shortcut.",
   resetDialog: {
     title: "Reset all shortcuts?",
     description:

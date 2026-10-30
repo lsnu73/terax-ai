@@ -6,22 +6,21 @@ import { useTranslation } from "react-i18next";
 const ShellInput = lazy(() => import("@/modules/terminal/block/ShellInput"));
 
 type Props = {
-  isBlockTab: boolean;
   activeLeafId: number | null;
 };
 
-export function WorkspaceInputBar({ isBlockTab, activeLeafId }: Props) {
+export function WorkspaceInputBar({ activeLeafId }: Props) {
   const { t } = useTranslation();
-  const controller = useBlockController(isBlockTab ? activeLeafId : null);
+  const controller = useBlockController(activeLeafId);
   const blockMode = controller?.blockMode ?? "prompt";
 
-  if (!isBlockTab) return null;
+  if (activeLeafId === null) return null;
 
   return (
     <div data-workspace-input className="terax-reveal" data-state="open">
       <div className="shrink-0 border-t border-border/60 bg-foreground/[0.02] px-3 py-2">
         <div className="relative min-w-0 flex-1">
-          {controller && activeLeafId != null ? (
+          {controller ? (
             blockMode === "plain" ? (
               <button
                 type="button"

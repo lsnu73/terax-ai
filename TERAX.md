@@ -153,14 +153,17 @@ closed, restarted, or replaced session.
 xterm, its addons, CSS, snapshots, session pool, and dormant byte ring are removed.
 Unsupported graphics produce a visible error with retry instead of changing models.
 
-Command blocks use parser-time Ghostty tracked pins, including endpoint columns,
-so command ranges survive reflow and exclude following prompts and commands.
-The native marker ring is capped at 2,048 pins; JavaScript history is capped at
-1,000 blocks and 512 KiB of estimated UTF-16 command/cwd text. Block implementation
-and UI load only for block sessions, and hidden/occluded block presentation stops.
-Block search yields after 128 rows or four milliseconds, retains at most 500
-matches, and cancels obsolete queries. Block copy, search, sticky headers, navigation, Ask AI, rerun, shared shell input,
-and selection all use the same persistent Ghostty model.
+Every terminal session uses command and result blocks; there is no separate
+command-block tab kind. Blocks use parser-time Ghostty tracked pins, including
+endpoint columns, so command ranges survive reflow and exclude following prompts
+and commands. The native marker ring is capped at 2,048 pins; JavaScript history
+is capped at 1,000 blocks and 512 KiB of estimated UTF-16 command/cwd text.
+Hidden/occluded block presentation stops. Block search yields after 128 rows or
+four milliseconds, retains at most 500 matches, and cancels obsolete queries.
+Block copy, search, sticky headers, Ask AI, rerun, shared shell input, and
+selection all use the same persistent Ghostty model. Block operations open from
+a context menu on the command, output, or block chrome; a nonempty text selection
+keeps the selection Ask AI UI instead.
 Block chrome commits with its matching renderer frame; it is recomputed only when
 the viewport origin, scrollback, size, cell height, block mode or block set
 (`GhosttyBlocks.revision`) changed, so frames that only repaint cells cost no
@@ -173,8 +176,9 @@ and ignore delayed programmatic scroll events. Hidden output does no surface DOM
 or search-mask work until presentation resumes.
 
 Terminal clipboard shortcuts use the native text clipboard plugin on all desktop
-platforms. Context clicks expose the selected text through the input element to
-restore the webview's native text menu; no persistent DOM scrollback is maintained.
+platforms. Context clicks with selected text preserve the selection workflow;
+without a selection, viewport rows are mapped to native buffer lines for block
+hit testing. No persistent DOM scrollback is maintained.
 On macOS the input `<textarea>` always holds one selected placeholder character
 (`TerminalInputProxy`; elsewhere it stays empty, a selection could take X11 PRIMARY): a focused editable with a collapsed selection keeps
 WebKit's caret animation (a display link at display rate) running at ~3 % CPU and
@@ -200,9 +204,13 @@ an erase in the same output chunk retain their new pins. Alternate-screen erases
 preserve primary block history. Block scrollbar status dots are removed along
 with their timers and history scans.
 
-The shared command bar activates after shell integration confirms prompt input.
-Bare shells keep direct terminal input. Bash before 4.4 reports
-`OSC 133;B;terax_blocks=0` and keeps its native prompt because it lacks PS0.
+Every PTY requests block integration. The shared command bar activates after
+shell integration confirms prompt input; unsupported shells keep direct terminal
+input and their native prompt. Bash before 4.4 reports
+`OSC 133;B;terax_blocks=0` because it lacks PS0. Ctrl/Cmd+Shift+T creates a
+private terminal. Ctrl+R is reserved for terminal history search: global shortcut
+dispatch never claims it, the shared command editor opens its history popover,
+and Settings rejects attempts to assign it with a conflict warning.
 
 Settings offer Automatic or WebGL for new terminals, plus opt-in screen reader
 output. Accessible text is limited to 256 rows / 64 KiB and refreshes at most four
@@ -398,7 +406,7 @@ BYOK. Providers and models are **data-driven**, not compiled in: `terax-ai-model
 - **Sub-agents** (`agents/registry.ts`, `agents/runSubagent.ts`): named sub-agents with their own system prompts and tool subsets, invoked by the main agent via `run_subagent` tool.
 - **Sessions** (`lib/sessions.ts` + `store/chatStore.ts`): conversations are organized into named sessions. `terax-ai-sessions.json` retains only metadata and `activeId`; message arrays live in atomically replaced `conversations/session-<id>.json` files owned by Rust. Messages cross IPC as raw JSON bytes (validated by a streaming pass, never rebuilt as a document tree); every save flushes the new file (plain `fsync`) before the rename and keeps the replaced version as `session-<id>.json.bak`; mid-stream saves are scheduled at most every 2 s and at least every 4 s, while turn end, session switch and window close save durably (full flush, `F_FULLFSYNC` on Apple, plus a directory sync). A queued write for a session is replaced by a newer one, and a damaged file is set aside as `session-<id>.json.corrupt` and the load falls back to the `.bak` before the conversation reads as empty, so one bad conversation never breaks the rest. Legacy migration is per session: it removes a legacy key only after its message file is safe, never overwrites a newer file on retry, skips and reports a failing key, and deletes `terax-ai-sessions.before-message-files.json` once every conversation that copy holds, not only the ids the caller lists, reads back as a valid file (a leftover copy older than seven days with nothing to migrate is pruned at startup, and deleting a session scrubs it from the copy). Window close flushes with a timeout and never traps: a failed flush shows a "Close anyway" error once. Per-session queues and a native I/O gate serialize storage operations across page reloads; failed latest writes remain retryable, and window close flushes pending storage. `chatStore.ts` keeps a module-scoped `Map<sessionId, Chat<UIMessage>>`; `getOrCreateChat(sessionId)` lazily constructs a `Chat`, seeded with messages from a hydration map populated by `hydrateSessions()` (called once from `App.tsx`). `AgentRunBridge` mirrors active-session messages to disk on every change and auto-derives titles from the first user message. Switching the API key wipes the chat map; sessions persist.
 - **Independent AI window** (`src/ai/`, `lib/aiWindow.ts`, `lib/aiWindowBridge.ts`, `src-tauri/src/modules/ai_window.rs`): Ctrl/Cmd+I toggles a native, unparented WebviewWindow that can move anywhere on screen. Async native commands create and destroy it; `tauri-plugin-window-state` restores its geometry. The main webview owns the only Chat engine. `AgentRunBridge` sends targeted snapshots to `ai` and handles structured commands for sending, stopping, Continue, approvals, sessions, models and plans. API keys never enter snapshots.
-- **Composer** (`lib/composer.tsx`, `components/AiWindowComposer.tsx`, `lib/composerMessage.ts`): the complete Composer lives at the bottom of the independent AI window. It preserves images, text files, `@` picks, snippets, slash commands, and `selection` chips from the terminal or editor. Selections are wrapped as `<selection source="terminal|editor">…</selection>` blocks at submit. The AI webview sends a complete `ComposerSubmission` to the main webview, where `buildComposerMessage` performs the same pure conversion before the unique Chat sends it. The old docked AI input and DOM mini window are gone; block terminal ShellInput is separate and remains.
+- **Composer** (`lib/composer.tsx`, `components/AiWindowComposer.tsx`, `lib/composerMessage.ts`): the complete Composer lives at the bottom of the independent AI window. It preserves images, text files, `@` picks, snippets, slash commands, and `selection` chips from the terminal or editor. Selections are wrapped as `<selection source="terminal|editor">…</selection>` blocks at submit. The AI webview sends a complete `ComposerSubmission` to the main webview, where `buildComposerMessage` performs the same pure conversion before the unique Chat sends it. The old docked AI input and DOM mini window are gone; the terminal ShellInput is separate and remains.
 - **AI HTTP transport**: binary request bodies and response packets avoid JSON byte arrays. Native requests are owned by their calling window, explicitly cancelled on abort, page reload, or window destruction, and bounded to 16 concurrent requests. A 128 KiB byte window (at most 256 packets) carries at most 64 KiB per packet and coalesces ready network chunks; the webview acknowledges validated cumulative byte boundaries once half a window has arrived, so small SSE chunks cost no per-chunk IPC, and a consumer that grants no credit for two minutes is abandoned and its request cancelled. The frontend consumer queue is capped at 192 KiB, request bodies at 64 MiB, and request metadata at 64 KiB. Consumer cancellation during startup is repeated after native registration completes. SSRF validation and DNS pinning remain in Rust.
 - **Live context bridge**: `App.tsx` calls `setLive({ getCwd, getTerminalContext, … })` so tools can read the *currently active* terminal's cwd + last 300 lines of buffer. Lazy by design - don't pre-snapshot.
 - **Tools** (`tools/tools.ts`): `read_file`, `list_directory`, `fs_search`, `fs_grep` auto-execute. `write_file`, `create_directory`, `rename`, `delete`, `run_command`, `shell_session_run`, `shell_bg_spawn` set `needsApproval: true` and the AI SDK pauses for an in-UI confirmation card. Auto-send after approval uses `lastAssistantMessageIsCompleteWithApprovalResponses`. `lib/security.ts` is a deny-list refusing obvious secret paths (`.env*`, `.ssh/`, credentials, keychain dirs) - apply on **both** read and write paths and don't bypass it.

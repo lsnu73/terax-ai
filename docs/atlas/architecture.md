@@ -49,6 +49,14 @@ IPC 命令索引见 [../architecture/two-process-model.md](../architecture/two-p
 
 前端模块细目见 [../../TERAX.md](../../TERAX.md) 的 Module layout，避免在此维护第二份逐模块说明。
 
+## 终端块与快捷键边界
+
+- 所有 PTY 统一启用 OSC 133 命令与结果块，不再有独立命令块标签类型。`plain` 只是 Shell 不支持共享输入时的回退。
+- 块渲染、右键命中、复制、搜索和重跑都读取同一个持久 Ghostty model；选区「问问 Terax」优先于块右键菜单。
+- Ctrl+R 在全局快捷键分发层保留给终端历史搜索，旧用户偏好也不能重新占用；设置页拒绝保存冲突绑定并显示警告。
+
+实现定位见 [features/终端命令与结果块.md](features/终端命令与结果块.md)，设计原因见 [../lore/decisions/2026-10-30-终端统一命令与结果块.md](../lore/decisions/2026-10-30-终端统一命令与结果块.md)。
+
 ## 关键第三方库
 
 | 库 | 用途 | 注意事项 |

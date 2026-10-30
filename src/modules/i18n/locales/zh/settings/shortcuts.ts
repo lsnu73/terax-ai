@@ -13,6 +13,7 @@ export const settingsShortcutsZh: typeof settingsShortcuts = {
   clearShortcut: "清除快捷键",
   recording: "录制中…",
   escToCancel: "（按 Esc 取消）",
+  terminalHistoryConflict: "Ctrl+R 已保留给终端历史命令搜索，请设置其他快捷键。",
   resetDialog: {
     title: "重置所有快捷键？",
     description:

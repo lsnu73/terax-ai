@@ -145,6 +145,11 @@ export function historyPopover(fetch: Fetcher) {
     }, REFILTER_MS);
   };
 
+  const openFromKeyboard = (view: EditorView): boolean => {
+    open(view);
+    return true;
+  };
+
   const upOrOpen = (view: EditorView): boolean => {
     const h = view.state.field(historyField, false);
     if (h?.open) {
@@ -182,6 +187,7 @@ export function historyPopover(fetch: Fetcher) {
     historyField,
     Prec.highest(
       keymap.of([
+        { key: "Ctrl-r", run: openFromKeyboard },
         { key: "ArrowUp", run: upOrOpen },
         { key: "ArrowDown", run: downOrClose },
         { key: "Enter", run: accept },

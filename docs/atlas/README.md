@@ -25,6 +25,7 @@ Terax 是面向开发者的开源桌面开发工作区，以终端为中心，�
 | 调整撤销拆分的默认键位 | [features/撤销终端窗格拆分.md](features/撤销终端窗格拆分.md) | `src/modules/shortcuts/shortcuts.ts` |
 | 改主窗口开发者工具入口 | [features/开发者工具.md](features/开发者工具.md) | `src-tauri/src/lib.rs`, `src/app/App.tsx` |
 | 改终端 URL 的打开方式 | [features/终端链接打开.md](features/终端链接打开.md) | `src/modules/terminal/lib/terminalLinks.ts`, `src/modules/terminal/ghostty/useGhosttyTerminalSession.ts` |
+| 改终端命令块、块右键菜单或历史搜索 | [features/终端命令与结果块.md](features/终端命令与结果块.md) | `src/modules/terminal/TerminalPane.tsx`, `src/modules/terminal/ghostty/GhosttyBlocks.ts` |
 | 改预览端口菜单或预设 | [features/预览端口管理.md](features/预览端口管理.md) | `src/modules/preview/PreviewAddressBar.tsx`, `src/modules/preview/lib/portPresets.ts` |
 | 改按钮悬浮提示的快捷键格式 | [features/快捷键提示.md](features/快捷键提示.md) | `src/modules/shortcuts/components/ShortcutTooltip.tsx` |
 | 改独立 AI 窗口或 Composer | [features/独立AI窗口.md](features/独立AI窗口.md) | `src/ai/AiWindowApp.tsx`, `src/modules/ai/lib/aiWindowBridge.ts` |
@@ -34,7 +35,7 @@ Terax 是面向开发者的开源桌面开发工作区，以终端为中心，�
 
 ## 当前覆盖范围
 
-首版采用种子功能法，之后按开发增量补齐。目前完整覆盖「撤销终端窗格拆分」「开发者工具」「终端链接打开」「预览端口管理」「快捷键提示」「独立 AI 窗口」六个功能。其他功能在 [features/_index.md](features/_index.md) 中登记为未覆盖，后续随开发补齐，不以目录名推测实现。
+首版采用种子功能法，之后按开发增量补齐。目前完整覆盖「撤销终端窗格拆分」「开发者工具」「终端链接打开」「终端命令与结果块」「预览端口管理」「快捷键提示」「独立 AI 窗口」七个功能。其他功能在 [features/_index.md](features/_index.md) 中登记为未覆盖，后续随开发补齐，不以目录名推测实现。
 
 ## 协作约定
 

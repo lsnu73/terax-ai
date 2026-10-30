@@ -11,7 +11,6 @@ export const tabbar = {
   allLanguages: "↓ All languages",
   newTab: "New tab",
   kindTerminal: "Terminal",
-  kindBlocks: "Blocks",
   kindAgents: "Agents",
   kindPrivacy: "Privacy",
   kindEditor: "Editor",

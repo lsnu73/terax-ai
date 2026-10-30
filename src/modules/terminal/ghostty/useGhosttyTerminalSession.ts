@@ -110,7 +110,6 @@ type Options = {
   visible: boolean;
   focused: boolean;
   initialCwd?: string;
-  blocks?: boolean;
   onExit?: (code: number) => void;
   onCwd?: (cwd: string) => void;
   onOpenPreviewUrl?: (url: string) => void;
@@ -124,7 +123,6 @@ export function useGhosttyTerminalSession({
   visible,
   focused,
   initialCwd,
-  blocks = false,
   onSearchReady,
   onExit,
   onCwd,
@@ -170,7 +168,7 @@ export function useGhosttyTerminalSession({
       initialCwdRef.current,
       fontRef.current,
     );
-    if (blocks) ensureGhosttyBlocks(leafId);
+    ensureGhosttyBlocks(leafId);
     const node = container.current;
     session.container = node;
     setModel(session.model);
@@ -196,7 +194,7 @@ export function useGhosttyTerminalSession({
         session.callbacks = {};
       }
     };
-  }, [leafId, backend, container, blocks]);
+  }, [leafId, backend, container]);
 
   useEffect(() => {
     const session = sessions.get(leafId);
@@ -841,7 +839,7 @@ async function initializeSessionGeneration(
       },
     },
     session.initialCwd,
-    !!ghosttyBlocks(session.leafId),
+    true,
     preferences.terminalShell || undefined,
     session.leafId,
   );

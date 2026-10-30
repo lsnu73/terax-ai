@@ -9,7 +9,6 @@ export type ShortcutId =
   | "commandPalette.content"
   | "devtools.open"
   | "tab.new"
-  | "tab.newBlock"
   | "tab.newPrivate"
   | "tab.newPreview"
   | "tab.newEditor"
@@ -31,8 +30,6 @@ export type ShortcutId =
   | "pane.swapDown"
   | "pane.source"
   | "terminal.clear"
-  | "blocks.prev"
-  | "blocks.next"
   | "search.focus"
   | "explorer.search"
   | "explorer.focus"
@@ -70,6 +67,16 @@ export type KeyBinding = {
   alt?: boolean;
   meta?: boolean;
 };
+
+export function isTerminalHistoryBinding(binding: KeyBinding): boolean {
+  return (
+    binding.key.toLowerCase() === "r" &&
+    !!binding.ctrl &&
+    !binding.shift &&
+    !binding.alt &&
+    !binding.meta
+  );
+}
 
 export type Shortcut = {
   id: ShortcutId;
@@ -114,16 +121,10 @@ export const SHORTCUTS: Shortcut[] = [
     defaultBindings: [{ [MOD_PROP]: true, key: "t" }],
   },
   {
-    id: "tab.newBlock",
-    labelKey: "shortcuts.tab.newBlock",
-    group: "Tabs",
-    defaultBindings: [{ [MOD_PROP]: true, shift: true, key: "t" }],
-  },
-  {
     id: "tab.newPrivate",
     labelKey: "shortcuts.tab.newPrivate",
     group: "Tabs",
-    defaultBindings: [{ [MOD_PROP]: true, key: "r" }],
+    defaultBindings: [{ [MOD_PROP]: true, shift: true, key: "t" }],
   },
   {
     id: "tab.newPreview",
@@ -212,20 +213,6 @@ export const SHORTCUTS: Shortcut[] = [
     // macOS — on other platforms Ctrl+K is readline's kill-line, so we leave it
     // unbound and let users assign their own in settings.
     defaultBindings: IS_MAC ? [{ meta: true, key: "k" }] : [],
-  },
-  {
-    id: "blocks.prev",
-    labelKey: "shortcuts.blocks.prev",
-    group: "Terminal",
-    defaultBindings: [{ [MOD_PROP]: true, key: "ArrowUp" }],
-    allowRepeat: true,
-  },
-  {
-    id: "blocks.next",
-    labelKey: "shortcuts.blocks.next",
-    group: "Terminal",
-    defaultBindings: [{ [MOD_PROP]: true, key: "ArrowDown" }],
-    allowRepeat: true,
   },
   {
     id: "tab.next",

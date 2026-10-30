@@ -1,15 +1,24 @@
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import { usePreferencesStore } from "@/modules/settings/preferences";
+import { BlockContextMenu } from "@/modules/terminal/block/BlockContextMenu";
+import type { PositionedBlock } from "@/modules/terminal/block/lib/blockTypes";
 import type { TerminalSearchController } from "@/modules/terminal/search/TerminalSearchController";
+import { submitToLeaf } from "@/modules/terminal/lib/terminalSessionApi";
 import { useTheme } from "@/modules/theme";
 import {
   forwardRef,
   lazy,
   memo,
   Suspense,
+  useCallback,
   useEffect,
   useImperativeHandle,
   useRef,
   useState,
+  type MouseEvent,
 } from "react";
 import { useTranslation } from "react-i18next";
 import type { TerminalBackendKind } from "./backend/contracts";
@@ -35,8 +44,6 @@ export type TerminalPaneProps = {
   /** This leaf is the active pane within its tab and receives auto-focus. */
   focused?: boolean;
   initialCwd?: string;
-  /** Enable command-block decorations (OSC 133) for this terminal. */
-  blocks?: boolean;
   onSearchReady?: (leafId: number, addon: TerminalSearchController) => void;
   onExit?: (leafId: number, code: number) => void;
   onCwd?: (leafId: number, cwd: string) => void;
@@ -60,7 +67,6 @@ const GhosttyTerminalPane = memo(
       visible,
       focused = true,
       initialCwd,
-      blocks = false,
       onSearchReady,
       onExit,
       onCwd,
@@ -75,6 +81,11 @@ const GhosttyTerminalPane = memo(
     const { t } = useTranslation();
     const containerRef = useRef<HTMLDivElement>(null);
     const down = useRef<{ x: number; y: number } | null>(null);
+    const [contextBlock, setContextBlock] = useState<PositionedBlock | null>(
+      null,
+    );
+    const [contextOpen, setContextOpen] = useState(false);
+    const [blockSearchId, setBlockSearchId] = useState<string | null>(null);
     const { resolvedMode, activeTheme } = useTheme();
     const session = useGhosttyTerminalSession({
       leafId,
@@ -83,7 +94,6 @@ const GhosttyTerminalPane = memo(
       visible,
       focused,
       initialCwd,
-      blocks,
       onSearchReady: (search) => onSearchReady?.(leafId, search),
       onExit: (code) => onExit?.(leafId, code),
       onCwd: (cwd) => onCwd?.(leafId, cwd),
@@ -108,106 +118,157 @@ const GhosttyTerminalPane = memo(
       [session],
     );
 
+    const closeBlockSearch = useCallback(() => setBlockSearchId(null), []);
+
+    const onContextMenu = (event: MouseEvent<HTMLDivElement>) => {
+      const state = ghosttyBlocks(leafId);
+      const geometry = ghosttyBlockGeometry(leafId);
+      const selection = session.getSelection();
+      let block = null;
+      if (
+        !selection?.trim() &&
+        state?.model &&
+        geometry &&
+        geometry.height > 0
+      ) {
+        const row = Math.floor(
+          (event.clientY - geometry.top) / geometry.height,
+        );
+        if (row >= 0 && row < state.model.rows) {
+          block = state.controller?.blockAtLine(
+            state.model.bufferLineAtViewportRow(row),
+            geometry.height,
+          );
+        }
+      }
+      if (!block) {
+        event.preventDefault();
+        event.stopPropagation();
+        setContextOpen(false);
+        setContextBlock(null);
+        return;
+      }
+      setContextBlock(block);
+    };
+
     return (
-      <div
-        className="zoom-exempt relative h-full w-full overflow-hidden"
-        style={{
-          visibility: visible ? "visible" : "hidden",
-          pointerEvents: visible ? "auto" : "none",
+      <ContextMenu
+        open={contextOpen && contextBlock !== null}
+        onOpenChange={(open) => {
+          setContextOpen(open);
+          if (!open) setContextBlock(null);
         }}
-        onPointerDownCapture={
-          blocks
-            ? (event) => {
-                down.current =
-                  event.button === 0 &&
-                  event.detail === 1 &&
-                  !event.shiftKey &&
-                  !event.altKey &&
-                  !event.metaKey &&
-                  !event.ctrlKey &&
-                  containerRef.current?.contains(event.target as Node)
-                    ? { x: event.clientX, y: event.clientY }
-                    : null;
-              }
-            : undefined
-        }
-        onPointerUp={
-          blocks
-            ? (event) => {
-                const origin = down.current;
-                down.current = null;
-                const state = ghosttyBlocks(leafId);
-                const geometry = ghosttyBlockGeometry(leafId);
-                if (
-                  origin &&
-                  geometry &&
-                  geometry.height > 0 &&
-                  Math.hypot(
-                    event.clientX - origin.x,
-                    event.clientY - origin.y,
-                  ) <= 4 &&
-                  !state?.model?.trackedSelection?.()
-                ) {
-                  const row = Math.floor(
-                    (event.clientY - geometry.top) / geometry.height,
-                  );
-                  if (state?.model && row >= 0 && row < state.model.rows)
-                    state.controller?.selectAtLine(
-                      state.model.bufferLineAtViewportRow(row),
-                    );
-                }
-                if (state?.getMode() === "prompt") state.focus?.();
-              }
-            : undefined
-        }
-        data-terminal-backend={backend}
       >
-        <div ref={containerRef} className="absolute inset-0" />
-        {screenReader && session.model && (
-          <Suspense fallback={null}>
-            <TerminalAccessibleOutput
-              model={session.model}
-              visible={visible}
-              focused={focused}
-              onExit={session.focus}
-            />
-          </Suspense>
-        )}
-        {blocks && (
-          <Suspense fallback={null}>
-            <GhosttyBlockOverlay leafId={leafId} />
-          </Suspense>
-        )}
-        {session.error && (
+        <ContextMenuTrigger asChild>
           <div
-            role="alert"
-            className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-background p-6 text-center text-sm"
+            className="zoom-exempt relative h-full w-full overflow-hidden select-auto"
+            style={{
+              visibility: visible ? "visible" : "hidden",
+              pointerEvents: visible ? "auto" : "none",
+            }}
+            onContextMenuCapture={onContextMenu}
+            onPointerDownCapture={(event) => {
+              down.current =
+                event.button === 0 &&
+                event.detail === 1 &&
+                !event.shiftKey &&
+                !event.altKey &&
+                !event.metaKey &&
+                !event.ctrlKey &&
+                containerRef.current?.contains(event.target as Node)
+                  ? { x: event.clientX, y: event.clientY }
+                  : null;
+            }}
+            onPointerUp={(event) => {
+              const origin = down.current;
+              down.current = null;
+              const state = ghosttyBlocks(leafId);
+              const geometry = ghosttyBlockGeometry(leafId);
+              if (
+                origin &&
+                geometry &&
+                geometry.height > 0 &&
+                Math.hypot(
+                  event.clientX - origin.x,
+                  event.clientY - origin.y,
+                ) <= 4 &&
+                !state?.model?.trackedSelection?.()
+              ) {
+                const row = Math.floor(
+                  (event.clientY - geometry.top) / geometry.height,
+                );
+                if (state?.model && row >= 0 && row < state.model.rows)
+                  state.controller?.selectAtLine(
+                    state.model.bufferLineAtViewportRow(row),
+                  );
+              }
+              if (state?.getMode() === "prompt") state.focus?.();
+            }}
+            data-terminal-backend={backend}
           >
-            <strong>
-              {session.error.kind === "renderer"
-                ? t("terminal.pane.unableToDisplay")
-                : t("terminal.pane.unableToStart")}
-            </strong>
-            <p className="max-w-md break-words text-muted-foreground">
-              {session.error.message}
-            </p>
-            {session.error.kind === "renderer" && (
-              <p className="text-muted-foreground">
-                {t("terminal.pane.sessionPreserved")}
-              </p>
+            <div ref={containerRef} className="absolute inset-0" />
+            {screenReader && session.model && (
+              <Suspense fallback={null}>
+                <TerminalAccessibleOutput
+                  model={session.model}
+                  visible={visible}
+                  focused={focused}
+                  onExit={session.focus}
+                />
+              </Suspense>
             )}
-            <button
-              type="button"
-              className="rounded-md border px-3 py-1.5 hover:bg-accent focus-visible:outline-2"
-              onClick={session.retry}
-            >
-              {session.error.kind === "renderer"
-                ? t("terminal.pane.retryDisplay")
-                : t("terminal.pane.retry")}
-            </button>
+            <Suspense fallback={null}>
+              <GhosttyBlockOverlay
+                leafId={leafId}
+                searchId={blockSearchId}
+                onCloseSearch={closeBlockSearch}
+              />
+            </Suspense>
+            {session.error && (
+              <div
+                role="alert"
+                className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-background p-6 text-center text-sm"
+              >
+                <strong>
+                  {session.error.kind === "renderer"
+                    ? t("terminal.pane.unableToDisplay")
+                    : t("terminal.pane.unableToStart")}
+                </strong>
+                <p className="max-w-md break-words text-muted-foreground">
+                  {session.error.message}
+                </p>
+                {session.error.kind === "renderer" && (
+                  <p className="text-muted-foreground">
+                    {t("terminal.pane.sessionPreserved")}
+                  </p>
+                )}
+                <button
+                  type="button"
+                  className="rounded-md border px-3 py-1.5 hover:bg-accent focus-visible:outline-2"
+                  onClick={session.retry}
+                >
+                  {session.error.kind === "renderer"
+                    ? t("terminal.pane.retryDisplay")
+                    : t("terminal.pane.retry")}
+                </button>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </ContextMenuTrigger>
+        <BlockContextMenu
+          block={contextBlock}
+          promptReady={ghosttyBlocks(leafId)?.getMode() === "prompt"}
+          readOutput={(id) =>
+            ghosttyBlocks(leafId)?.controller?.readById(id)?.output ?? null
+          }
+          onRunAgain={(command) => submitToLeaf(leafId, command)}
+          onSearch={(id) => {
+            ghosttyBlocks(leafId)?.controller?.clearSearch();
+            setBlockSearchId(id);
+          }}
+          onRestoreFocus={session.focus}
+        />
+      </ContextMenu>
     );
   }),
 );

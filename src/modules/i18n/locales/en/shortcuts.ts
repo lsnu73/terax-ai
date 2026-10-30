@@ -12,7 +12,6 @@ export const shortcuts = {
   },
   tab: {
     new: "New tab",
-    newBlock: "New Blocks terminal",
     newPrivate: "New private terminal",
     newPreview: "New web preview",
     newEditor: "New editor tab",
@@ -40,10 +39,6 @@ export const shortcuts = {
   },
   terminal: {
     clear: "Clear terminal",
-  },
-  blocks: {
-    prev: "Previous command block",
-    next: "Next command block",
   },
   search: {
     focus: "Find in tab",

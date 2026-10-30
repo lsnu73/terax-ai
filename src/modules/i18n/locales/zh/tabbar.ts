@@ -13,7 +13,6 @@ export const tabbarZh: typeof tabbar = {
   allLanguages: "↓ 全部语言",
   newTab: "新建标签页",
   kindTerminal: "终端",
-  kindBlocks: "命令块",
   kindAgents: "代理",
   kindPrivacy: "隐私",
   kindEditor: "编辑器",

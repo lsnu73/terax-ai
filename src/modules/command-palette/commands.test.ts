@@ -29,7 +29,6 @@ function baseContext(
     spaces: [],
     activeSpaceId: null,
     openNewTab: noop,
-    openNewBlock: noop,
     openNewPrivate: noop,
     openNewEditor: noop,
     openNewPreview: noop,

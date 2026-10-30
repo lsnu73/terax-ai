@@ -198,11 +198,9 @@ class ScenarioRun {
     return { tabId, leafId: leafIds[0] };
   }
 
-  async newShellTab(
-    blocks = false,
-  ): Promise<{ tabId: number; leafId: number }> {
+  async newShellTab(): Promise<{ tabId: number; leafId: number }> {
     const cwd = this.scenario.cwds?.shell;
-    const tabId = blocks ? this.app().newBlockTab(cwd) : this.app().newTab(cwd);
+    const tabId = this.app().newTab(cwd);
     await this.waitFor(
       () => this.app().tabs.some((t) => t.id === tabId),
       "new tab",
@@ -315,14 +313,14 @@ class ScenarioRun {
 }
 
 /**
- * Tab layout as a string, one letter per tab: s = idle shell, b = idle shell in command-block mode
- * (its pane is shorter: the command bar takes the bottom), a = agent, p = a tab split into two
- * agent panes. "sa" (alias "2"): shell + agent; "saps" (alias "4"): shell, agent, split pair, shell.
+ * Tab layout as a string, one letter per tab: s = idle shell, a = agent,
+ * p = a tab split into two agent panes. "sa" (alias "2"): shell + agent;
+ * "saps" (alias "4"): shell, agent, split pair, shell.
  */
 function tabKinds(variant: string | undefined): string {
   if (!variant || variant === "2") return "sa";
   if (variant === "4") return "saps";
-  if (!/^[sbap]+$/.test(variant))
+  if (!/^[sap]+$/.test(variant))
     throw new Error(`unknown tabs variant ${variant}`);
   return variant;
 }
@@ -339,8 +337,8 @@ async function tabsScenario(run: ScenarioRun): Promise<void> {
   if (kinds[0] === "a" || kinds[0] === "p") await run.startAgent(first.leafId);
   for (let index = 1; index < kinds.length; index++) {
     const kind = kinds[index];
-    if (kind === "s" || kind === "b") {
-      const tab = await run.newShellTab(kind === "b");
+    if (kind === "s") {
+      const tab = await run.newShellTab();
       order.push(tab.tabId);
       leaves.push([tab.leafId]);
     } else {

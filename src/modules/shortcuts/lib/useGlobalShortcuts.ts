@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import {
   SHORTCUTS,
+  isTerminalHistoryBinding,
   matchBinding,
   type ShortcutId,
 } from "../shortcuts";
@@ -29,7 +30,11 @@ export function useGlobalShortcuts(
       for (const s of SHORTCUTS) {
         if (e.repeat && !s.allowRepeat) continue;
         const bindings = userShortcuts[s.id] || s.defaultBindings;
-        const isMatch = bindings.some((b) => matchBinding(e, b, s.id));
+        const isMatch = bindings.some(
+          (binding) =>
+            !isTerminalHistoryBinding(binding) &&
+            matchBinding(e, binding, s.id),
+        );
         if (!isMatch) continue;
         if (options?.isDisabled?.(s.id, e)) continue;
         const h = handlers[s.id];

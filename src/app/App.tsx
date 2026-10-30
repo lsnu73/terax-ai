@@ -95,7 +95,6 @@ import {
   hasLeaf,
   isTerminalSurfaceTarget,
   leafIds,
-  navigateFocusedBlocks,
   type PaneBounds,
   ptyIdForLeaf,
   type TerminalPaneHandle,
@@ -167,7 +166,6 @@ export default function App() {
     markBooted,
     setActiveSpaceForNewTabs,
     newTab,
-    newBlockTab,
     newAgentTab,
     newAgentGroupTab,
     newPrivateTab,
@@ -372,7 +370,6 @@ export default function App() {
 
   const activeTab = tabs.find((t) => t.id === activeId);
   const isTerminalTab = activeTab?.kind === "terminal";
-  const isBlockTab = activeTerminalTab?.blocks === true;
   const isEditorTab = activeTab?.kind === "editor";
   const isGitHistoryTab = activeTab?.kind === "git-history";
 
@@ -608,10 +605,6 @@ export default function App() {
   const openNewPrivateTab = useCallback(() => {
     newPrivateTab(inheritedCwdForNewTab());
   }, [newPrivateTab, inheritedCwdForNewTab]);
-
-  const openNewBlockTab = useCallback(() => {
-    newBlockTab(inheritedCwdForNewTab());
-  }, [newBlockTab, inheritedCwdForNewTab]);
 
   const launchAgentGroup = useCallback(
     (request: AgentLaunchRequest) => {
@@ -903,7 +896,6 @@ export default function App() {
         });
       },
       "tab.new": openNewTab,
-      "tab.newBlock": openNewBlockTab,
       "tab.newPrivate": openNewPrivateTab,
       "tab.newPreview": () => openPreviewTab(""),
       "tab.newEditor": () => setNewEditorOpen(true),
@@ -931,8 +923,6 @@ export default function App() {
       "terminal.clear": () => {
         clearFocusedTerminal();
       },
-      "blocks.prev": () => navigateFocusedBlocks(-1),
-      "blocks.next": () => navigateFocusedBlocks(1),
       "search.focus": () => {
         const editor = editorRefs.current.get(activeId);
         if (editor) editor.openSearch();
@@ -969,7 +959,6 @@ export default function App() {
       cycleSpace,
       handleCloseTabOrPane,
       openNewTab,
-      openNewBlockTab,
       openNewPrivateTab,
       openPreviewTab,
       activeSpaceId,
@@ -1022,9 +1011,6 @@ export default function App() {
         const target =
           (e.target as HTMLElement | null) ?? document.activeElement;
         return !isTerminalSurfaceTarget(target);
-      }
-      if (id === "blocks.prev" || id === "blocks.next") {
-        return !(activeTab?.kind === "terminal" && activeTab.blocks === true);
       }
       if (id === "sidebar.toggle") {
         // Ctrl+B is also Claude Code's "run in background" key. While a terminal
@@ -1258,7 +1244,6 @@ export default function App() {
             explorerRoot,
             home,
             openNewTab,
-            openNewBlock: openNewBlockTab,
             openNewPrivate: openNewPrivateTab,
             openNewEditor: () => setNewEditorOpen(true),
             openNewPreview: () => openPreviewTab(""),
@@ -1290,7 +1275,6 @@ export default function App() {
       explorerRoot,
       home,
       openNewTab,
-      openNewBlockTab,
       openNewPrivateTab,
       openPreviewTab,
       openGitGraphFromContext,
@@ -1399,7 +1383,6 @@ export default function App() {
               booted={booted}
               setActiveId={setActiveId}
               newTab={newTab}
-              newBlockTab={newBlockTab}
               newAgentGroupTab={newAgentGroupTab}
               splitActivePane={splitActivePane}
               closeTab={closeTab}
@@ -1416,7 +1399,6 @@ export default function App() {
               activeId={activeId}
               onSelect={setActiveId}
               onNew={openNewTab}
-              onNewBlock={openNewBlockTab}
               onNewPrivate={openNewPrivateTab}
               onNewPreview={() => openPreviewTab("")}
               onNewEditor={() => setNewEditorOpen(true)}
@@ -1547,10 +1529,7 @@ export default function App() {
                       />
                     </div>
 
-                    <WorkspaceInputBar
-                      isBlockTab={isBlockTab}
-                      activeLeafId={activeLeafId}
-                    />
+                    <WorkspaceInputBar activeLeafId={activeLeafId} />
                   </div>
                 </div>
               </ResizablePanel>

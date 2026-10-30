@@ -15,6 +15,7 @@ import { usePreferencesStore } from "@/modules/settings/preferences";
 import { setShortcuts } from "@/modules/settings/store";
 import {
   getBindingTokens,
+  isTerminalHistoryBinding,
   type KeyBinding,
   SHORTCUT_GROUPS,
   SHORTCUTS,
@@ -36,6 +37,9 @@ export function ShortcutsSection() {
   const userShortcuts = usePreferencesStore((s) => s.shortcuts);
   const [search, setSearch] = useState("");
   const [recordingId, setRecordingId] = useState<ShortcutId | null>(null);
+  const [historyConflictId, setHistoryConflictId] = useState<ShortcutId | null>(
+    null,
+  );
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
 
   const filteredShortcuts = useMemo(() => {
@@ -53,24 +57,33 @@ export function ShortcutsSection() {
   }, [search, t]);
 
   const onRecord = (id: ShortcutId, binding: KeyBinding) => {
+    if (isTerminalHistoryBinding(binding)) {
+      setHistoryConflictId(id);
+      setRecordingId(null);
+      return;
+    }
     const next = { ...userShortcuts, [id]: [binding] };
     void setShortcuts(next);
+    setHistoryConflictId(null);
     setRecordingId(null);
   };
 
   const onClear = (id: ShortcutId) => {
     const next = { ...userShortcuts, [id]: [] };
     void setShortcuts(next);
+    setHistoryConflictId(null);
   };
 
   const onResetShortcut = (id: ShortcutId) => {
     const next = { ...userShortcuts };
     delete next[id];
     void setShortcuts(next);
+    setHistoryConflictId(null);
   };
 
   const onResetAll = () => {
     void setShortcuts({});
+    setHistoryConflictId(null);
     setResetDialogOpen(false);
   };
 
@@ -127,7 +140,15 @@ export function ShortcutsSection() {
                     key={s.id}
                     shortcut={s}
                     isRecording={recordingId === s.id}
-                    onStartRecording={() => setRecordingId(s.id)}
+                    historyConflict={
+                      historyConflictId === s.id ||
+                      (userShortcuts[s.id]?.some(isTerminalHistoryBinding) ??
+                        false)
+                    }
+                    onStartRecording={() => {
+                      setHistoryConflictId(null);
+                      setRecordingId(s.id);
+                    }}
                     onStopRecording={() => setRecordingId(null)}
                     onRecord={(b) => onRecord(s.id, b)}
                     onClear={() => onClear(s.id)}
@@ -169,6 +190,7 @@ export function ShortcutsSection() {
 function ShortcutRow({
   shortcut,
   isRecording,
+  historyConflict,
   onStartRecording,
   onStopRecording,
   onRecord,
@@ -178,6 +200,7 @@ function ShortcutRow({
 }: {
   shortcut: Shortcut;
   isRecording: boolean;
+  historyConflict: boolean;
   onStartRecording: () => void;
   onStopRecording: () => void;
   onRecord: (b: KeyBinding) => void;
@@ -197,6 +220,11 @@ function ShortcutRow({
         <span className="text-[12.5px] font-medium">
           {t(shortcut.labelKey)}
         </span>
+        {historyConflict && (
+          <span role="alert" className="text-[11px] text-destructive">
+            {t("settings.shortcuts.terminalHistoryConflict")}
+          </span>
+        )}
       </div>
 
       <div className="flex items-center gap-2">

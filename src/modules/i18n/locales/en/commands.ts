@@ -22,7 +22,6 @@ export const commands = {
   },
   tabs: {
     newTerminal: "New terminal",
-    newBlockTerminal: "New block terminal",
     newPrivateTerminal: "New private terminal",
     newEditorTab: "New editor tab",
     newWebPreview: "New web preview",

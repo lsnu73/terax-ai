@@ -24,7 +24,6 @@ export const commandsZh: typeof commands = {
   },
   tabs: {
     newTerminal: "新建终端",
-    newBlockTerminal: "新建块终端",
     newPrivateTerminal: "新建隐私终端",
     newEditorTab: "新建编辑器标签页",
     newWebPreview: "新建网页预览",

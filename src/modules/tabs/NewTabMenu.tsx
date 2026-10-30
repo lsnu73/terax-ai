@@ -33,7 +33,6 @@ import { useTranslation } from "react-i18next";
 
 type Props = {
   onNew: () => void;
-  onNewBlock: () => void;
   onNewPrivate: () => void;
   onNewPreview: () => void;
   onNewEditor: () => void;
@@ -43,7 +42,6 @@ type Props = {
 
 export function NewTabMenu({
   onNew,
-  onNewBlock,
   onNewPrivate,
   onNewPreview,
   onNewEditor,
@@ -108,15 +106,6 @@ export function NewTabMenu({
                 />
                 <span className="flex-1">{t("tabbar.kindTerminal")}</span>
                 <ShortcutHint id="tab.new" />
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={onNewBlock}>
-                <HugeiconsIcon
-                  icon={ComputerTerminal02Icon}
-                  size={14}
-                  strokeWidth={1.75}
-                />
-                <span className="flex-1">{t("tabbar.kindBlocks")}</span>
-                <ShortcutHint id="tab.newBlock" />
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={openLauncher}>
                 <HugeiconsIcon

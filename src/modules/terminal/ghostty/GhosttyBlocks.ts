@@ -258,6 +258,36 @@ export class GhosttyBlocks {
     return { blocks, sticky, generation: this.clearGeneration };
   }
 
+  blockAtLine(line: number, cellHeight: number): PositionedBlock | null {
+    if (this.mode === "alt" || this.mode === "plain" || cellHeight <= 0)
+      return null;
+    const viewport = this.model.viewportOriginLine();
+    for (let index = this.entries.length - 1; index >= 0; index--) {
+      const entry = this.entries[index];
+      const range = this.range(entry);
+      if (!range) continue;
+      const running = entry.end === null;
+      const firstLine = running ? range.start : Math.max(0, range.start - 2);
+      const lastLine = running ? range.end : range.end + 1;
+      if (line < firstLine || line > lastLine) continue;
+      return {
+        id: entry.id,
+        command: entry.command,
+        canRerun: entry.canRerun,
+        cwd: entry.cwd,
+        exitCode: entry.exitCode,
+        running,
+        ok: entry.exitCode === null || entry.exitCode === 0,
+        startedAt: entry.startedAt,
+        finishedAt: entry.finishedAt,
+        top: (range.start - viewport) * cellHeight,
+        bottom: (range.end - viewport + 2) * cellHeight,
+        headerTop: (range.start - viewport - 1.9) * cellHeight,
+      };
+    }
+    return null;
+  }
+
   selectAtLine(line: number): boolean {
     if (this.mode === "alt" || this.model.modes().mouseTracking) return false;
     for (let index = this.entries.length - 1; index >= 0; index--) {

@@ -6,12 +6,13 @@
 
 Terax 是一个开源的 AI 原生终端模拟器（Tauri 2 + React/TypeScript 前端 + Rust 后端），带多标签、文件管理器、代码编辑器、网页预览和 AI Agent。桌面端打包为 Windows（MSI/NSIS）、macOS、Linux 安装包。
 
-## 四个核心业务概念
+## 五个核心业务概念
 
 1. **主窗口、设置窗口和 AI 窗口是三个独立 webview**：设置与 AI 都不是主窗口里的 DOM 面板，各自拥有前端入口。偏好通过事件同步；AI 对话仍由主窗口唯一 Chat 引擎持有，AI 窗口只接收快照并发送命令。
 2. **终端核心在独立包里**：`packages/ghostty-core` 是终端渲染/仿真核心，主应用通过它工作。
-3. **CLI sidecar**：应用内嵌一个随包分发的命令行工具 `terax-cli`，由 Rust crate 编译后在构建期拷入安装包。
-4. **模型配置是一份可手改的 JSON**：Provider、模型、请求参数、思考档位都来自应用数据目录的 `terax-ai-models.json`；设置页只是这份文件的图形编辑器，API Key 单独存操作系统钥匙串。
+3. **所有终端统一使用命令与结果块**：OSC 133 定义块边界，选区右键与块右键互斥，Ctrl+R 保留给历史命令搜索，不再有独立命令块标签。
+4. **CLI sidecar**：应用内嵌一个随包分发的命令行工具 `terax-cli`，由 Rust crate 编译后在构建期拷入安装包。
+5. **模型配置是一份可手改的 JSON**：Provider、模型、请求参数、思考档位都来自应用数据目录的 `terax-ai-models.json`；设置页只是这份文件的图形编辑器，API Key 单独存操作系统钥匙串。
 
 ## 推荐阅读顺序
 

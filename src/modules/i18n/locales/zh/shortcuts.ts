@@ -14,7 +14,6 @@ export const shortcutsZh: typeof shortcuts = {
   },
   tab: {
     new: "新建标签页",
-    newBlock: "新建 Blocks 终端",
     newPrivate: "新建隐私终端",
     newPreview: "新建网页预览",
     newEditor: "新建编辑器标签页",
@@ -42,10 +41,6 @@ export const shortcutsZh: typeof shortcuts = {
   },
   terminal: {
     clear: "清空终端",
-  },
-  blocks: {
-    prev: "上一个命令块",
-    next: "下一个命令块",
   },
   search: {
     focus: "在标签页中查找",

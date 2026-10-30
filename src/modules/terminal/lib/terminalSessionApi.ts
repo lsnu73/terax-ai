@@ -60,14 +60,6 @@ export function leafCwd(leafId: number): string | null {
   return ghosttyCwdForLeaf(leafId);
 }
 
-export function navigateFocusedBlocks(direction: -1 | 1): boolean {
-  const leaf = ghosttyFocusedLeaf();
-  return (
-    leaf !== null &&
-    (ghosttyBlocks(leaf)?.controller?.navigate(direction) ?? false)
-  );
-}
-
 export function clearLeafBlockSelection(leafId: number): boolean {
   return ghosttyBlocks(leafId)?.controller?.clearSelection() ?? false;
 }

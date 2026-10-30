@@ -56,3 +56,15 @@
   - 强制点：`src/modules/shortcuts/components/ShortcutTooltip.tsx` 的 `ShortcutTooltip` / `ShortcutHint`，以及 `src/modules/shortcuts/lib/useShortcutTokens.ts` 的 `useShortcutHint` / `shortcutHintLabel`；所有文案统一从 `src/modules/shortcuts/shortcuts.ts` 的 `SHORTCUTS` 与 preferences 的 `shortcuts` 取值。
   - 注意：此条暂无 Lint 自动强制，新增带快捷键的按钮必须使用上述公共 API，靠代码评审把关。
   - 代码索引：见 [atlas/features/快捷键提示.md](../atlas/features/快捷键提示.md)。
+
+- **INV-013** 终端右键存在非空文本选区时，选区「问问 Terax」流程必须优先；只有无选区且命中 OSC 133 块范围时才能打开块操作菜单，两种菜单不得同时出现。
+  - 违反代价：块菜单覆盖用户选区语义，或两个浮层同时出现，导致「问问 Terax」和块操作都不可靠。
+  - 强制点：`src/modules/terminal/TerminalPane.tsx` 的 `onContextMenuCapture` 先读取 `session.getSelection()`，有选区时阻止 Radix 块 ContextMenu；无选区时才经 `GhosttyBlocks.blockAtLine` 命中块。
+  - 注意：此条暂无自动化测试强制，靠交互代码评审把关。
+  - 代码索引：见 [atlas/features/终端命令与结果块.md](../atlas/features/终端命令与结果块.md)。
+
+- **INV-014** Ctrl+R 永久保留给终端历史命令搜索，任何全局快捷键默认绑定、用户旧偏好或新录制绑定都不得抢占它。
+  - 违反代价：window 捕获阶段的全局处理器先截获按键，终端和共享命令编辑器无法搜索历史；设置页还会保存一个实际失效的快捷键。
+  - 强制点：`src/modules/shortcuts/lib/useGlobalShortcuts.ts` 在匹配前排除 `isTerminalHistoryBinding`；`src/settings/sections/ShortcutsSection.tsx` 拒绝保存并显示冲突警告；`src/modules/terminal/block/lib/historyPopover.ts` 绑定 Ctrl+R。
+  - 注意：此条暂无自动化测试强制，靠跨模块代码评审把关。
+  - 代码索引：见 [atlas/features/终端命令与结果块.md](../atlas/features/终端命令与结果块.md)。
