@@ -1,4 +1,5 @@
 import { type RefObject, useCallback, useEffect, useState } from "react";
+import { getLaunchDir } from "@/lib/launchDir";
 import { homeDir } from "@tauri-apps/api/path";
 import { native } from "@/modules/ai/lib/native";
 import { t } from "@/modules/i18n";
@@ -37,8 +38,10 @@ export function useWorkspaceSwitcher({
   clearWorkspaceState,
 }: Params) {
   const [home, setHome] = useState<string | null>(null);
-  const [launchCwd, setLaunchCwd] = useState<string | null>(null);
-  const [launchCwdResolved, setLaunchCwdResolved] = useState(false);
+  const [launchCwd, setLaunchCwd] = useState<string | null>(
+    () => getLaunchDir() ?? null,
+  );
+  const launchCwdResolved = true;
 
   useEffect(() => {
     homeDir()
@@ -52,14 +55,6 @@ export function useWorkspaceSwitcher({
         }
       })
       .catch(() => setHome(null));
-  }, []);
-
-  useEffect(() => {
-    native
-      .workspaceCurrentDir()
-      .then(setLaunchCwd)
-      .catch(() => setLaunchCwd(null))
-      .finally(() => setLaunchCwdResolved(true));
   }, []);
 
   const authorizeHome = useCallback(async (nextHome: string) => {
@@ -120,7 +115,7 @@ export function useWorkspaceSwitcher({
       } catch {
         return null;
       }
-      await authorizeHome(nextHome);
+      void authorizeHome(nextHome);
       return nextHome;
     },
     [setWorkspaceEnv, authorizeHome],

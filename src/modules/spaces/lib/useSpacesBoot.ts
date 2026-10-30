@@ -53,15 +53,16 @@ export function useSpacesBoot({
 
     void (async () => {
       try {
-        const { spaces, activeId, states } = await loadAll();
+        const [{ spaces, activeId, states }] = await Promise.all([
+          loadAll(),
+          usePreferencesStore
+            .getState()
+            .init()
+            .catch(() => {}),
+        ]);
 
         if (spaces.length === 0) {
           const root = launchCwd ?? home ?? null;
-          // Hydrate prefs before reading the saved workspace env.
-          await usePreferencesStore
-            .getState()
-            .init()
-            .catch(() => {});
           const meta: SpaceMeta = {
             id: DEFAULT_SPACE_ID,
             name: t("spaces.defaultSpaceName"),
@@ -72,10 +73,14 @@ export function useSpacesBoot({
             createdAt: Date.now(),
             updatedAt: Date.now(),
           };
-          await saveSpacesList([meta]);
-          await saveActiveId(DEFAULT_SPACE_ID);
           setActiveSpaceForNewTabs(DEFAULT_SPACE_ID);
           useSpaces.getState().hydrate([meta], DEFAULT_SPACE_ID);
+          void Promise.all([
+            saveSpacesList([meta]),
+            saveActiveId(DEFAULT_SPACE_ID),
+          ]).catch((e) =>
+            console.error("[terax] initial space save failed:", e),
+          );
           return;
         }
 
@@ -103,10 +108,6 @@ export function useSpacesBoot({
           restored.push(freshTerminalTab(active, cwd, allocId));
         }
 
-        await Promise.allSettled(
-          uniqueCwds(restored).map((cwd) => native.workspaceAuthorize(cwd)),
-        );
-
         const initialActiveIndex: Record<string, number> = {};
         for (const [id, st] of states)
           initialActiveIndex[id] = st.activeTabIndex;
@@ -116,6 +117,9 @@ export function useSpacesBoot({
         const idx = states.get(active)?.activeTabIndex ?? 0;
         const activeTab = inActive[idx] ?? inActive[0] ?? restored[0];
         replaceTabs(restored, activeTab.id);
+        void Promise.allSettled(
+          uniqueCwds(restored).map((cwd) => native.workspaceAuthorize(cwd)),
+        );
       } catch (e) {
         console.error("[terax] spaces boot failed:", e);
       } finally {

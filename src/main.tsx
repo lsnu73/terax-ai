@@ -30,14 +30,13 @@ if (__TERAX_BENCH__) {
   await installBenchEarly();
 }
 
-// Reap PTY sessions orphaned by a prior webview load before any tab spawns.
-await invoke("pty_close_all").catch(() => {});
-
-// Seed before first paint so default tab mounts at target cwd (no flicker).
-await initLaunchDir();
-
-// i18n must be ready before first render: useTranslation suspends otherwise.
-await initI18n();
+// Complete independent bootstrap work together, and reap orphaned PTYs before
+// any tab can spawn. i18n and launch cwd must be ready before the first render.
+await Promise.all([
+  invoke("pty_close_all").catch(() => {}),
+  initLaunchDir(),
+  initI18n(),
+]);
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <App />,

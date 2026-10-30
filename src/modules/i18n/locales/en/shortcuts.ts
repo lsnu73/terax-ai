@@ -26,6 +26,7 @@ export const shortcuts = {
   pane: {
     splitRight: "Split pane right",
     splitDown: "Split pane down",
+    undoSplit: "Undo last pane split",
     focusNext: "Focus next pane",
     focusPrev: "Focus previous pane",
     swapLeft: "Swap pane left",

@@ -21,6 +21,7 @@ export type ShortcutId =
   | "space.overview"
   | "pane.splitRight"
   | "pane.splitDown"
+  | "pane.undoSplit"
   | "pane.focusNext"
   | "pane.focusPrev"
   | "pane.swapLeft"
@@ -146,6 +147,12 @@ export const SHORTCUTS: Shortcut[] = [
     labelKey: "shortcuts.pane.splitDown",
     group: "Panes",
     defaultBindings: [{ [MOD_PROP]: true, shift: true, key: "d" }],
+  },
+  {
+    id: "pane.undoSplit",
+    labelKey: "shortcuts.pane.undoSplit",
+    group: "Panes",
+    defaultBindings: [{ [MOD_PROP]: true, shift: true, key: "z" }],
   },
   {
     id: "pane.focusNext",

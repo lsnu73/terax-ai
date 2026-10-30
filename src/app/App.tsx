@@ -190,6 +190,7 @@ export default function App() {
     focusNextPaneInTab,
     swapActivePaneInDirection,
     splitActivePane,
+    undoLastSplit,
     closeActivePane,
     closePaneByLeaf,
     resetWorkspace,
@@ -282,6 +283,19 @@ export default function App() {
     setActiveSpaceForNewTabs,
     adoptWorkspaceEnv,
   });
+
+  const [deferredUiReady, setDeferredUiReady] = useState(false);
+  useEffect(() => {
+    if (!booted || deferredUiReady) return;
+    let timer: number | undefined;
+    const frame = requestAnimationFrame(() => {
+      timer = window.setTimeout(() => setDeferredUiReady(true), 0);
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
+  }, [booted, deferredUiReady]);
 
   useSpacePersistence({
     tabs,
@@ -818,6 +832,7 @@ export default function App() {
       home,
       sidebarView,
       sidebarCollapsed,
+      startupReady: deferredUiReady,
       explorerGitDecorations,
       repositoryTarget: sourceControlRepositoryTarget,
       cycleSidebarView,
@@ -914,6 +929,7 @@ export default function App() {
       "space.overview": () => setSwitcherOpen(true),
       "pane.splitRight": () => splitActivePaneInActiveTab("row"),
       "pane.splitDown": () => splitActivePaneInActiveTab("col"),
+      "pane.undoSplit": () => undoLastSplit(activeId),
       "pane.focusNext": () => focusNextPaneInTab(activeId, 1),
       "pane.focusPrev": () => focusNextPaneInTab(activeId, -1),
       "pane.swapLeft": () => swapActivePane("left"),
@@ -977,6 +993,7 @@ export default function App() {
       activeSpaceId,
       selectByIndex,
       splitActivePaneInActiveTab,
+      undoLastSplit,
       focusNextPaneInTab,
       swapActivePane,
       toggleSourceControl,
@@ -1001,6 +1018,7 @@ export default function App() {
           ? leafIds(activeTab.paneTree).length
           : null;
       if (shouldDisablePaneSwapShortcut(id, terminalPaneCount)) return true;
+      if (id === "pane.undoSplit") return activeTab?.kind !== "terminal";
       if (
         id === "editor.undo" ||
         id === "editor.redo" ||
@@ -1478,41 +1496,45 @@ export default function App() {
                       key={sidebarView}
                       className="min-h-0 flex-1 terax-panel-in"
                     >
-                      {sidebarView === "explorer" ? (
-                        <FileExplorer
-                          ref={explorerRef}
-                          rootPath={explorerRoot}
-                          gitStatus={
-                            explorerGitDecorations ? sourceControl.status : null
-                          }
-                          activeFilePath={explorerActiveFilePath}
-                          onOpenFile={handleOpenFile}
-                          onPathRenamed={handleExplorerPathRenamed}
-                          onPathsDeleted={handlePathsDeleted}
-                          canReplacePath={canReplaceExplorerPath}
-                          onRevealInTerminal={cdInNewTab}
-                          onOpenInSourceControl={
-                            handleOpenRepositoryInSourceControl
-                          }
-                          onOpenGitHistory={handleOpenGitHistoryForPath}
-                          onAttachToAgent={handleAttachFileToAgent}
-                          pathDropTarget={terminalPathDropTarget}
-                          visible={!sidebarCollapsed}
-                        />
-                      ) : (
-                        <SourceControlPanel
-                          open
-                          sourceControl={sourceControl}
-                          onOpenDiff={openGitDiffTab}
-                          onOpenGitGraph={openGitGraphFromContext}
-                          onOpenFile={handleOpenFile}
-                          onNavigateToPath={cdInNewTab}
-                          repositoryTarget={sourceControlRepositoryTarget}
-                          onFollowRepositoryContext={
-                            handleFollowRepositoryContext
-                          }
-                        />
-                      )}
+                      {deferredUiReady ? (
+                        sidebarView === "explorer" ? (
+                          <FileExplorer
+                            ref={explorerRef}
+                            rootPath={explorerRoot}
+                            gitStatus={
+                              explorerGitDecorations
+                                ? sourceControl.status
+                                : null
+                            }
+                            activeFilePath={explorerActiveFilePath}
+                            onOpenFile={handleOpenFile}
+                            onPathRenamed={handleExplorerPathRenamed}
+                            onPathsDeleted={handlePathsDeleted}
+                            canReplacePath={canReplaceExplorerPath}
+                            onRevealInTerminal={cdInNewTab}
+                            onOpenInSourceControl={
+                              handleOpenRepositoryInSourceControl
+                            }
+                            onOpenGitHistory={handleOpenGitHistoryForPath}
+                            onAttachToAgent={handleAttachFileToAgent}
+                            pathDropTarget={terminalPathDropTarget}
+                            visible={!sidebarCollapsed}
+                          />
+                        ) : (
+                          <SourceControlPanel
+                            open
+                            sourceControl={sourceControl}
+                            onOpenDiff={openGitDiffTab}
+                            onOpenGitGraph={openGitGraphFromContext}
+                            onOpenFile={handleOpenFile}
+                            onNavigateToPath={cdInNewTab}
+                            repositoryTarget={sourceControlRepositoryTarget}
+                            onFollowRepositoryContext={
+                              handleFollowRepositoryContext
+                            }
+                          />
+                        )
+                      ) : null}
                     </div>
                     <SidebarRail
                       activeView={sidebarView}
@@ -1640,7 +1662,7 @@ export default function App() {
             onCreated={(path) => openFileTab(path)}
           />
 
-          <UpdaterDialog />
+          {deferredUiReady ? <UpdaterDialog /> : null}
 
           <CloseDialogs
             tabs={tabs}

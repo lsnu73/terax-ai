@@ -594,6 +594,9 @@ export function useTabs(initial?: Partial<TerminalTab>) {
   const activeSpaceIdRef = useRef(DEFAULT_SPACE_ID);
   const tabsRef = useRef(tabs);
   const activeIdRef = useRef(activeId);
+  const splitHistoryRef = useRef<
+    Map<number, { newLeafId: number; previousActiveLeafId: number }[]>
+  >(new Map());
 
   useLayoutEffect(() => {
     tabsRef.current = tabs;
@@ -623,6 +626,7 @@ export function useTabs(initial?: Partial<TerminalTab>) {
 
   const replaceTabs = useCallback((next: Tab[], nextActiveId: number) => {
     if (next.length === 0) return;
+    splitHistoryRef.current.clear();
     tabsRef.current = next;
     activeIdRef.current = nextActiveId;
     setTabs(next);
@@ -720,6 +724,10 @@ export function useTabs(initial?: Partial<TerminalTab>) {
         );
         if (!plan) return curr;
         toDispose = plan.disposeLeafIds;
+        const remainingTabIds = new Set(plan.tabs.map((t) => t.id));
+        for (const tabId of splitHistoryRef.current.keys()) {
+          if (!remainingTabIds.has(tabId)) splitHistoryRef.current.delete(tabId);
+        }
         setActiveId(plan.activeId);
         return plan.tabs;
       });
@@ -1143,6 +1151,7 @@ export function useTabs(initial?: Partial<TerminalTab>) {
       setActiveId((active) => (id === active ? fallback : active));
       return next;
     });
+    if (toDispose.length > 0) splitHistoryRef.current.delete(id);
     for (const lid of toDispose) disposeSession(lid);
   }, []);
 
@@ -1154,6 +1163,7 @@ export function useTabs(initial?: Partial<TerminalTab>) {
       activeIdRef.current = result.nextActiveId;
       setTabs(result.tabs);
       setActiveId(result.nextActiveId);
+      for (const tabId of result.closeIds) splitHistoryRef.current.delete(tabId);
       for (const leafId of result.disposeLeafIds) disposeSession(leafId);
       return result.closeIds;
     },
@@ -1279,6 +1289,7 @@ export function useTabs(initial?: Partial<TerminalTab>) {
             direction,
             bounds,
           );
+          if (paneTree !== t.paneTree) splitHistoryRef.current.delete(tabId);
           return paneTree === t.paneTree ? t : { ...t, paneTree };
         }),
       );
@@ -1305,6 +1316,14 @@ export function useTabs(initial?: Partial<TerminalTab>) {
             dir,
             t.cwd,
           );
+          const history = splitHistoryRef.current.get(tabId) ?? [];
+          splitHistoryRef.current.set(tabId, [
+            ...history,
+            {
+              newLeafId: leafId,
+              previousActiveLeafId: t.activeLeafId,
+            },
+          ]);
           return { ...t, paneTree, activeLeafId: leafId };
         }),
       );
@@ -1313,13 +1332,46 @@ export function useTabs(initial?: Partial<TerminalTab>) {
     [],
   );
 
+  const undoLastSplit = useCallback((tabId: number): boolean => {
+    const history = splitHistoryRef.current.get(tabId);
+    const lastSplit = history?.[history.length - 1];
+    if (!history || !lastSplit) return false;
+    if (history.length === 1) splitHistoryRef.current.delete(tabId);
+    else splitHistoryRef.current.set(tabId, history.slice(0, -1));
+    let removedLeaf: number | null = null;
+    setTabs((curr) =>
+      curr.map((t) => {
+        if (t.id !== tabId || t.kind !== "terminal") return t;
+        if (
+          !hasLeaf(t.paneTree, lastSplit.newLeafId) ||
+          !hasLeaf(t.paneTree, lastSplit.previousActiveLeafId)
+        ) {
+          return t;
+        }
+        const paneTree = removeLeaf(t.paneTree, lastSplit.newLeafId);
+        if (!paneTree) return t;
+        removedLeaf = lastSplit.newLeafId;
+        return {
+          ...t,
+          paneTree,
+          activeLeafId: lastSplit.previousActiveLeafId,
+          cwd: findLeafCwd(paneTree, lastSplit.previousActiveLeafId),
+        };
+      }),
+    );
+    if (removedLeaf !== null) disposeSession(removedLeaf);
+    return removedLeaf !== null;
+  }, []);
+
   const closePaneByLeaf = useCallback((leafId: number): void => {
     let didRemove = false;
+    let closedTabId: number | null = null;
     setTabs((curr) => {
       const tab = curr.find(
         (t) => t.kind === "terminal" && hasLeaf(t.paneTree, leafId),
       );
       if (tab?.kind !== "terminal") return curr;
+      closedTabId = tab.id;
       const newTree = removeLeaf(tab.paneTree, leafId);
       if (newTree === null) {
         const fallback = nextActiveInSpace(curr, tab.id);
@@ -1342,7 +1394,10 @@ export function useTabs(initial?: Partial<TerminalTab>) {
           : x,
       );
     });
-    if (didRemove) disposeSession(leafId);
+    if (didRemove) {
+      if (closedTabId !== null) splitHistoryRef.current.delete(closedTabId);
+      disposeSession(leafId);
+    }
   }, []);
 
   const closeActivePane = useCallback((tabId: number): boolean => {
@@ -1372,11 +1427,15 @@ export function useTabs(initial?: Partial<TerminalTab>) {
           : x,
       );
     });
-    if (removedLeaf !== null) disposeSession(removedLeaf);
+    if (removedLeaf !== null) {
+      splitHistoryRef.current.delete(tabId);
+      disposeSession(removedLeaf);
+    }
     return closedTab;
   }, []);
 
   const resetWorkspace = useCallback((cwd?: string) => {
+    splitHistoryRef.current.clear();
     const tabId = nextIdRef.current++;
     const leafId = nextIdRef.current++;
     let toDispose: number[] = [];
@@ -1444,6 +1503,7 @@ export function useTabs(initial?: Partial<TerminalTab>) {
     focusNextPaneInTab,
     swapActivePaneInDirection,
     splitActivePane,
+    undoLastSplit,
     closeActivePane,
     closePaneByLeaf,
     resetWorkspace,

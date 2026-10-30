@@ -28,6 +28,7 @@ export const shortcutsZh: typeof shortcuts = {
   pane: {
     splitRight: "向右拆分窗格",
     splitDown: "向下拆分窗格",
+    undoSplit: "撤销最近一次拆分",
     focusNext: "聚焦下一个窗格",
     focusPrev: "聚焦上一个窗格",
     swapLeft: "与左侧窗格交换",

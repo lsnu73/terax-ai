@@ -22,6 +22,7 @@ type Params = {
   sidebarView: SidebarViewId;
   /** The sidebar panel is collapsed to 0 px (still mounted, not on screen). */
   sidebarCollapsed: boolean;
+  startupReady: boolean;
   /** The `explorerGitDecorations` preference. */
   explorerGitDecorations: boolean;
   repositoryTarget: SourceControlRepositoryTarget;
@@ -47,6 +48,7 @@ export function useSourceControlContext({
   home,
   sidebarView,
   sidebarCollapsed,
+  startupReady,
   explorerGitDecorations,
   repositoryTarget,
   cycleSidebarView,
@@ -89,14 +91,16 @@ export function useSourceControlContext({
   });
   // `git status` runs on focus / context changes only while something that
   // shows git state is on screen; otherwise the next consumer refreshes it.
-  const live = isStatusLive(
-    statusConsumers({
-      sidebarCollapsed,
-      sidebarView,
-      activeTabKind: activeTab?.kind,
-      explorerGitDecorations,
-    }),
-  );
+  const live =
+    startupReady &&
+    isStatusLive(
+      statusConsumers({
+        sidebarCollapsed,
+        sidebarView,
+        activeTabKind: activeTab?.kind,
+        explorerGitDecorations,
+      }),
+    );
   const sourceControl = useSourceControl(sourceControlPath, true, { live });
 
   const toggleSourceControl = useCallback(() => {
