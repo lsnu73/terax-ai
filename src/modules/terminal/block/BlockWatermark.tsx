@@ -53,10 +53,6 @@ export function BlockWatermark({ leafId, subscribe }: Props) {
       <div className="grid grid-cols-[auto_auto] items-center gap-x-12 gap-y-3 text-[13px]">
         <Hint label={t("terminal.watermark.browseHistory")} keys="↑" />
         <Hint label={t("terminal.watermark.autocomplete")} keys="Tab" />
-        <Hint
-          label={t("terminal.watermark.switchShellAi")}
-          shortcut="terminal.toggleInput"
-        />
         <Hint label={t("terminal.watermark.openAi")} shortcut="ai.toggle" />
       </div>
     </div>

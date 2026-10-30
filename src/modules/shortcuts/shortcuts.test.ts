@@ -135,6 +135,11 @@ describe("matchBinding", () => {
 });
 
 describe("SHORTCUTS registry", () => {
+  it("binds only Mod+I to the native AI window", () => {
+    const ai = SHORTCUTS.find((shortcut) => shortcut.id === "ai.toggle");
+    expect(ai?.defaultBindings).toEqual([{ key: "i", [MOD_PROP]: true }]);
+  });
+
   it("binds Mod+S to editor.save", () => {
     const save = SHORTCUTS.find((s) => s.id === "editor.save");
     expect(save).toBeDefined();

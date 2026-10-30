@@ -31,7 +31,6 @@ export type ShortcutId =
   | "pane.swapDown"
   | "pane.source"
   | "terminal.clear"
-  | "terminal.toggleInput"
   | "blocks.prev"
   | "blocks.next"
   | "search.focus"
@@ -43,7 +42,6 @@ export type ShortcutId =
   | "view.zoomReset"
   | "view.zenMode"
   | "ai.toggle"
-  | "ai.toggleMini"
   | "ai.askSelection"
   | "agent.focusAttention"
   | "settings.open"
@@ -216,12 +214,6 @@ export const SHORTCUTS: Shortcut[] = [
     defaultBindings: IS_MAC ? [{ meta: true, key: "k" }] : [],
   },
   {
-    id: "terminal.toggleInput",
-    labelKey: "shortcuts.terminal.toggleInput",
-    group: "Terminal",
-    defaultBindings: [{ [MOD_PROP]: true, key: "u" }],
-  },
-  {
     id: "blocks.prev",
     labelKey: "shortcuts.blocks.prev",
     group: "Terminal",
@@ -290,12 +282,6 @@ export const SHORTCUTS: Shortcut[] = [
     labelKey: "shortcuts.ai.toggle",
     group: "AI",
     defaultBindings: [{ [MOD_PROP]: true, key: "i" }],
-  },
-  {
-    id: "ai.toggleMini",
-    labelKey: "shortcuts.ai.toggleMini",
-    group: "AI",
-    defaultBindings: [{ [MOD_PROP]: true, shift: true, key: "i" }],
   },
   {
     id: "ai.askSelection",

@@ -22,11 +22,7 @@ export function useSelectionAskAi({
     const isInsideAi = (t: EventTarget | null) => {
       const el = t as HTMLElement | null;
       if (!el) return false;
-      return !!(
-        el.closest("[data-selection-ask-ai]") ||
-        el.closest("[data-ai-input-bar]") ||
-        el.closest("[data-ai-mini-window]")
-      );
+      return Boolean(el.closest("[data-selection-ask-ai]"));
     };
 
     const onDown = (e: MouseEvent) => {

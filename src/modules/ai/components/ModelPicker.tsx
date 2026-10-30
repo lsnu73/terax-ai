@@ -5,7 +5,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Kbd } from "@/components/ui/kbd";
 import { Slider } from "@/components/ui/slider";
 import { ProviderIcon } from "@/components/ProviderIcon";
 import { cn } from "@/lib/utils";
@@ -22,148 +21,30 @@ import {
 import { openSettingsWindow } from "@/modules/settings/openSettingsWindow";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import { setThinkingLevel } from "@/modules/settings/store";
-import { shortcutHintLabel, useShortcutHint } from "@/modules/shortcuts";
 import {
-  Add01Icon,
   AiBookIcon,
   ArrowDown01Icon,
-  ArrowUpIcon,
   BrainIcon,
   Clock01Icon,
   FavouriteIcon,
-  Message01Icon,
   Search01Icon,
   Settings01Icon,
   StarIcon,
-  StopCircleIcon,
   Tick01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ACCEPTED_FILES, useComposer } from "../lib/composer";
 import { toggleFavoriteModel } from "../lib/modelPrefs";
 import { useChatStore } from "../store/chatStore";
 
-export function AiOpenButton({ onOpen }: { onOpen: () => void }) {
-  const { t } = useTranslation();
-  const hint = useShortcutHint("ai.toggle");
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className={cn(
-        "flex h-6 items-center gap-1.5 rounded-md border border-border/60 bg-card px-2 text-xs",
-        "text-muted-foreground transition-colors hover:border-border hover:bg-accent hover:text-foreground",
-        "animate-in slide-in-from-top-2 duration-200 ease-out",
-      )}
-      title={shortcutHintLabel(t("ai.statusbar.openAiAgent"), hint)}
-    >
-      <span>{t("ai.statusbar.openAiAgent")}</span>
-      {hint ? <Kbd className="h-4 min-w-4 px-1">{hint}</Kbd> : null}
-    </button>
-  );
-}
-
-export function AiStatusBarControls() {
-  const { t } = useTranslation();
-  const c = useComposer();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const toggleMini = useChatStore((s) => s.toggleMini);
-  const miniOpen = useChatStore((s) => s.mini.open);
-  const closePanel = useChatStore((s) => s.closePanel);
-  const aiHint = useShortcutHint("ai.toggle");
-  const miniHint = useShortcutHint("ai.toggleMini");
-
-  return (
-    <div className="flex items-center gap-0.5">
-      <input
-        ref={fileInputRef}
-        type="file"
-        multiple
-        accept={ACCEPTED_FILES}
-        className="hidden"
-        onChange={(e) => {
-          void c.addFiles(e.target.files);
-          e.target.value = "";
-        }}
-      />
-
-      <IconBtn
-        title={t("ai.statusbar.attachFile")}
-        onClick={() => fileInputRef.current?.click()}
-        disabled={c.isBusy}
-      >
-        <HugeiconsIcon icon={Add01Icon} size={13} strokeWidth={2} />
-      </IconBtn>
-
-      <ModelDropdown />
-
-      <span className="mx-1 h-8 w-px bg-border" aria-hidden />
-      <Button
-        onClick={closePanel}
-        title={shortcutHintLabel(t("ai.statusbar.closePanel"), aiHint)}
-        size="xs"
-        variant="ghost"
-        aria-label={t("ai.statusbar.closePanel")}
-        className="text-[11px] text-foreground/85 px-1"
-      >
-        {aiHint ? (
-          <Kbd className="h-4 gap-px px-2 font-mono text-[11px]">
-            {aiHint}
-          </Kbd>
-        ) : null}
-      </Button>
-      <IconBtn
-        title={shortcutHintLabel(
-          t(
-            miniOpen
-              ? "ai.statusbar.closeChatWindow"
-              : "ai.statusbar.openChatWindow",
-          ),
-          miniHint,
-        )}
-        onClick={toggleMini}
-      >
-        <HugeiconsIcon icon={Message01Icon} size={13} strokeWidth={1.75} />
-      </IconBtn>
-
-      {c.isBusy ? (
-        <Button
-          type="button"
-          size="icon"
-          variant="ghost"
-          onClick={c.stop}
-          className="size-6"
-          aria-label={t("ai.statusbar.stop")}
-          title={t("ai.statusbar.stop")}
-        >
-          <HugeiconsIcon icon={StopCircleIcon} size={13} strokeWidth={1.75} />
-        </Button>
-      ) : (
-        <Button
-          type="button"
-          size="icon"
-          onClick={c.submit}
-          disabled={!c.canSend}
-          className="h-5.5 w-7.5 ml-1"
-          aria-label={t("ai.statusbar.send")}
-          title={t("ai.statusbar.sendEnter")}
-        >
-          <HugeiconsIcon icon={ArrowUpIcon} size={13} strokeWidth={1.75} />
-        </Button>
-      )}
-    </div>
-  );
-}
-
 type Tab = "all" | "favorites" | "recent";
 
-/**
- * 终端 Ctrl+I 提示词输入框中的模型选择器。列表完全由 JSON 配置生成，
- * 底部是该模型的思考滑块，档位来自所选模型自己的阶梯声明。
- */
-function ModelDropdown() {
+export function ModelPicker({
+  onSelectModel,
+}: {
+  onSelectModel?: (id: string) => void;
+}) {
   const { t } = useTranslation();
   const selected = useChatStore((s) => s.selectedModelId);
   const apiKeys = useChatStore((s) => s.apiKeys);
@@ -263,7 +144,9 @@ function ModelDropdown() {
                   })
           }
         >
-          {current?.label ?? t("ai.modelPicker.selectModel")}
+          <span className="max-w-28 truncate">
+            {current?.label ?? t("ai.modelPicker.selectModel")}
+          </span>
           <HugeiconsIcon
             icon={ArrowDown01Icon}
             size={11}
@@ -275,7 +158,7 @@ function ModelDropdown() {
 
       <DropdownMenuContent
         align="end"
-        className="w-[28rem] p-0 overflow-hidden rounded-xl border border-border/70 shadow-xl"
+        className="w-[min(28rem,calc(100vw-1rem))] p-0 overflow-hidden rounded-xl border border-border/70 shadow-xl"
         onFocusCapture={(e) => {
           if (e.target !== inputRef.current) inputRef.current?.focus();
         }}
@@ -404,7 +287,7 @@ function ModelDropdown() {
                       void openSettingsWindow("models");
                       return;
                     }
-                    setSelected(m.id);
+                    (onSelectModel ?? setSelected)(m.id);
                   }}
                   onToggleFavorite={() => void toggleFavoriteModel(m.id)}
                 />
@@ -623,36 +506,5 @@ function ModelRow({
         />
       ) : null}
     </DropdownMenuItem>
-  );
-}
-
-function IconBtn({
-  title,
-  onClick,
-  disabled,
-  className,
-  children,
-}: {
-  title: string;
-  onClick: () => void;
-  disabled?: boolean;
-  className?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="icon"
-      title={title}
-      onClick={onClick}
-      disabled={disabled}
-      className={cn(
-        "size-6 rounded-md text-muted-foreground hover:text-foreground",
-        className,
-      )}
-    >
-      {children}
-    </Button>
   );
 }

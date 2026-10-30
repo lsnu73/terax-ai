@@ -6,9 +6,9 @@
 
 | 层 | 选型 | 版本或约束 | 备注 |
 |---|---|---|---|
-| 桌面外壳 | Tauri | 2.x，发行版启用 `devtools` | 主窗口与独立设置窗口 |
+| 桌面外壳 | Tauri | 2.x，发行版启用 `devtools` | 主窗口、独立设置窗口、独立 AI 窗口 |
 | 原生侧 | Rust | stable，edition 2021 | 所有操作系统访问与 IPC 命令 |
-| 前端 | React、TypeScript | React 19，TypeScript 6 | 两个 HTML 入口 |
+| 前端 | React、TypeScript | React 19，TypeScript 6 | 三个 HTML 入口 |
 | 构建 | Vite、pnpm | Vite 8，Node 22+，pnpm 11.9 | pnpm workspace |
 | 终端 | libghostty-vt WASM、portable-pty | 仓库固定适配版本 | WebGPU 默认，WebGL 回退 |
 | 编辑器 | CodeMirror | 6.x | 语言、LSP 与主题按需配置 |
@@ -19,8 +19,8 @@
 ## 分层与进程边界
 
 ```text
-React 主窗口 / 设置窗口
-  -> Tauri invoke、事件与自定义协议
+React 主窗口 / 设置窗口 / AI 窗口
+  -> Tauri invoke、定向事件与自定义协议
   -> Rust 命令层与原生模块
   -> 文件系统、PTY、Git、进程、网络、钥匙串
 ```
@@ -28,6 +28,7 @@ React 主窗口 / 设置窗口
 - Rust 独占操作系统访问，webview 不直接访问文件、进程或 shell。
 - 主窗口入口是 `src/main.tsx`，由 `src/app/App.tsx` 组装业务模块。
 - 设置窗口入口是 `src/settings/main.tsx`，通过 Tauri 事件与主窗口同步偏好。
+- AI 窗口入口是 `src/ai/main.tsx`。主 webview 持有唯一 Chat 引擎，AI webview 通过定向快照和命令桥镜像对话。
 - 新逻辑优先放在依赖轻的纯函数中，React 组件和 Tauri 命令保持薄层。
 
 IPC 命令索引见 [../architecture/two-process-model.md](../architecture/two-process-model.md)，安全边界见 [../architecture/security-model.md](../architecture/security-model.md)。
@@ -39,6 +40,7 @@ IPC 命令索引见 [../architecture/two-process-model.md](../architecture/two-p
 | `src/app/` | 主窗口组装、跨模块协调 | 可独立沉淀的领域算法 |
 | `src/modules/` | 按业务域划分的自包含前端模块 | 跨模块相对导入 |
 | `src/settings/` | 独立设置窗口及设置分区 | 主窗口运行时状态 |
+| `src/ai/` | 独立 AI 窗口入口与页面组装 | 第二个 Chat 引擎或 Provider 请求链路 |
 | `src/components/` | 通用 UI 与注册表生成组件 | 具体业务编排 |
 | `src-tauri/src/` | 原生入口、IPC 命令、操作系统适配 | React 状态或 UI 逻辑 |
 | `src-tauri/crates/` | CLI 与控制协议等 Rust workspace crate | webview 组件 |

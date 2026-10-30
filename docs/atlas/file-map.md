@@ -18,7 +18,14 @@
 | `src/modules/header/SearchInline.tsx` | [快捷键提示](features/快捷键提示.md) | 标签内搜索 | placeholder 与标题动态显示快捷键 |
 | `src/modules/tabs/NewTabMenu.tsx` | [快捷键提示](features/快捷键提示.md) | 标签页管理 | 新建标签菜单动态显示快捷键 |
 | `src/modules/tabs/TabBar.tsx` | [快捷键提示](features/快捷键提示.md) | 标签页管理 | 标签关闭按钮动态标题 |
-| `src/modules/ai/components/AiStatusBarControls.tsx` | [快捷键提示](features/快捷键提示.md) | AI 面板 | AI 开关与 mini 窗口提示 |
+| `src/modules/ai/components/AiOpenButton.tsx` | [快捷键提示](features/快捷键提示.md) | [独立AI窗口](features/独立AI窗口.md) | 状态栏 AI 开关与动态快捷键提示 |
+| `src/ai/AiWindowApp.tsx` | [独立AI窗口](features/独立AI窗口.md) | AI 对话 | 独立 AI 页面、会话、模型和 Composer 组装 |
+| `src/modules/ai/components/AiWindowComposer.tsx` | [独立AI窗口](features/独立AI窗口.md) | AI 对话 | 完整 Composer 与 prefill |
+| `src/modules/ai/components/AgentRunBridge.tsx` | [独立AI窗口](features/独立AI窗口.md) | AI 对话与工具审批 | 主窗口唯一聊天引擎、命令处理和快照镜像 |
+| `src/modules/ai/lib/aiWindow.ts` | [独立AI窗口](features/独立AI窗口.md) | 选区与文件 prefill | 原生窗口开关和失败回滚 |
+| `src/modules/ai/lib/aiWindowBridge.ts` | [独立AI窗口](features/独立AI窗口.md) | 跨窗口 IPC | 快照、prefill 与命令契约 |
+| `src/modules/ai/lib/composerMessage.ts` | [独立AI窗口](features/独立AI窗口.md) | AI 对话 | Composer 到 AI SDK parts 的纯转换 |
+| `src-tauri/src/modules/ai_window.rs` | [独立AI窗口](features/独立AI窗口.md) | 原生窗口 | 异步创建、聚焦与销毁无 parent AI 窗口 |
 | `src/modules/explorer/FileExplorer.tsx` | [快捷键提示](features/快捷键提示.md) | 文件资源管理器 | 文件搜索按钮动态标题 |
 | `src/modules/tabs/lib/useTabs.ts` | [撤销终端窗格拆分](features/撤销终端窗格拆分.md) | 标签与分屏状态 | 记录拆分历史、移除叶节点并恢复焦点 |
 | `src/modules/terminal/lib/panes.ts` | [撤销终端窗格拆分](features/撤销终端窗格拆分.md) | [终端链接打开](features/终端链接打开.md) | 叶节点查询、拆分与移除 |

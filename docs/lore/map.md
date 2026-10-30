@@ -13,13 +13,13 @@
 
 ### 前端主应用  `src/app/`、`src/main.tsx`
 - 职责：主窗口 UI（终端标签页、编辑器、AI 面板）。
-- 对外暴露：`src/modules/settings/openSettingsWindow.ts` 的 `openSettingsWindow(tab?)`，是打开设置窗口的唯一入口（App.tsx、AgentSwitcher、AiStatusBarControls 等调用）。
+- 对外暴露：`src/modules/settings/openSettingsWindow.ts` 的 `openSettingsWindow(tab?)`，是打开设置窗口的唯一入口（App.tsx、AgentSwitcher、ModelPicker 等调用）。
 - 关键依赖：[前端主应用] → [应用外壳]（IPC）；[前端主应用] → [ghostty-core]（终端渲染）。
 - 易错点：`main.tsx` 是**顶层 await 模块**且窗口在 `tauri.conf.json` 里 `visible:false`、由前端首屏后 `window.show()`——入口模块任何一步崩溃都表现为「编译正常、进程活着、窗口永不出现」。排查手法见 pitfalls/2026-10-28-i18n-circular-import-tdz.md。
 
 ### i18n  `src/modules/i18n/`
 - 职责：全应用文案（中/英），语言偏好来自 settings（`"system"` 按操作系统语言判定）。
-- 对外暴露：组件内 `useTranslation`；组件外（配置表、toast、校验信息）用模块级 `t()`；入口 `initI18n()`（两个窗口入口各自顶层 await）。
+- 对外暴露：组件内 `useTranslation`；组件外（配置表、toast、校验信息）用模块级 `t()`；入口 `initI18n()`（三个窗口入口各自顶层 await）。
 - 关键依赖：[i18n] →（运行期 `t()` 被全应用静态 import，合法方向）；i18n 自身**不得静态依赖上层模块**（INV-009），对 preferences 的读取是 `initI18n` 内的动态 import。
 - 易错点：见 pitfalls/2026-10-28-i18n-circular-import-tdz.md。
 - 决策依据：见 decisions/2026-10-28-i18n-architecture.md
@@ -35,7 +35,7 @@
 - 关键依赖：[主窗口按钮或快捷键] → [Shortcut registry] → [App handler] → [Rust 命令] → [WebView DevTools]。
 - 代码索引：见 [atlas/features/开发者工具.md](../atlas/features/开发者工具.md)
 - 决策依据：见 decisions/2026-10-30-发行版启用开发者工具.md
-- 易错点：发行版依赖 `Cargo.toml` 的 `devtools` feature 和显式 Rust 命令；不能只依赖原生快捷键，因为主窗口的 `ai.toggleMini` 会消费 Mod+Shift+I。
+- 易错点：发行版依赖 `Cargo.toml` 的 `devtools` feature 和显式 Rust 命令；`devtools.open` 必须保持独立注册，AI 开关现在由 `ai.toggle` 的 Mod+I 处理。
 
 ## 终端与 CLI
 
@@ -56,6 +56,14 @@
 
 ## AI 与模型配置
 
+### 独立 AI 窗口  `src/ai/`、`src/modules/ai/lib/aiWindowBridge.ts`、`src-tauri/src/modules/ai_window.rs`
+- 职责：把完整 Composer 和对话视图放进可跨屏移动的原生窗口，同时保持唯一聊天运行时。
+- 对外暴露：快捷键 `ai.toggle`；Tauri 异步命令 `open_ai_window` / `close_ai_window`；定向快照与命令事件。
+- 关键依赖：[AI webview] →（结构化命令）→ [主窗口 AgentRunBridge] → [唯一 Chat] →（定向快照）→ [AI webview]。
+- 代码索引：见 [atlas/features/独立AI窗口.md](../atlas/features/独立AI窗口.md)
+- 易错点：同步命令创建或销毁窗口会阻塞 Windows 事件循环，见 pitfalls/2026-10-30-同步命令创建AI窗口阻塞事件循环.md。
+- 决策依据：见 decisions/2026-10-30-AI窗口采用单聊天引擎跨Webview镜像.md
+
 ### 模型配置（数据驱动层）  `src/modules/ai/config/`
 - 职责：把 Provider、模型、请求参数、思考档位全部收敛为一份可手工编辑的 JSON（`terax-ai-models.json`），让「新增厂商」变成配置操作而不是代码分支。
 - 对外暴露：`registry.ts` 的同步查询（`resolveModel` / `listModels` / `providerNeedsKey` 等）、`params.ts` 的 `resolveRequestParams`、`store.ts` 的 `useAiConfigStore`。
@@ -73,8 +81,8 @@
 - 关键依赖：[keyring.ts] →（`secrets_get` / `secrets_set` / `secrets_get_all`）→ [Rust secrets 模块]。
 - 易错点：钥匙串账户列表来自当前配置快照；配置未 hydrate 时读取会得到空列表（见对应 pitfall）。
 
-### 模型设置页与思考滑块  `src/settings/sections/ModelsSection.tsx`、`src/settings/sections/models/StructuredFields.tsx`、`src/modules/ai/components/AiStatusBarControls.tsx`
-- 职责：ModelsSection 负责 Provider/模型的增删改、连通性测试、模型列表拉取与高级 JSON 编辑；StructuredFields 为结构化 JSON 字段提供「表单 / JSON」双模式编辑（Params/Thinking/Extra/Headers/Models API）与 InfoHint 悬浮说明；AiStatusBarControls 在 Ctrl+I 模型选择窗底部渲染思考滑块。
+### 模型设置页与思考滑块  `src/settings/sections/ModelsSection.tsx`、`src/settings/sections/models/StructuredFields.tsx`、`src/modules/ai/components/ModelPicker.tsx`
+- 职责：ModelsSection 负责 Provider/模型的增删改、连通性测试、模型列表拉取与高级 JSON 编辑；StructuredFields 为结构化 JSON 字段提供「表单 / JSON」双模式编辑（Params/Thinking/Extra/Headers/Models API）与 InfoHint 悬浮说明；ModelPicker 在独立 AI 窗口的模型选择器中渲染思考滑块。
 - 关键依赖：[ModelsSection] → [useAiConfigStore.replace] → [persist.writeAiConfig] →（Tauri 事件 `terax://ai-models-changed`）→ [主窗口]。
 - 易错点：UI 与手改 JSON 必须走同一条 `normalizeAiConfig`；滑块档位来自所选模型自己的阶梯，无阶梯时不渲染；表单组件的值同步陷阱见 pitfalls/2026-10-28-form-editor-value-sync.md。
 - 决策依据：见 decisions/2026-10-28-form-json-dual-mode.md

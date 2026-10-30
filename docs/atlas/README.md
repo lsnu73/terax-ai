@@ -27,13 +27,14 @@ Terax 是面向开发者的开源桌面开发工作区，以终端为中心，�
 | 改终端 URL 的打开方式 | [features/终端链接打开.md](features/终端链接打开.md) | `src/modules/terminal/lib/terminalLinks.ts`, `src/modules/terminal/ghostty/useGhosttyTerminalSession.ts` |
 | 改预览端口菜单或预设 | [features/预览端口管理.md](features/预览端口管理.md) | `src/modules/preview/PreviewAddressBar.tsx`, `src/modules/preview/lib/portPresets.ts` |
 | 改按钮悬浮提示的快捷键格式 | [features/快捷键提示.md](features/快捷键提示.md) | `src/modules/shortcuts/components/ShortcutTooltip.tsx` |
+| 改独立 AI 窗口或 Composer | [features/独立AI窗口.md](features/独立AI窗口.md) | `src/ai/AiWindowApp.tsx`, `src/modules/ai/lib/aiWindowBridge.ts` |
 | 项目跑不起来 | [getting-started.md](getting-started.md) | `package.json`, `src-tauri/tauri.conf.json` |
 | 不知道某文件干嘛的 | [file-map.md](file-map.md) | 无 |
 | 查设计理由或硬约束 | [../lore/README.md](../lore/README.md) | 无 |
 
 ## 当前覆盖范围
 
-首版采用种子功能法，之后按开发增量补齐。目前完整覆盖「撤销终端窗格拆分」「开发者工具」「终端链接打开」「预览端口管理」「快捷键提示」五个功能。其他功能在 [features/_index.md](features/_index.md) 中登记为未覆盖，后续随开发补齐，不以目录名推测实现。
+首版采用种子功能法，之后按开发增量补齐。目前完整覆盖「撤销终端窗格拆分」「开发者工具」「终端链接打开」「预览端口管理」「快捷键提示」「独立 AI 窗口」六个功能。其他功能在 [features/_index.md](features/_index.md) 中登记为未覆盖，后续随开发补齐，不以目录名推测实现。
 
 ## 协作约定
 

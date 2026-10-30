@@ -1,5 +1,6 @@
 pub mod agent;
 pub mod ai_sessions;
+pub mod ai_window;
 #[cfg(target_os = "macos")]
 pub mod app_menu;
 #[cfg(feature = "bench")]

@@ -72,14 +72,8 @@ const IDLE_META: AgentMeta = {
   compactionNotice: null,
 };
 
-type MiniState = {
+type AiWindowState = {
   open: boolean;
-};
-
-type PendingSelection = {
-  id: string;
-  text: string;
-  source: "terminal" | "editor";
 };
 
 type ApprovalResponder = (approvalId: string, approved: boolean) => void;
@@ -106,24 +100,12 @@ type StoreState = {
   selectedModelId: string;
   setSelectedModelId: (id: string) => void;
 
-  mini: MiniState;
-  openMini: () => void;
-  closeMini: () => void;
-  toggleMini: () => void;
-
-  panelOpen: boolean;
-  openPanel: () => void;
-  closePanel: () => void;
-  togglePanel: () => void;
+  aiWindow: AiWindowState;
+  openAiWindow: () => void;
+  closeAiWindow: () => void;
 
   focusSignal: number;
-  pendingPrefill: string | null;
-  focusInput: (prefill?: string | null) => void;
-  consumePrefill: () => string | null;
-
-  pendingSelections: PendingSelection[];
-  attachSelection: (text: string, source: "terminal" | "editor") => void;
-  consumeSelections: () => PendingSelection[];
+  focusInput: () => void;
 
   agentMeta: AgentMeta;
   patchAgentMeta: (patch: Partial<AgentMeta>) => void;
@@ -237,49 +219,12 @@ export const useChatStore = create<StoreState>((set, get) => ({
     void pushRecentModel(id);
   },
 
-  mini: { open: false },
-  openMini: () => set({ mini: { open: true } }),
-  closeMini: () => set({ mini: { open: false } }),
-  toggleMini: () => set((s) => ({ mini: { open: !s.mini.open } })),
-
-  panelOpen: false,
-  openPanel: () => set({ panelOpen: true }),
-  closePanel: () => set({ panelOpen: false }),
-  togglePanel: () => set((s) => ({ panelOpen: !s.panelOpen })),
+  aiWindow: { open: false },
+  openAiWindow: () => set({ aiWindow: { open: true } }),
+  closeAiWindow: () => set({ aiWindow: { open: false } }),
 
   focusSignal: 0,
-  pendingPrefill: null,
-  focusInput: (prefill = null) =>
-    set((s) => ({
-      panelOpen: true,
-      focusSignal: s.focusSignal + 1,
-      pendingPrefill: prefill ?? null,
-    })),
-  consumePrefill: () => {
-    const v = get().pendingPrefill;
-    if (v != null) set({ pendingPrefill: null });
-    return v;
-  },
-
-  pendingSelections: [],
-  attachSelection: (text, source) => {
-    const trimmed = text.trim();
-    if (!trimmed) return;
-    const id = `sel-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    set((s) => ({
-      panelOpen: true,
-      focusSignal: s.focusSignal + 1,
-      pendingSelections: [
-        ...s.pendingSelections,
-        { id, text: trimmed, source },
-      ],
-    }));
-  },
-  consumeSelections: () => {
-    const v = get().pendingSelections;
-    if (v.length > 0) set({ pendingSelections: [] });
-    return v;
-  },
+  focusInput: () => set((s) => ({ focusSignal: s.focusSignal + 1 })),
 
   agentMeta: IDLE_META,
   patchAgentMeta: (patch) =>

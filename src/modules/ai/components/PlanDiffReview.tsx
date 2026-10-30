@@ -33,7 +33,17 @@ function diffStats(
   return { added, removed };
 }
 
-export function PlanDiffReview() {
+type PlanDiffReviewProps = {
+  onRemoveOne?: (id: string) => void;
+  onClear?: () => void;
+  onApplyAll?: () => Promise<{ id: string; ok: boolean; error?: string }[]>;
+};
+
+export function PlanDiffReview({
+  onRemoveOne,
+  onClear,
+  onApplyAll,
+}: PlanDiffReviewProps = {}) {
   const { t } = useTranslation();
   const queue = usePlanStore((s) => s.queue);
   const removeOne = usePlanStore((s) => s.removeOne);
@@ -46,7 +56,7 @@ export function PlanDiffReview() {
   const onApply = async () => {
     setBusy(true);
     try {
-      const results = await applyAll();
+      const results = await (onApplyAll ?? applyAll)();
       const failed = results.filter((r) => !r.ok);
       if (failed.length) {
         console.error("plan apply failures:", failed);
@@ -73,7 +83,7 @@ export function PlanDiffReview() {
             size="sm"
             variant="ghost"
             className="h-7 gap-1.5 text-[11px] hover:bg-destructive/10 hover:text-destructive"
-            onClick={() => clear()}
+            onClick={() => (onClear ?? clear)()}
             disabled={busy}
           >
             <HugeiconsIcon icon={Cancel01Icon} size={12} strokeWidth={2} />
@@ -93,7 +103,11 @@ export function PlanDiffReview() {
       </div>
       <ul className="flex flex-1 flex-col gap-1.5 overflow-auto p-3">
         {queue.map((q) => (
-          <PlanRow key={q.id} item={q} onReject={() => removeOne(q.id)} />
+          <PlanRow
+          key={q.id}
+          item={q}
+          onReject={() => (onRemoveOne ?? removeOne)(q.id)}
+        />
         ))}
       </ul>
     </div>

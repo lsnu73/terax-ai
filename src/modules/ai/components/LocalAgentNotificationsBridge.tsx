@@ -4,6 +4,7 @@ import { useAgentStore } from "@/modules/agents/store/agentStore";
 import type { AgentStatus } from "@/modules/agents/lib/types";
 import { t } from "@/modules/i18n";
 import { useEffect, useRef } from "react";
+import { openAiWindow } from "../lib/aiWindow";
 import { useChatStore } from "../store/chatStore";
 
 const AGENT = "Terax";
@@ -28,7 +29,7 @@ function liveStatus(s: RunStatus): AgentStatus | null {
 export function LocalAgentNotificationsBridge() {
   const status = useChatStore((s) => s.agentMeta.status) as RunStatus;
   const error = useChatStore((s) => s.agentMeta.error);
-  const visible = useChatStore((s) => s.panelOpen || s.mini.open);
+  const visible = useChatStore((s) => s.aiWindow.open);
   const focused = useWindowFocus();
 
   const visibleRef = useRef(visible);
@@ -64,7 +65,7 @@ export function LocalAgentNotificationsBridge() {
         focused: focusedRef.current,
         visible: visibleRef.current,
         allowToast: true,
-        onActivate: () => useChatStore.getState().openPanel(),
+        onActivate: () => void openAiWindow(),
       });
 
     if (status === "awaiting-approval") {

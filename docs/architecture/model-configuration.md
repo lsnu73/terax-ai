@@ -58,7 +58,7 @@
 | `src/modules/ai/lib/providerHttp.ts` | 连通性测试、模型列表拉取、鉴权头 | `testProviderConnection` / `fetchProviderModels` |
 | `src/modules/ai/lib/keyring.ts` | 钥匙串读写 | `getAllKeys` / `setKey` |
 | `src/settings/sections/ModelsSection.tsx` | 设置页：增删改、测试、拉取、JSON 编辑 | React 组件 |
-| `src/modules/ai/components/AiStatusBarControls.tsx` | Ctrl+I 模型选择窗 + 思考滑块 | React 组件 |
+| `src/modules/ai/components/ModelPicker.tsx` | Ctrl+I 模型选择窗 + 思考滑块 | React 组件 |
 
 依赖方向单向：UI → registry/store → 纯数据。`registry` 不依赖任何 UI；请求链路不依赖 React。
 
@@ -343,7 +343,7 @@ GLM-5.2（`low/medium → high`，`xhigh → max`，`none/minimal → 放弃思�
 | 4 | 新增模型需填 id、输入 token、输出 token、参数配置 | `ModelEditor`；`ModelEntry.inputTokens/outputTokens/params` | 表单校验 + 保存后 JSON 落盘 |
 | 5 | 动态参数机制并在请求时正确合并/映射 | `config/params.ts`；`agent.ts` 的 `withRequestParams` | `config.test.ts` 覆盖映射、省略、嵌套、header、保护键、extra |
 | 6 | 全部写入 JSON；UI 与手改等价；API Key 不入 JSON | `config/persist.ts`、`normalize.ts`、`keyring.ts` | 设置页显示文件路径与 Reload；密钥头清洗测试；钥匙串读写 |
-| 7 | Ctrl+I 模型选择窗增加思考滑块，最左关闭，联动请求 | `AiStatusBarControls.tsx` 的滑块；`prefs.thinkingLevelByModel`；链路传参 | 选 GLM 模型 → 滑块 4 档；选无档位模型 → 隐藏；发送参数见 §3 |
+| 7 | 独立 AI 窗口模型选择器增加思考滑块，最左关闭，联动请求 | `ModelPicker.tsx` 的滑块；`prefs.thinkingLevelByModel`；链路传参 | 选 GLM 模型 → 滑块 4 档；选无档位模型 → 隐藏；发送参数见 §3 |
 | 8 | 删除模型列表的智力/速度/价格 | 删除 `ModelCapabilities`、`MODEL_PRICING`、`estimateCost`、`CapabilityBars`、成本行 | 全局 grep 无残留；模型列表只显示名称/id |
 
 ### 解耦复核（模拟新增 Provider）

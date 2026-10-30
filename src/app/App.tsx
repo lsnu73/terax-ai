@@ -20,15 +20,19 @@ import {
 } from "@/modules/agents";
 import {
   AgentRunBridge,
-  AiMiniWindow,
+  AI_WINDOW_CLOSED_EVENT,
+  AI_WINDOW_READY_EVENT,
+  flushAiWindowPrefill,
   LocalAgentNotificationsBridge,
   SelectionAskAi,
+  openAiWindow,
+  prefillAiWindow,
+  toggleAiWindow,
   useAiBootstrap,
   useAiLiveBridge,
   useChatStore,
   useSelectionAskAi,
 } from "@/modules/ai";
-import { AiComposerProvider } from "@/modules/ai/lib/composer";
 import { native } from "@/modules/ai/lib/native";
 import { CommandPalette, createCommandItems } from "@/modules/command-palette";
 import { useControlBridge } from "@/modules/control";
@@ -130,10 +134,7 @@ import {
   useState,
 } from "react";
 import { CloseDialogs } from "./components/CloseDialogs";
-import {
-  TOGGLE_BLOCK_INPUT_EVENT,
-  WorkspaceInputBar,
-} from "./components/WorkspaceInputBar";
+import { WorkspaceInputBar } from "./components/WorkspaceInputBar";
 import { WorkspaceSurface } from "./components/WorkspaceSurface";
 import { useAppCloseGuard } from "./hooks/useAppCloseGuard";
 import {
@@ -364,17 +365,10 @@ export default function App() {
     },
     [],
   );
-  const miniOpen = useChatStore((s) => s.mini.open);
-  const miniPresence = usePresence(miniOpen, 200);
-  const openMini = useChatStore((s) => s.openMini);
-  const toggleMini = useChatStore((s) => s.toggleMini);
-  const focusInput = useChatStore((s) => s.focusInput);
-  const openPanel = useChatStore((s) => s.openPanel);
-  const panelOpen = useChatStore((s) => s.panelOpen);
   const setLive = useChatStore((s) => s.setLive);
   const respondToApproval = useChatStore((s) => s.respondToApproval);
 
-  const { hasComposer, keysLoaded } = useAiBootstrap();
+  const { hasComposer } = useAiBootstrap();
 
   const activeTab = tabs.find((t) => t.id === activeId);
   const isTerminalTab = activeTab?.kind === "terminal";
@@ -556,58 +550,50 @@ export default function App() {
     return null;
   }, [tabs, activeId]);
 
-  const togglePanelAndFocus = useCallback(() => {
+  const openAi = useCallback(() => {
     if (!hasComposer) {
       void openSettingsWindow("models");
       return;
     }
-    if (panelOpen) {
-      useChatStore.getState().closePanel();
-    } else {
-      openPanel();
-      focusInput(null);
-    }
-  }, [hasComposer, panelOpen, openPanel, focusInput]);
+    void openAiWindow();
+  }, [hasComposer]);
 
-  const attachSelection = useChatStore((s) => s.attachSelection);
+  const toggleAi = useCallback(() => {
+    if (!hasComposer) {
+      void openSettingsWindow("models");
+      return;
+    }
+    void toggleAiWindow();
+  }, [hasComposer]);
+
+  useEffect(() => {
+    const ready = listen(AI_WINDOW_READY_EVENT, flushAiWindowPrefill);
+    const closed = listen(AI_WINDOW_CLOSED_EVENT, () => {
+      useChatStore.getState().closeAiWindow();
+    });
+    return () => {
+      void ready.then((fn) => fn());
+      void closed.then((fn) => fn());
+    };
+  }, []);
 
   const handleAttachFileToAgent = useCallback(
     (path: string) => {
-      if (!hasComposer) {
-        void openSettingsWindow("models");
-        return;
-      }
-      // Dispatch a window event the composer listens for. Same pattern as
-      // selections — keeps file-explorer decoupled from the AI module.
-      window.dispatchEvent(
-        new CustomEvent<string>("terax:ai-attach-file", { detail: path }),
-      );
-      openPanel();
-      focusInput(null);
+      prefillAiWindow({ attachmentPaths: [path] });
     },
-    [hasComposer, openPanel, focusInput],
+    [],
   );
 
   const askFromSelection = useCallback(() => {
-    if (!hasComposer) {
-      void openSettingsWindow("models");
-      return;
-    }
     const selection = captureActiveSelection();
-    if (!selection || !selection.trim()) {
-      focusInput(null);
+    if (!selection?.trim()) {
+      openAi();
       return;
     }
     const source: "terminal" | "editor" =
       activeTab?.kind === "editor" ? "editor" : "terminal";
-    attachSelection(selection, source);
-  }, [
-    hasComposer,
-    captureActiveSelection,
-    focusInput,
-    attachSelection,
-    activeTab,
-  ]);
+    prefillAiWindow({ selection: { text: selection.trim(), source } });
+  }, [activeTab, captureActiveSelection, openAi]);
 
   const { askPopup, setAskPopup, onAskFromSelection } = useSelectionAskAi({
     captureActiveSelection,
@@ -945,8 +931,6 @@ export default function App() {
       "terminal.clear": () => {
         clearFocusedTerminal();
       },
-      "terminal.toggleInput": () =>
-        window.dispatchEvent(new CustomEvent(TOGGLE_BLOCK_INPUT_EVENT)),
       "blocks.prev": () => navigateFocusedBlocks(-1),
       "blocks.next": () => navigateFocusedBlocks(1),
       "search.focus": () => {
@@ -954,14 +938,7 @@ export default function App() {
         if (editor) editor.openSearch();
         else searchInlineRef.current?.focus();
       },
-      "ai.toggle": togglePanelAndFocus,
-      "ai.toggleMini": () => {
-        if (!hasComposer) {
-          void openSettingsWindow("models");
-          return;
-        }
-        toggleMini();
-      },
+      "ai.toggle": toggleAi,
       "ai.askSelection": onAskFromSelection,
       "agent.focusAttention": () => {
         const t = nextAttentionTarget();
@@ -1002,9 +979,7 @@ export default function App() {
       focusNextPaneInTab,
       swapActivePane,
       toggleSourceControl,
-      hasComposer,
-      togglePanelAndFocus,
-      toggleMini,
+      toggleAi,
       onAskFromSelection,
       toggleSidebar,
       toggleExplorerFocus,
@@ -1048,11 +1023,7 @@ export default function App() {
           (e.target as HTMLElement | null) ?? document.activeElement;
         return !isTerminalSurfaceTarget(target);
       }
-      if (
-        id === "terminal.toggleInput" ||
-        id === "blocks.prev" ||
-        id === "blocks.next"
-      ) {
+      if (id === "blocks.prev" || id === "blocks.next") {
         return !(activeTab?.kind === "terminal" && activeTab.blocks === true);
       }
       if (id === "sidebar.toggle") {
@@ -1134,9 +1105,8 @@ export default function App() {
   const onActivateAgent = activateAgentTarget;
 
   const onActivateLocalAgent = useCallback(() => {
-    openPanel();
-    focusInput(null);
-  }, [openPanel, focusInput]);
+    openAi();
+  }, [openAi]);
 
   const handleLeafExit = useCallback(
     (leafId: number, _code: number) => {
@@ -1301,7 +1271,7 @@ export default function App() {
             focusExplorerSearch: () => explorerRef.current?.focusSearch(),
             toggleSidebar,
             toggleHiddenFiles,
-            toggleAi: togglePanelAndFocus,
+            toggleAi,
             askAiSelection: askFromSelection,
             openSettings: () => void openSettingsWindow(),
             openKeyboardShortcuts: () => void openSettingsWindow("shortcuts"),
@@ -1329,7 +1299,7 @@ export default function App() {
       splitActivePaneInActiveTab,
       toggleSidebar,
       toggleHiddenFiles,
-      togglePanelAndFocus,
+      toggleAi,
       askFromSelection,
       activeSpaceId,
       handleNewSpace,
@@ -1579,14 +1549,7 @@ export default function App() {
 
                     <WorkspaceInputBar
                       isBlockTab={isBlockTab}
-                      isTerminalTab={isTerminalTab}
                       activeLeafId={activeLeafId}
-                      cwd={activeCwd}
-                      home={home}
-                      hasComposer={hasComposer}
-                      panelOpen={panelOpen}
-                      keysLoaded={keysLoaded}
-                      onConnect={() => void openSettingsWindow("models")}
                     />
                   </div>
                 </div>
@@ -1601,9 +1564,8 @@ export default function App() {
               home={home}
               onCd={sendCd}
               onWorkspaceChange={handleWorkspaceChange}
-              onOpenMini={openMini}
-              onOpenAi={togglePanelAndFocus}
-              hasComposer={hasComposer}
+              onOpenMini={openAi}
+              onOpenAi={openAi}
               privateActive={
                 activeTab?.kind === "terminal" && activeTab.private === true
               }
@@ -1634,9 +1596,6 @@ export default function App() {
             </>
           ) : null}
 
-          {hasComposer && miniPresence.mounted ? (
-            <AiMiniWindow state={miniPresence.state} />
-          ) : null}
           {askPresence.mounted ? (
             <SelectionAskAi
               state={askPresence.state}
@@ -1694,5 +1653,5 @@ export default function App() {
     </ThemeProvider>
   );
 
-  return <AiComposerProvider>{shell}</AiComposerProvider>;
+  return shell;
 }

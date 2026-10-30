@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { useChatStore } from "@/modules/ai/store/chatStore";
+import { prefillAiWindow } from "@/modules/ai/lib/aiWindow";
 import {
   ArrowDown01Icon,
   ArrowUp01Icon,
@@ -272,7 +272,7 @@ function BlockMenu({ block, all, onSearch }: ChromeProps) {
   const attach = () => {
     const out = capAttachOutput(output());
     const text = out ? `$ ${block.command}\n${out}` : `$ ${block.command}`;
-    useChatStore.getState().attachSelection(text, "terminal");
+    prefillAiWindow({ selection: { text, source: "terminal" } });
   };
   return (
     <DropdownMenu>

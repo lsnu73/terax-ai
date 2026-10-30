@@ -99,11 +99,15 @@ Conversations are organized into sessions. Persistence lives in `terax-ai-sessio
 
 `AgentRunBridge` mirrors active-session messages to disk on every change and auto-derives titles from the first user message.
 
-## Composer
+## Independent AI window and Composer
 
-`AiComposerProvider` (`src/modules/ai/lib/composer.tsx`) is a React context that holds shared input state (text, attachments) for the docked input bar and any other surface. Attachments can be images, text files, or `selection` chips from the terminal or editor. Selections are wrapped as `<selection source="terminal|editor">…</selection>` blocks at submit time and are not pasted into the textarea.
+The native `ai` window is created by the async commands in `src-tauri/src/modules/ai_window.rs`, loads `ai.html` and `src/ai/main.tsx`, and has no parent or main-window coordinate clamp. Ctrl/Cmd+I toggles it through `src/modules/ai/lib/aiWindow.ts`. Native position and size restoration belongs to `tauri-plugin-window-state`.
 
-The composer derives `isBusy` from `agentMeta.status` so it can mount safely before sessions hydrate.
+The main webview owns the only Chat engine. `AgentRunBridge` sends targeted snapshots to `ai` and receives structured commands from the AI webview. The independent window never creates another Chat or agent transport. Snapshots contain UI state only, never API keys.
+
+`AiComposerProvider` (`src/modules/ai/lib/composer.tsx`) holds the complete Composer state inside the AI window. Attachments can be images, text files, or `selection` chips from the terminal or editor. Selections are wrapped as `<selection source="terminal|editor">…</selection>` blocks at submit time and are not pasted into the textarea. `buildComposerMessage` is the shared pure conversion used by the main-window command bridge, so snippets, slash commands, files and images keep the same wire format.
+
+The main workspace no longer mounts a docked AI input bar. Block terminals keep their own ShellInput, which is a separate terminal feature.
 
 ## Tools and approval
 

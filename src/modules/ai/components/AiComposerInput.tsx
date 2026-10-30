@@ -57,7 +57,11 @@ function detectFileTrigger(value: string, caret: number): FileTrigger | null {
   return null;
 }
 
-export function AiComposerInput() {
+export function AiComposerInput({
+  showAgentSwitcher = true,
+}: {
+  showAgentSwitcher?: boolean;
+}) {
   const { t } = useTranslation();
   const c = useComposer();
   const snippets = useSnippetsStore((s) => s.snippets);
@@ -251,11 +255,11 @@ export function AiComposerInput() {
             placeholder={t("ai.composer.placeholder")}
             rows={1}
             className={cn(
-              "max-h-40 flex-1 resize-none bg-transparent text-[13px] leading-relaxed outline-none",
+              "max-h-40 min-w-0 flex-1 resize-none bg-transparent text-[13px] leading-relaxed outline-none",
               "placeholder:text-muted-foreground/60",
             )}
           />
-          <AgentSwitcher />
+          {showAgentSwitcher ? <AgentSwitcher /> : null}
         </div>
       </PopoverAnchor>
       {fileTrigger ? (

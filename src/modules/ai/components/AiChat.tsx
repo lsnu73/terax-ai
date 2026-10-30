@@ -187,6 +187,7 @@ type Props = {
   clearError: () => void;
   addToolApprovalResponse: (arg: ApprovalArg) => void | PromiseLike<void>;
   stop: () => void | PromiseLike<void>;
+  onContinue?: () => void;
 };
 
 export function AiChatView({
@@ -195,6 +196,7 @@ export function AiChatView({
   error,
   clearError,
   addToolApprovalResponse,
+  onContinue,
 }: Props) {
   const { t } = useTranslation();
   const isBusy = status === "submitted" || status === "streaming";
@@ -258,6 +260,10 @@ export function AiChatView({
           <ContinueRow
             onContinue={() => {
               patchAgentMeta({ hitStepCap: false });
+              if (onContinue) {
+                onContinue();
+                return;
+              }
               void sendMessage(
                 "Continue from where you stopped. Don't recap — just keep going.",
               );

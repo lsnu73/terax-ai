@@ -42,7 +42,6 @@ export const shortcutsZh: typeof shortcuts = {
   },
   terminal: {
     clear: "清空终端",
-    toggleInput: "切换 Shell / AI 输入",
   },
   blocks: {
     prev: "上一个命令块",
@@ -63,8 +62,7 @@ export const shortcutsZh: typeof shortcuts = {
     zenMode: "切换禅模式",
   },
   ai: {
-    toggle: "切换 AI 代理",
-    toggleMini: "切换 AI 聊天窗口",
+    toggle: "打开 AI 窗口",
     askSelection: "就选中内容询问 AI",
   },
   agent: {

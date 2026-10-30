@@ -1,27 +1,24 @@
 import { invoke } from "@tauri-apps/api/core";
-import { createContext, useContext, useEffect, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
-import { expandSnippetTokens, type Snippet } from "../lib/snippets";
-import { tryRunSlashCommand, type SlashCommandMeta } from "./slashCommands";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import { currentWorkspaceEnv } from "@/modules/workspace";
+import type { Snippet } from "./snippets";
+import type { SlashCommandMeta } from "./slashCommands";
+import {
+  buildComposerMessage,
+  type ComposerFile,
+  type ComposerSubmission,
+} from "./composerMessage";
 import { getChat, useChatStore } from "../store/chatStore";
 import { useSnippetsStore } from "../store/snippetsStore";
-import { currentWorkspaceEnv } from "@/modules/workspace";
 
-export type FileAttachment = {
-  id: string;
-  name: string;
-  kind: "image" | "text" | "selection";
-  mediaType: string;
-  url?: string;
-  text?: string;
-  size: number;
-  /** For kind === "selection": which surface it came from. */
-  source?: "terminal" | "editor";
-};
-
-type MessagePart =
-  | { type: "text"; text: string }
-  | { type: "file"; mediaType: string; url: string; filename?: string };
+export type FileAttachment = ComposerFile;
 
 const MAX_TEXT_INLINE = 200_000;
 export const ACCEPTED_FILES =
@@ -33,14 +30,14 @@ type ComposerCtx = {
   setValue: React.Dispatch<React.SetStateAction<string>>;
   files: FileAttachment[];
   addFiles: (list: FileList | null) => Promise<void>;
-  /** Attach a file by absolute path — used by the file explorer's "Attach to Agent". */
+  addAttachments: (attachments: FileAttachment[]) => void;
   attachFileByPath: (path: string) => Promise<void>;
   removeFile: (id: string) => void;
   pickedSnippets: Snippet[];
-  addSnippet: (s: Snippet) => void;
+  addSnippet: (snippet: Snippet) => void;
   removeSnippet: (id: string) => void;
   pickedCommands: SlashCommandMeta[];
-  addCommand: (c: SlashCommandMeta) => void;
+  addCommand: (command: SlashCommandMeta) => void;
   removeCommand: (name: string) => void;
   isBusy: boolean;
   submit: () => void;
@@ -52,119 +49,95 @@ const Ctx = createContext<ComposerCtx | null>(null);
 
 export function useComposer(): ComposerCtx {
   const ctx = useContext(Ctx);
-  if (!ctx)
+  if (!ctx) {
     throw new Error("useComposer must be used inside <AiComposerProvider>");
+  }
   return ctx;
 }
 
 type ProviderProps = {
   children: React.ReactNode;
+  sendSubmission?: (submission: ComposerSubmission) => Promise<void>;
+  stopSubmission?: () => void;
 };
 
-export function AiComposerProvider({ children }: ProviderProps) {
-  const { t } = useTranslation();
+export function AiComposerProvider({
+  children,
+  sendSubmission,
+  stopSubmission,
+}: ProviderProps) {
   const sessionId = useChatStore((s) => s.activeSessionId);
   const status = useChatStore((s) => s.agentMeta.status);
-  const isBusy = status === "thinking" || status === "streaming";
+  const agentBusy = status === "thinking" || status === "streaming";
+  const [remoteSending, setRemoteSending] = useState(false);
+  const isBusy = agentBusy || remoteSending;
 
   const [value, setValue] = useState("");
   const [files, setFiles] = useState<FileAttachment[]>([]);
   const [pickedSnippets, setPickedSnippets] = useState<Snippet[]>([]);
   const [pickedCommands, setPickedCommands] = useState<SlashCommandMeta[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-
   const focusSignal = useChatStore((s) => s.focusSignal);
-  const pendingPrefill = useChatStore((s) => s.pendingPrefill);
-  const consumePrefill = useChatStore((s) => s.consumePrefill);
-  const pendingSelections = useChatStore((s) => s.pendingSelections);
-  const consumeSelections = useChatStore((s) => s.consumeSelections);
 
   useEffect(() => {
     if (focusSignal === 0) return;
     textareaRef.current?.focus();
-    if (pendingPrefill != null) {
-      const text = consumePrefill();
-      if (text) setValue((v) => (v ? `${text}${v}` : text));
-    }
-  }, [focusSignal, pendingPrefill, consumePrefill]);
+  }, [focusSignal]);
 
-  // Re-focus the textarea whenever the agent finishes a response
   const prevIsBusyRef = useRef(false);
   useEffect(() => {
     if (prevIsBusyRef.current && !isBusy) {
       requestAnimationFrame(() => textareaRef.current?.focus());
     }
     prevIsBusyRef.current = isBusy;
-  }, [isBusy, textareaRef]);
-
-  // Listen for explorer's "Attach to Agent" event.
-  useEffect(() => {
-    const onAttach = (e: Event) => {
-      const path = (e as CustomEvent<string>).detail;
-      if (typeof path === "string" && path.length > 0) {
-        void attachFileByPath(path);
-      }
-    };
-    window.addEventListener("terax:ai-attach-file", onAttach);
-    return () => window.removeEventListener("terax:ai-attach-file", onAttach);
-    // attachFileByPath is stable for our purposes (closes over setFiles only)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    if (pendingSelections.length === 0) return;
-    const drained = consumeSelections();
-    if (drained.length === 0) return;
-    setFiles((prev) => {
-      const existing = new Set(prev.map((f) => f.id));
-      const next: FileAttachment[] = [];
-      for (const sel of drained) {
-        if (existing.has(sel.id)) continue;
-        next.push({
-          id: sel.id,
-          name:
-            sel.source === "editor"
-              ? t("ai.chat.editorSelection")
-              : t("ai.chat.terminalSelection"),
-          kind: "selection",
-          mediaType: "text/plain",
-          text: sel.text,
-          size: sel.text.length,
-          source: sel.source,
-        });
-      }
-      return next.length ? [...prev, ...next] : prev;
-    });
-  }, [pendingSelections, consumeSelections, t]);
+  }, [isBusy]);
 
   const addFiles = async (list: FileList | null) => {
     if (!list) return;
     const next: FileAttachment[] = [];
-    for (const f of Array.from(list)) {
-      const att = await readAttachment(f);
-      if (att) next.push(att);
+    for (const file of Array.from(list)) {
+      const attachment = await readAttachment(file);
+      if (attachment) next.push(attachment);
     }
-    if (next.length) setFiles((prev) => [...prev, ...next]);
+    if (next.length) setFiles((previous) => [...previous, ...next]);
+  };
+
+  const addAttachments = (attachments: FileAttachment[]) => {
+    setFiles((previous) => {
+      const existing = new Set(previous.map((file) => file.id));
+      return [
+        ...previous,
+        ...attachments.filter((file) => !existing.has(file.id)),
+      ];
+    });
   };
 
   const removeFile = (id: string) =>
-    setFiles((prev) => prev.filter((f) => f.id !== id));
+    setFiles((previous) => previous.filter((file) => file.id !== id));
 
-  const addSnippet = (s: Snippet) =>
-    setPickedSnippets((prev) =>
-      prev.some((p) => p.id === s.id) ? prev : [...prev, s],
+  const addSnippet = (snippet: Snippet) =>
+    setPickedSnippets((previous) =>
+      previous.some((item) => item.id === snippet.id)
+        ? previous
+        : [...previous, snippet],
     );
   const removeSnippet = (id: string) =>
-    setPickedSnippets((prev) => prev.filter((s) => s.id !== id));
+    setPickedSnippets((previous) =>
+      previous.filter((snippet) => snippet.id !== id),
+    );
 
-  const addCommand = (cmd: SlashCommandMeta) =>
-    setPickedCommands((prev) =>
-      prev.some((p) => p.name === cmd.name) ? prev : [...prev, cmd],
+  const addCommand = (command: SlashCommandMeta) =>
+    setPickedCommands((previous) =>
+      previous.some((item) => item.name === command.name)
+        ? previous
+        : [...previous, command],
     );
   const removeCommand = (name: string) =>
-    setPickedCommands((prev) => prev.filter((c) => c.name !== name));
+    setPickedCommands((previous) =>
+      previous.filter((command) => command.name !== name),
+    );
 
-  const attachFileByPath = async (path: string) => {
+  const attachFileByPath = useCallback(async (path: string) => {
     try {
       type ReadResult =
         | { kind: "text"; content: string; size: number }
@@ -175,29 +148,48 @@ export function AiComposerProvider({ children }: ProviderProps) {
         workspace: currentWorkspaceEnv(),
       });
       if (result.kind !== "text") {
-        // Binary/oversize files: skip (could surface a toast in future).
         console.warn("attachFileByPath: skipped non-text file", path, result);
         return;
       }
-      const name = path.split("/").pop() || path;
+      const name = path.split(/[\\/]/).pop() || path;
       const id = `path-${path}`;
-      setFiles((prev) => {
-        if (prev.some((f) => f.id === id)) return prev;
-        const att: FileAttachment = {
-          id,
-          name,
-          kind: "text",
-          mediaType: "text/plain",
-          text: result.content,
-          size: result.size,
-        };
-        return [...prev, att];
+      setFiles((previous) => {
+        if (previous.some((file) => file.id === id)) return previous;
+        return [
+          ...previous,
+          {
+            id,
+            name,
+            kind: "text",
+            mediaType: "text/plain",
+            text: result.content,
+            size: result.size,
+          },
+        ];
       });
-      // Open the AI panel & focus the input so the user sees the chip.
       useChatStore.getState().focusInput();
-    } catch (e) {
-      console.error("attachFileByPath failed:", e);
+    } catch (error) {
+      console.error("attachFileByPath failed:", error);
     }
+  }, []);
+
+  useEffect(() => {
+    const onAttach = (event: Event) => {
+      const path = (event as CustomEvent<string>).detail;
+      if (typeof path === "string" && path.length > 0) {
+        void attachFileByPath(path);
+      }
+    };
+    window.addEventListener("terax:ai-attach-file", onAttach);
+    return () => window.removeEventListener("terax:ai-attach-file", onAttach);
+  }, [attachFileByPath]);
+
+  const clear = () => {
+    setValue("");
+    setFiles([]);
+    setPickedSnippets([]);
+    setPickedCommands([]);
+    requestAnimationFrame(() => textareaRef.current?.focus());
   };
 
   const submit = () => {
@@ -208,108 +200,53 @@ export function AiComposerProvider({ children }: ProviderProps) {
       files.length === 0 &&
       pickedSnippets.length === 0 &&
       pickedCommands.length === 0
-    )
-      return;
-
-    // Slash-command interception. `/plan` toggles plan mode; `/init` rewrites
-    // the prompt to the TERAX.md scan template before sending.
-    let effectiveText = trimmed;
-    let commandMarker: string | null = null;
-    let commandSource = trimmed;
-    if (
-      pickedCommands.length > 0 &&
-      !trimmed.startsWith("/") &&
-      !trimmed.startsWith("#")
     ) {
-      commandSource = `#${pickedCommands[0].name} ${trimmed}`.trim();
+      return;
     }
-    if (commandSource.startsWith("/") || commandSource.startsWith("#")) {
-      const outcome = tryRunSlashCommand(commandSource);
-      if (outcome.kind === "handled") {
-        setValue("");
-        if (outcome.toast) console.info(outcome.toast);
-        return;
-      }
-      if (outcome.kind === "send-prompt") {
-        effectiveText = outcome.prompt;
-        if (outcome.commandName) {
-          commandMarker = `<terax-command name="${outcome.commandName}" />`;
-        }
-      }
+    const submission: ComposerSubmission = {
+      text: value,
+      files,
+      snippets: pickedSnippets,
+      commands: pickedCommands,
+    };
+    if (sendSubmission) {
+      setRemoteSending(true);
+      void sendSubmission(submission)
+        .then(clear)
+        .catch((error: unknown) => {
+          console.error("AI window send failed:", error);
+        })
+        .finally(() => setRemoteSending(false));
+      return;
     }
-
-    const parts: MessagePart[] = [];
-    const fileBlocks = files
-      .filter((f) => f.kind === "text")
-      .map(
-        (f) =>
-          `<file name="${f.name}" mediaType="${f.mediaType}">\n${f.text ?? ""}\n</file>`,
-      );
-    const selectionBlocks = files
-      .filter((f) => f.kind === "selection")
-      .map(
-        (f) =>
-          `<selection source="${f.source ?? "terminal"}">\n${f.text ?? ""}\n</selection>`,
-      );
-    const { body: bodyAfterTokens, blocks: snippetBlocks } =
-      expandSnippetTokens(effectiveText, useSnippetsStore.getState().snippets);
-    const seenHandles = new Set<string>();
-    const allSnippetBlocks: string[] = [];
-    for (const s of pickedSnippets) {
-      if (seenHandles.has(s.handle)) continue;
-      seenHandles.add(s.handle);
-      allSnippetBlocks.push(
-        `<snippet name="${s.handle}">\n${s.content}\n</snippet>`,
-      );
-    }
-    for (const block of snippetBlocks) {
-      const m = block.match(/^<snippet name="([^"]+)"/);
-      if (m && seenHandles.has(m[1])) continue;
-      if (m) seenHandles.add(m[1]);
-      allSnippetBlocks.push(block);
-    }
-    const composed = [
-      commandMarker ?? "",
-      allSnippetBlocks.join("\n\n"),
-      selectionBlocks.join("\n\n"),
-      fileBlocks.join("\n\n"),
-      bodyAfterTokens,
-    ]
-      .filter(Boolean)
-      .join("\n\n");
-    if (composed) parts.push({ type: "text", text: composed });
-
-    for (const f of files) {
-      if (f.kind === "image" && f.url) {
-        parts.push({
-          type: "file",
-          mediaType: f.mediaType,
-          url: f.url,
-          filename: f.name,
-        });
-      }
-    }
-
     if (!sessionId) return;
+    const message = buildComposerMessage(
+      submission,
+      useSnippetsStore.getState().snippets,
+    );
+    if (message.kind === "handled") {
+      clear();
+      return;
+    }
     const store = useChatStore.getState();
     store.patchAgentMeta({ hitStepCap: false, compactionNotice: null });
-    if (!store.mini.open) store.openMini();
+    if (!store.aiWindow.open) store.openAiWindow();
     void (async () => {
       const { getOrCreateChat } = await import("../store/chatRuntime");
       const chat = getOrCreateChat(sessionId);
-      void chat.sendMessage({ role: "user", parts } as Parameters<
-        typeof chat.sendMessage
-      >[0]);
+      void chat.sendMessage({
+        role: "user",
+        parts: message.parts,
+      } as Parameters<typeof chat.sendMessage>[0]);
     })();
-    setValue("");
-    setFiles([]);
-    setPickedSnippets([]);
-    setPickedCommands([]);
-    // Re-focus immediately after submit so the user can type a follow-up
-    requestAnimationFrame(() => textareaRef.current?.focus());
+    clear();
   };
 
   const stop = () => {
+    if (stopSubmission) {
+      stopSubmission();
+      return;
+    }
     if (!sessionId) return;
     void getChat(sessionId)?.stop();
   };
@@ -327,6 +264,7 @@ export function AiComposerProvider({ children }: ProviderProps) {
     setValue,
     files,
     addFiles,
+    addAttachments,
     attachFileByPath,
     removeFile,
     pickedSnippets,

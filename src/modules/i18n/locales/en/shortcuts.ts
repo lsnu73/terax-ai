@@ -40,7 +40,6 @@ export const shortcuts = {
   },
   terminal: {
     clear: "Clear terminal",
-    toggleInput: "Toggle Shell / AI input",
   },
   blocks: {
     prev: "Previous command block",
@@ -61,8 +60,7 @@ export const shortcuts = {
     zenMode: "Toggle zen mode",
   },
   ai: {
-    toggle: "Toggle AI agent",
-    toggleMini: "Toggle AI chat window",
+    toggle: "Open AI window",
     askSelection: "Ask AI about selection",
   },
   agent: {

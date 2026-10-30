@@ -14,3 +14,4 @@
 - 2026-10-29 归档设置页命名与归属调整：「系统提示词管理」从模型页迁入原「代理」页，页面更名「AI 行为」（「代理」易被误解为网络代理），页内「代理」列表更名「角色」（输入栏切换器与命令面板文案同步改名）；按钮的 InfoHint 改为内嵌按钮边框右侧（InfoHint 新增 nested 变体，span 渲染避免按钮套按钮）；结构化表单提示文案去箭头符号、改用语义化描述。无新增约束/决策/坑点。
 - 2026-10-29 修复「在系统中打开」点击无反应并改为第三方文件管理器优先：新增 Rust 命令 `open_ai_config_dir`（`src-tauri/src/modules/file_manager.rs`，注册表默认动词 → App Paths/常见安装目录探测 → explorer 回退），前端 `openPath` 调用改为 `invoke`，移除已不再需要的 `opener:allow-open-path` scope，并在按钮下方显示打开失败原因；pitfalls 新增 1 条（openPath / SHOpenFolderAndSelectItems 在 Windows 固定 Explorer，忽略第三方默认处理器），原 opener scope 坑点标注为已被取代。无新增约束与决策。
 - 2026-10-30 归档开发者工具、终端链接、预览端口与动态快捷键提示改造：map 新增「开发者工具」「终端链接打开」「快捷键注册与提示」「预览端口配置」四个模块条目；decisions 新增 2 条（发行版启用开发者工具、预览端口预设按稳定标识持久化）；invariants 新增 1 条（INV-012 快捷键提示必须从注册表与用户偏好动态生成，暂无 Lint 自动强制）；无新增坑点。
+- 2026-10-30 归档独立 AI 窗口：map 新增单聊天引擎跨 webview 依赖，README 修订三窗口概念；decisions 新增 1 条（AI 窗口采用快照与命令桥），pitfalls 新增 1 条（同步窗口命令阻塞 Windows 事件循环）；修订 DevTools 旧快捷键说明。无新增约束。

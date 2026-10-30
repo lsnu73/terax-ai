@@ -13,7 +13,7 @@ export function AgentStatusPill({ onClick }: Props) {
   const { t } = useTranslation();
   const meta = useChatStore((s) => s.agentMeta);
 
-  // awaiting-approval is surfaced by the notification + auto-opened mini window.
+  // Awaiting approval is surfaced by the notification and native AI window.
   if (meta.status === "awaiting-approval") return null;
   if (meta.status === "idle" && !meta.error) return null;
 

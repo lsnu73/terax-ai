@@ -21,7 +21,7 @@ import { useSnippetsStore } from "../store/snippetsStore";
  * hydrate 偏好设置并同步默认模型，最后 hydrate 会话/Agent/代码片段存储。
  * 返回外壳需要的两个派生标志。
  */
-export function useAiBootstrap(): {
+export function useAiBootstrap({ mirror = false }: { mirror?: boolean } = {}): {
   hasComposer: boolean;
   keysLoaded: boolean;
 } {
@@ -32,8 +32,8 @@ export function useAiBootstrap(): {
   const hydrateSessions = useChatStore((s) => s.hydrateSessions);
 
   useEffect(() => {
-    if (activeSessionId) firePendingReviewForSession(activeSessionId);
-  }, [activeSessionId]);
+    if (!mirror && activeSessionId) firePendingReviewForSession(activeSessionId);
+  }, [activeSessionId, mirror]);
 
   const configHydrated = useAiConfigStore((s) => s.hydrated);
   const config = useAiConfigStore((s) => s.config);
@@ -84,20 +84,22 @@ export function useAiBootstrap(): {
   }, [initPrefs]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: 依赖 registry 快照
   useEffect(() => {
-    if (!configHydrated || !prefsHydrated) return;
+    if (mirror || !configHydrated || !prefsHydrated) return;
     setSelectedModelId(getDefaultModelId());
-  }, [prefsHydrated, configHydrated, config, setSelectedModelId]);
+  }, [mirror, prefsHydrated, configHydrated, config, setSelectedModelId]);
 
   useEffect(() => {
-    void hydrateSessions().catch((error: unknown) => {
-      toast.error(t("ai.sessions.loadFailed"), {
-        id: "chat-history-load",
-        description: String(error),
+    if (!mirror) {
+      void hydrateSessions().catch((error: unknown) => {
+        toast.error(t("ai.sessions.loadFailed"), {
+          id: "chat-history-load",
+          description: String(error),
+        });
       });
-    });
+    }
     void useAgentsStore.getState().hydrate();
     void useSnippetsStore.getState().hydrate();
-  }, [hydrateSessions]);
+  }, [hydrateSessions, mirror]);
 
   return { hasComposer, keysLoaded };
 }

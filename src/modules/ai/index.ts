@@ -1,10 +1,16 @@
-export {
-  AgentRunBridge,
-  AiInputBarConnect,
-  AiMiniWindow,
-  SelectionAskAi,
-} from "./components/lazy";
+export { AgentRunBridge, SelectionAskAi } from "./components/lazy";
 export { useAiBootstrap } from "./hooks/useAiBootstrap";
+export {
+  closeAiWindow,
+  flushAiWindowPrefill,
+  openAiWindow,
+  prefillAiWindow,
+  toggleAiWindow,
+} from "./lib/aiWindow";
+export {
+  AI_WINDOW_CLOSED_EVENT,
+  AI_WINDOW_READY_EVENT,
+} from "./lib/aiWindowBridge";
 export { useSelectionAskAi } from "./hooks/useSelectionAskAi";
 export { useAiLiveBridge } from "./lib/useAiLiveBridge";
 export { LocalAgentNotificationsBridge } from "./components/LocalAgentNotificationsBridge";

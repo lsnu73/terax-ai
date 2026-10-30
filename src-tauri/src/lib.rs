@@ -347,6 +347,8 @@ pub fn run() {
             get_launch_files,
             open_devtools,
             open_settings_window,
+            modules::ai_window::open_ai_window,
+            modules::ai_window::close_ai_window,
             modules::file_manager::open_ai_config_dir,
             agent::agent_enable_hooks,
             agent::agent_hooks_status,
@@ -391,6 +393,18 @@ pub fn run() {
                     }
                     if let Some(state) = app.try_state::<pty::PtyState>() {
                         state.destroy_webview(&label);
+                    }
+                    if label == "ai" {
+                        if let Some(main) = app.get_webview_window("main") {
+                            let _ = main.emit("terax://ai-window-closed", ());
+                        }
+                    }
+                    if label == "main" {
+                        for target in ["settings", "ai"] {
+                            if let Some(window) = app.get_webview_window(target) {
+                                let _ = window.destroy();
+                            }
+                        }
                     }
                 }
                 // Servers exit on stdin EOF, but destructors are not guaranteed
