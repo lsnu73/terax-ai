@@ -60,6 +60,10 @@ import { useGitStatus } from "./lib/useGitStatus";
 import type { GitStatusCode } from "./lib/gitStatusUtils";
 import { useGlobalShortcuts } from "@/modules/shortcuts";
 import { usePreferencesStore } from "@/modules/settings/preferences";
+import {
+  shortcutHintLabel,
+  useShortcutHint,
+} from "@/modules/shortcuts";
 import type { GitStatusSnapshot } from "@/modules/ai/lib/native";
 import type { TerminalPathDropTarget } from "@/modules/terminal";
 
@@ -231,6 +235,7 @@ export const FileExplorer = memo(
     ref,
   ) {
     const { t } = useTranslation();
+    const searchHint = useShortcutHint("explorer.search");
     const tree = useFileTree(rootPath, {
       onPathRenamed,
       onPathsDeleted,
@@ -699,7 +704,7 @@ export const FileExplorer = memo(
             size="icon"
             className="size-6 text-muted-foreground hover:text-foreground"
             onClick={() => setIsSearchOpen((v) => !v)}
-            title={t("explorer.searchFiles")}
+            title={shortcutHintLabel(t("explorer.searchFiles"), searchHint)}
             aria-label={t("explorer.searchFiles")}
           >
             <HugeiconsIcon icon={Search01Icon} size={13} strokeWidth={2} />

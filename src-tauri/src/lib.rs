@@ -82,6 +82,11 @@ fn parse_launch_target() -> LaunchTarget {
 }
 
 #[tauri::command]
+fn open_devtools(window: tauri::WebviewWindow) {
+    window.open_devtools();
+}
+
+#[tauri::command]
 async fn open_settings_window(app: tauri::AppHandle, tab: Option<String>) -> Result<(), String> {
     let url_path = match tab.as_deref() {
         Some(t) if !t.is_empty() => format!("settings.html?tab={}", t),
@@ -340,6 +345,7 @@ pub fn run() {
             control::control_respond,
             get_launch_dir,
             get_launch_files,
+            open_devtools,
             open_settings_window,
             modules::file_manager::open_ai_config_dir,
             agent::agent_enable_hooks,

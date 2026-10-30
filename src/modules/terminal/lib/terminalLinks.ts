@@ -1,11 +1,14 @@
 import { openExternalUrl } from "@/lib/external-link";
 
-/** 链接点击的修饰键：Windows/Linux 用 Ctrl，macOS 用 Cmd。 */
-export function linkModifierHeld(event: {
+export type TerminalLinkModifiers = {
+  shiftKey: boolean;
   ctrlKey: boolean;
   metaKey: boolean;
-}): boolean {
-  return event.ctrlKey || event.metaKey;
+};
+
+/** Ctrl/Cmd opens the system browser; Shift opens the built-in preview. */
+export function linkModifierHeld(event: TerminalLinkModifiers): boolean {
+  return event.ctrlKey || event.metaKey || event.shiftKey;
 }
 
 export function createTerminalLinkHandler(focus: () => void) {

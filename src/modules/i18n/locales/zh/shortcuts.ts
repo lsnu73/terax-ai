@@ -9,6 +9,9 @@ export const shortcutsZh: typeof shortcuts = {
   settings: {
     open: "打开设置",
   },
+  devtools: {
+    open: "打开开发者工具",
+  },
   tab: {
     new: "新建标签页",
     newBlock: "新建 Blocks 终端",

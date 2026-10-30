@@ -14,6 +14,7 @@ type Props = {
   onSearchReady: (leafId: number, addon: TerminalSearchController) => void;
   onCwd: (leafId: number, cwd: string) => void;
   onExit: (leafId: number, code: number) => void;
+  onOpenPreviewUrl: (url: string) => void;
   onFocusLeaf: (tabId: number, leafId: number) => void;
 };
 
@@ -22,6 +23,7 @@ type Bundle = {
   onSearchReady: (leafId: number, addon: TerminalSearchController) => void;
   onCwd: (leafId: number, cwd: string) => void;
   onExit: (leafId: number, code: number) => void;
+  onOpenPreviewUrl: (url: string) => void;
 };
 
 export function TerminalStack({
@@ -31,6 +33,7 @@ export function TerminalStack({
   onSearchReady,
   onCwd,
   onExit,
+  onOpenPreviewUrl,
   onFocusLeaf,
 }: Props) {
   const terminals = useMemo(() => selectLiveTerminals(tabs), [tabs]);
@@ -39,9 +42,13 @@ export function TerminalStack({
   const searchReadyRef = useRef(onSearchReady);
   const cwdRef = useRef(onCwd);
   const exitRef = useRef(onExit);
+  const openPreviewRef = useRef(onOpenPreviewUrl);
   useEffect(() => {
     registerRef.current = registerHandle;
   }, [registerHandle]);
+  useEffect(() => {
+    openPreviewRef.current = onOpenPreviewUrl;
+  }, [onOpenPreviewUrl]);
   useEffect(() => {
     searchReadyRef.current = onSearchReady;
   }, [onSearchReady]);
@@ -61,6 +68,7 @@ export function TerminalStack({
         onSearchReady: (id, addon) => searchReadyRef.current(id, addon),
         onCwd: (id, cwd) => cwdRef.current(id, cwd),
         onExit: (id, code) => exitRef.current(id, code),
+        onOpenPreviewUrl: (url) => openPreviewRef.current(url),
       };
       bundles.current.set(leafId, b);
     }

@@ -3,6 +3,7 @@ import { WindowControls } from "@/components/WindowControls";
 import { IS_MAC, USE_CUSTOM_WINDOW_CONTROLS } from "@/lib/platform";
 import { NotificationBell } from "@/modules/agents";
 import type { AgentLaunchRequest } from "@/modules/agents/lib/launcher";
+import { ShortcutTooltip } from "@/modules/shortcuts";
 import type { Tab } from "@/modules/tabs";
 import { TabBar } from "@/modules/tabs";
 import {
@@ -103,15 +104,16 @@ export function Header({
   }, []);
 
   const settingsButton = (
-    <Button
-      variant="ghost"
-      size="icon"
-      className="size-7 shrink-0 rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
-      onClick={onOpenSettings}
-      title={t("header.settings")}
-    >
-      <HugeiconsIcon icon={Settings01Icon} size={15} strokeWidth={1.75} />
-    </Button>
+    <ShortcutTooltip id="settings.open" label={t("header.settings")}>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="size-7 shrink-0 rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+        onClick={onOpenSettings}
+      >
+        <HugeiconsIcon icon={Settings01Icon} size={15} strokeWidth={1.75} />
+      </Button>
+    </ShortcutTooltip>
   );
 
   return (
@@ -123,25 +125,30 @@ export function Header({
       }`}
     >
       <div className="flex shrink-0 items-center gap-0.5">
-        <Button
-          onClick={onToggleSidebar}
-          title={t("header.toggleSidebar")}
-          variant="ghost"
-          size="icon-sm"
-          className="shrink-0 rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
-        >
-          <HugeiconsIcon icon={SidebarLeftIcon} size={18} strokeWidth={1.75} />
-        </Button>
+        <ShortcutTooltip id="sidebar.toggle" label={t("header.toggleSidebar")}>
+          <Button
+            onClick={onToggleSidebar}
+            variant="ghost"
+            size="icon-sm"
+            className="shrink-0 rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+          >
+            <HugeiconsIcon icon={SidebarLeftIcon} size={18} strokeWidth={1.75} />
+          </Button>
+        </ShortcutTooltip>
 
-        <Button
-          size="icon-sm"
-          variant="ghost"
-          onClick={onOpenCommandPalette}
-          title={t("header.commandPalette")}
-          className="shrink-0 gap-1.5 rounded-md px-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+        <ShortcutTooltip
+          id="commandPalette.open"
+          label={t("header.commandPalette")}
         >
-          <HugeiconsIcon icon={CommandIcon} size={14} strokeWidth={1.75} />
-        </Button>
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            onClick={onOpenCommandPalette}
+            className="shrink-0 gap-1.5 rounded-md px-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+          >
+            <HugeiconsIcon icon={CommandIcon} size={14} strokeWidth={1.75} />
+          </Button>
+        </ShortcutTooltip>
 
         {!IS_MAC && (
           <NotificationBell

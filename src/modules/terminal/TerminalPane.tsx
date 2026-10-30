@@ -40,6 +40,7 @@ export type TerminalPaneProps = {
   onSearchReady?: (leafId: number, addon: TerminalSearchController) => void;
   onExit?: (leafId: number, code: number) => void;
   onCwd?: (leafId: number, cwd: string) => void;
+  onOpenPreviewUrl?: (url: string) => void;
 };
 
 const TerminalAccessibleOutput = lazy(
@@ -63,6 +64,7 @@ const GhosttyTerminalPane = memo(
       onSearchReady,
       onExit,
       onCwd,
+      onOpenPreviewUrl,
       backend,
     },
     ref,
@@ -85,6 +87,7 @@ const GhosttyTerminalPane = memo(
       onSearchReady: (search) => onSearchReady?.(leafId, search),
       onExit: (code) => onExit?.(leafId, code),
       onCwd: (cwd) => onCwd?.(leafId, cwd),
+      onOpenPreviewUrl,
     });
 
     useEffect(() => {

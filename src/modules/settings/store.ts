@@ -4,6 +4,11 @@ import {
   DEFAULT_AGENT_LAUNCH_COMMANDS,
   normalizeAgentLaunchCommands,
 } from "@/modules/agents/lib/launcher";
+import {
+  DEFAULT_PREVIEW_PORT_PRESETS,
+  normalizePreviewPortPresets,
+  type PreviewPortPreset,
+} from "@/modules/preview/lib/portPresets";
 import type { KeyBinding, ShortcutId } from "@/modules/shortcuts/shortcuts";
 import { emit, listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { LazyStore } from "@tauri-apps/plugin-store";
@@ -165,6 +170,7 @@ export type Preferences = {
   editorCustomFormatCommand: string;
   lspActivation: Record<string, LspActivation>;
   lspCustomServers: LspCustomServer[];
+  previewPortPresets: PreviewPortPreset[];
 };
 
 export type EditorFormatter =
@@ -246,6 +252,7 @@ const KEY_EDITOR_FORMATTER_BY_LANG = "editorFormatterByLang";
 const KEY_EDITOR_CUSTOM_FORMAT_COMMAND = "editorCustomFormatCommand";
 const KEY_LSP_ACTIVATION = "lspActivation";
 const KEY_LSP_CUSTOM_SERVERS = "lspCustomServers";
+const KEY_PREVIEW_PORT_PRESETS = "previewPortPresets";
 
 const TERMINAL_FONT_SIZE_DEFAULT = 14;
 const TERMINAL_FONT_SIZE_MIN = 8;
@@ -327,6 +334,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   editorCustomFormatCommand: "",
   lspActivation: {},
   lspCustomServers: [],
+  previewPortPresets: DEFAULT_PREVIEW_PORT_PRESETS,
 };
 
 const store = new LazyStore(STORE_PATH, { defaults: {}, autoSave: 200 });
@@ -490,6 +498,9 @@ export async function loadPreferences(): Promise<Preferences> {
     lspCustomServers:
       get<LspCustomServer[]>(KEY_LSP_CUSTOM_SERVERS) ??
       DEFAULT_PREFERENCES.lspCustomServers,
+    previewPortPresets: normalizePreviewPortPresets(
+      get<unknown>(KEY_PREVIEW_PORT_PRESETS),
+    ),
   };
 }
 
@@ -827,6 +838,12 @@ export async function setShortcuts(
   await writePref(KEY_SHORTCUTS, value);
 }
 
+export async function setPreviewPortPresets(
+  value: PreviewPortPreset[],
+): Promise<void> {
+  await writePref(KEY_PREVIEW_PORT_PRESETS, normalizePreviewPortPresets(value));
+}
+
 export type PrefKey = keyof Preferences;
 
 /** 订阅任意窗口的变更（设置页 → 主窗口）。 */
@@ -885,6 +902,7 @@ export async function onPreferencesChange(
     [KEY_EDITOR_CUSTOM_FORMAT_COMMAND]: "editorCustomFormatCommand",
     [KEY_LSP_ACTIVATION]: "lspActivation",
     [KEY_LSP_CUSTOM_SERVERS]: "lspCustomServers",
+    [KEY_PREVIEW_PORT_PRESETS]: "previewPortPresets",
   };
   // 同进程写入仍会立即触发 onChange；跨窗口写入则通过
   // writePref() 发出的 Tauri 事件送达。

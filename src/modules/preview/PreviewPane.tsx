@@ -175,7 +175,9 @@ export const PreviewPane = forwardRef<PreviewPaneHandle, Props>(
               />
             )
           ) : (
-            <EmptyState />
+            <EmptyState
+              onOpenPorts={() => addressRef.current?.openPorts()}
+            />
           )}
         </div>
       </div>
@@ -209,7 +211,7 @@ function SuspendedState({ onReload }: { onReload: () => void }) {
   );
 }
 
-function EmptyState() {
+function EmptyState({ onOpenPorts }: { onOpenPorts: () => void }) {
   const { t } = useTranslation();
   return (
     <div className="flex h-full w-full flex-col items-center justify-center gap-4 px-6 text-center">
@@ -222,9 +224,14 @@ function EmptyState() {
         </p>
         <p className="max-w-sm text-xs leading-relaxed text-muted-foreground">
           {t("preview.emptyDescriptionPre")}
-          <span className="rounded bg-muted px-1 py-0.5 font-mono text-[10.5px]">
+          <button
+            type="button"
+            title={t("preview.portsTitle")}
+            onClick={onOpenPorts}
+            className="rounded bg-muted px-1 py-0.5 font-mono text-[10.5px] text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+          >
             {t("preview.ports")}
-          </span>
+          </button>
           {t("preview.emptyDescriptionPost")}
         </p>
       </div>

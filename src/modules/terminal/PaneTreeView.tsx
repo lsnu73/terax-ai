@@ -19,6 +19,7 @@ type LeafBundle = {
   onSearchReady: (leafId: number, addon: TerminalSearchController) => void;
   onCwd: (leafId: number, cwd: string) => void;
   onExit: (leafId: number, code: number) => void;
+  onOpenPreviewUrl: (url: string) => void;
 };
 
 type Props = {
@@ -59,6 +60,7 @@ export function PaneTreeView(props: Props) {
           onSearchReady={b.onSearchReady}
           onCwd={b.onCwd}
           onExit={b.onExit}
+          onOpenPreviewUrl={b.onOpenPreviewUrl}
         />
         <DropOverlay leafId={node.id} />
       </div>

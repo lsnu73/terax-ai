@@ -57,6 +57,7 @@ type Callbacks = {
   onSearchReady?: (search: TerminalSearchController) => void;
   onExit?: (code: number) => void;
   onCwd?: (cwd: string) => void;
+  onOpenPreviewUrl?: (url: string) => void;
 };
 
 type GhosttySession = {
@@ -112,6 +113,7 @@ type Options = {
   blocks?: boolean;
   onExit?: (code: number) => void;
   onCwd?: (cwd: string) => void;
+  onOpenPreviewUrl?: (url: string) => void;
   onSearchReady?: (search: TerminalSearchController) => void;
 };
 
@@ -126,6 +128,7 @@ export function useGhosttyTerminalSession({
   onSearchReady,
   onExit,
   onCwd,
+  onOpenPreviewUrl,
 }: Options) {
   const [model, setModel] = useState<GhosttyTerminalModelApi | null>(null);
   const [error, setError] = useState<GhosttySessionFailure | null>(null);
@@ -146,8 +149,18 @@ export function useGhosttyTerminalSession({
   );
   const fontRef = useRef(font);
   fontRef.current = font;
-  const callbackRef = useRef({ onSearchReady, onExit, onCwd });
-  callbackRef.current = { onSearchReady, onExit, onCwd };
+  const callbackRef = useRef({
+    onSearchReady,
+    onExit,
+    onCwd,
+    onOpenPreviewUrl,
+  });
+  callbackRef.current = {
+    onSearchReady,
+    onExit,
+    onCwd,
+    onOpenPreviewUrl,
+  };
   const initialCwdRef = useRef(initialCwd);
 
   useEffect(() => {
@@ -167,6 +180,8 @@ export function useGhosttyTerminalSession({
       onSearchReady: (search) => callbackRef.current.onSearchReady?.(search),
       onExit: (code) => callbackRef.current.onExit?.(code),
       onCwd: (cwd) => callbackRef.current.onCwd?.(cwd),
+      onOpenPreviewUrl: (url) =>
+        callbackRef.current.onOpenPreviewUrl?.(url),
     };
     setError(sessionFailure(session));
     if (session.surface) {
@@ -713,8 +728,18 @@ async function initializeSessionGeneration(
     onFirstFrame: () => mark("firstFrameMs"),
     onFrame: () => ghosttyBlocks(session.leafId)?.present(),
     onRequestFocus: () => focusGhosttySession(session.leafId),
-    onOpenLink: (uri: string) => {
-      void openExternalUrl(uri, () => focusGhosttySession(session.leafId));
+    onOpenLink: (uri, modifiers) => {
+      const focus = () => focusGhosttySession(session.leafId);
+      if (
+        modifiers.shiftKey &&
+        /^https?:\/\//i.test(uri) &&
+        session.callbacks.onOpenPreviewUrl
+      ) {
+        focus();
+        session.callbacks.onOpenPreviewUrl(uri);
+        return;
+      }
+      void openExternalUrl(uri, focus);
     },
   };
   session.surfaceOptions = surfaceBaseOptions;

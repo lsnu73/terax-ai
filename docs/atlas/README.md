@@ -1,0 +1,44 @@
+# Terax 项目地图
+
+> 本目录回答「代码做了什么、在哪里」。设计理由、硬约束与历史坑点见 [../lore/](../lore/)。
+> 最后校验：2026-10-30
+
+## 一句话
+
+Terax 是面向开发者的开源桌面开发工作区，以终端为中心，集成 AI 编码代理、编辑器、文件管理、Git 和网页预览。
+
+## 怎么读
+
+1. [overview.md](overview.md)：项目边界与核心术语。
+2. [architecture.md](architecture.md)：技术栈、进程边界与目录职责。
+3. [getting-started.md](getting-started.md)：安装、启动、检查与排障。
+4. [features/_index.md](features/_index.md)：功能清单与文档覆盖度。
+5. [file-map.md](file-map.md)：从源文件反查业务功能。
+
+仓库的架构事实来源仍是 [../../TERAX.md](../../TERAX.md)，专题长文从 [../README.md](../README.md) 进入。Atlas 提供定位入口，不替代这些文档。
+
+## 我要改 X，该看哪里
+
+| 我的意图 | 先看 | 关键文件 |
+|---|---|---|
+| 改撤销终端窗格拆分 | [features/撤销终端窗格拆分.md](features/撤销终端窗格拆分.md) | `src/app/App.tsx`, `src/modules/tabs/lib/useTabs.ts` |
+| 调整撤销拆分的默认键位 | [features/撤销终端窗格拆分.md](features/撤销终端窗格拆分.md) | `src/modules/shortcuts/shortcuts.ts` |
+| 改主窗口开发者工具入口 | [features/开发者工具.md](features/开发者工具.md) | `src-tauri/src/lib.rs`, `src/app/App.tsx` |
+| 改终端 URL 的打开方式 | [features/终端链接打开.md](features/终端链接打开.md) | `src/modules/terminal/lib/terminalLinks.ts`, `src/modules/terminal/ghostty/useGhosttyTerminalSession.ts` |
+| 改预览端口菜单或预设 | [features/预览端口管理.md](features/预览端口管理.md) | `src/modules/preview/PreviewAddressBar.tsx`, `src/modules/preview/lib/portPresets.ts` |
+| 改按钮悬浮提示的快捷键格式 | [features/快捷键提示.md](features/快捷键提示.md) | `src/modules/shortcuts/components/ShortcutTooltip.tsx` |
+| 项目跑不起来 | [getting-started.md](getting-started.md) | `package.json`, `src-tauri/tauri.conf.json` |
+| 不知道某文件干嘛的 | [file-map.md](file-map.md) | 无 |
+| 查设计理由或硬约束 | [../lore/README.md](../lore/README.md) | 无 |
+
+## 当前覆盖范围
+
+首版采用种子功能法，之后按开发增量补齐。目前完整覆盖「撤销终端窗格拆分」「开发者工具」「终端链接打开」「预览端口管理」「快捷键提示」五个功能。其他功能在 [features/_index.md](features/_index.md) 中登记为未覆盖，后续随开发补齐，不以目录名推测实现。
+
+## 协作约定
+
+- 修改代码前先读 [../../TERAX.md](../../TERAX.md) 和 [../../CONTRIBUTING.md](../../CONTRIBUTING.md)。
+- 从 `main` 切功能分支，分支名使用 `feat/`、`fix/`、`docs/` 等约定前缀。
+- 提交标题遵循 Conventional Commits，描述可使用中文。
+- `src/components/ui/` 与 `src/components/ai-elements/` 由注册表生成，不直接手改。
+- 前端跨模块导入使用 `@/` 别名，包管理器只使用 pnpm。

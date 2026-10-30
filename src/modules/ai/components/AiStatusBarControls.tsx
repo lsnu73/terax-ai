@@ -8,7 +8,6 @@ import {
 import { Kbd } from "@/components/ui/kbd";
 import { Slider } from "@/components/ui/slider";
 import { ProviderIcon } from "@/components/ProviderIcon";
-import { fmtShortcut, MOD_KEY } from "@/lib/platform";
 import { cn } from "@/lib/utils";
 import {
   findModel,
@@ -23,6 +22,7 @@ import {
 import { openSettingsWindow } from "@/modules/settings/openSettingsWindow";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import { setThinkingLevel } from "@/modules/settings/store";
+import { shortcutHintLabel, useShortcutHint } from "@/modules/shortcuts";
 import {
   Add01Icon,
   AiBookIcon,
@@ -47,6 +47,7 @@ import { useChatStore } from "../store/chatStore";
 
 export function AiOpenButton({ onOpen }: { onOpen: () => void }) {
   const { t } = useTranslation();
+  const hint = useShortcutHint("ai.toggle");
   return (
     <button
       type="button"
@@ -56,10 +57,10 @@ export function AiOpenButton({ onOpen }: { onOpen: () => void }) {
         "text-muted-foreground transition-colors hover:border-border hover:bg-accent hover:text-foreground",
         "animate-in slide-in-from-top-2 duration-200 ease-out",
       )}
-      title={t("ai.statusbar.openAiAgent")}
+      title={shortcutHintLabel(t("ai.statusbar.openAiAgent"), hint)}
     >
       <span>{t("ai.statusbar.openAiAgent")}</span>
-      <Kbd className="h-4 min-w-4 px-1">{fmtShortcut(MOD_KEY, "I")}</Kbd>
+      {hint ? <Kbd className="h-4 min-w-4 px-1">{hint}</Kbd> : null}
     </button>
   );
 }
@@ -71,6 +72,8 @@ export function AiStatusBarControls() {
   const toggleMini = useChatStore((s) => s.toggleMini);
   const miniOpen = useChatStore((s) => s.mini.open);
   const closePanel = useChatStore((s) => s.closePanel);
+  const aiHint = useShortcutHint("ai.toggle");
+  const miniHint = useShortcutHint("ai.toggleMini");
 
   return (
     <div className="flex items-center gap-0.5">
@@ -99,22 +102,26 @@ export function AiStatusBarControls() {
       <span className="mx-1 h-8 w-px bg-border" aria-hidden />
       <Button
         onClick={closePanel}
-        title={t("ai.statusbar.closePanel")}
+        title={shortcutHintLabel(t("ai.statusbar.closePanel"), aiHint)}
         size="xs"
         variant="ghost"
         aria-label={t("ai.statusbar.closePanel")}
         className="text-[11px] text-foreground/85 px-1"
       >
-        <Kbd className="h-4 gap-px px-2 font-mono text-[11px]">
-          {fmtShortcut(MOD_KEY, "I")}
-        </Kbd>
+        {aiHint ? (
+          <Kbd className="h-4 gap-px px-2 font-mono text-[11px]">
+            {aiHint}
+          </Kbd>
+        ) : null}
       </Button>
       <IconBtn
-        title={t(
-          miniOpen
-            ? "ai.statusbar.closeChatWindow"
-            : "ai.statusbar.openChatWindow",
-          { shortcut: fmtShortcut("⇧", MOD_KEY, "I") },
+        title={shortcutHintLabel(
+          t(
+            miniOpen
+              ? "ai.statusbar.closeChatWindow"
+              : "ai.statusbar.openChatWindow",
+          ),
+          miniHint,
         )}
         onClick={toggleMini}
       >

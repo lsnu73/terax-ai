@@ -29,11 +29,26 @@
 - 关键依赖：[设置窗口] →（Tauri 事件 `terax:settings-tab` 接收标签切换）；`src/modules/settings/store.ts` 的每个 setter 都通过 Tauri 事件镜像广播，因为 `LazyStore.onChange` 只在写入进程内触发，主窗口收不到设置窗口的写入（这是跨窗口同步的隐性约束，改 setter 时不能漏掉广播）。
 - 决策依据：见 decisions/2026-10-23-settings-window-z-order.md
 
+### 开发者工具  `src-tauri/src/lib.rs`、`src/modules/shortcuts/`
+- 职责：从主窗口或设置窗口打开当前 webview 的 WebView DevTools。
+- 对外暴露：快捷键 `devtools.open`；Tauri 命令 `open_devtools`。
+- 关键依赖：[主窗口按钮或快捷键] → [Shortcut registry] → [App handler] → [Rust 命令] → [WebView DevTools]。
+- 代码索引：见 [atlas/features/开发者工具.md](../atlas/features/开发者工具.md)
+- 决策依据：见 decisions/2026-10-30-发行版启用开发者工具.md
+- 易错点：发行版依赖 `Cargo.toml` 的 `devtools` feature 和显式 Rust 命令；不能只依赖原生快捷键，因为主窗口的 `ai.toggleMini` 会消费 Mod+Shift+I。
+
 ## 终端与 CLI
 
 ### ghostty-core  `packages/ghostty-core/lib/`
 - 职责：终端仿真与渲染核心（含 WebGPU surface），被主应用引用（根包 19 处 import）。
 - 对外暴露：`lib/core.ts`。
+
+### 终端链接打开  `src/modules/terminal/lib/terminalLinks.ts`、`src/modules/terminal/ghostty/`
+- 职责：把终端中的 URL 分到系统浏览器或 Terax 内置预览。
+- 对外暴露：surface 的 `onOpenLink(uri, modifiers)`；应用侧的 `openPreviewTab(url)`。
+- 关键依赖：[WebGPU surface 或 WebGL surface] → [useGhosttyTerminalSession 分流] → [TerminalPane] → [TerminalStack] → [WorkspaceSurface] → [App.openPreviewTab]。
+- 代码索引：见 [atlas/features/终端链接打开.md](../atlas/features/终端链接打开.md)
+- 易错点：修改 `onOpenLink` 签名时必须同步 WebGPU 与 WebGL 两个 surface；Shift 分支只接受 HTTP(S)，其他协议仍走系统打开。
 
 ### terax-cli sidecar  `src-tauri/crates/terax-cli/`
 - 职责：随安装包分发的命令行工具。构建期由 `scripts/build-cli.mjs` 用 cargo 编译为 release，拷到 `src-tauri/binaries/terax-cli-<target>` 作为 Tauri sidecar。
@@ -63,6 +78,23 @@
 - 关键依赖：[ModelsSection] → [useAiConfigStore.replace] → [persist.writeAiConfig] →（Tauri 事件 `terax://ai-models-changed`）→ [主窗口]。
 - 易错点：UI 与手改 JSON 必须走同一条 `normalizeAiConfig`；滑块档位来自所选模型自己的阶梯，无阶梯时不渲染；表单组件的值同步陷阱见 pitfalls/2026-10-28-form-editor-value-sync.md。
 - 决策依据：见 decisions/2026-10-28-form-json-dual-mode.md
+
+## 界面交互与预览配置
+
+### 快捷键注册与提示  `src/modules/shortcuts/`
+- 职责：维护快捷键 ID、默认绑定、用户覆盖解析，以及按钮提示中的动态键位文本。
+- 对外暴露：`SHORTCUTS`、`ShortcutId`、`ShortcutTooltip`、`ShortcutHint`、`useShortcutHint`、`shortcutHintLabel`。
+- 关键依赖：[按钮组件] → [useShortcutHint] → [preferences.shortcuts 或默认绑定]；[设置页改键] → [preferences store] → [所有提示自动刷新]。
+- 代码索引：见 [atlas/features/快捷键提示.md](../atlas/features/快捷键提示.md)
+- 易错点：新增按钮提示必须走公共 API，否则用户改键后仍显示旧键位，见 INV-012。
+
+### 预览端口配置  `src/modules/preview/`、`src/modules/settings/store.ts`
+- 职责：管理预览端口预设的默认值、用户编辑和跨窗口持久化。
+- 对外暴露：`PreviewPortPreset`、`normalizePreviewPortPresets`、`upsertPreviewPortPreset`、偏好字段 `previewPortPresets`。
+- 关键依赖：[PortPresetDialog] → [setPreviewPortPresets] → [terax-settings.json] → [prefs-changed] → [PreviewAddressBar]。
+- 代码索引：见 [atlas/features/预览端口管理.md](../atlas/features/预览端口管理.md)
+- 决策依据：见 decisions/2026-10-30-预览端口预设按稳定标识持久化.md
+- 易错点：`settings/store.ts` 可以引用预览模块的纯数据文件，但 `lib/portPresets.ts` 不得反向引用 settings store；内置项按稳定 ID 合并，改默认值时不要更换已有 ID。
 
 ## 构建与打包
 

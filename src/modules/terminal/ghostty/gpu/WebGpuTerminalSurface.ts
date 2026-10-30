@@ -9,7 +9,10 @@ import { terminalWindowPresentation } from "@/modules/terminal/ghostty/windowPre
 import type { TerminalSurface } from "@/modules/terminal/backend/contracts";
 import { smoothHooks } from "@/bench/smoothHooks";
 import { noteTerminalHostResize } from "@/modules/terminal/lib/terminalResizeGesture";
-import { linkModifierHeld } from "@/modules/terminal/lib/terminalLinks";
+import {
+  linkModifierHeld,
+  type TerminalLinkModifiers,
+} from "@/modules/terminal/lib/terminalLinks";
 import {
   subscribeTerminalResizeInteraction,
   terminalResizeInteractionActive,
@@ -87,7 +90,10 @@ export type WebGpuTerminalSurfaceOptions = {
   readonly onFirstFrame?: () => void;
   readonly onFrame?: () => void;
   readonly onRequestFocus?: () => void;
-  readonly onOpenLink?: (uri: string) => void;
+  readonly onOpenLink?: (
+    uri: string,
+    modifiers: TerminalLinkModifiers,
+  ) => void;
 };
 
 export type WebGpuTerminalSurfaceStats = {
@@ -837,10 +843,14 @@ export class WebGpuTerminalSurface
     this.mouseDownLink = null;
     if (!activate) return;
     event.preventDefault();
-    this.options.onOpenLink?.(uri);
+    this.options.onOpenLink?.(uri, {
+      shiftKey: event.shiftKey,
+      ctrlKey: event.ctrlKey,
+      metaKey: event.metaKey,
+    });
   };
 
-  // 按住 Ctrl/Cmd 时给链接手型光标；松开立即还原，无需等待鼠标移动。
+  // 按住 Ctrl/Cmd/Shift 时给链接手型光标；松开立即还原，无需等待鼠标移动。
   private linkModifierActive = false;
   private readonly handleLinkModifierKey = (event: KeyboardEvent): void => {
     const held = linkModifierHeld(event);

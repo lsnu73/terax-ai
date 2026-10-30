@@ -7,6 +7,9 @@ export const shortcuts = {
   settings: {
     open: "Open settings",
   },
+  devtools: {
+    open: "Open developer tools",
+  },
   tab: {
     new: "New tab",
     newBlock: "New Blocks terminal",

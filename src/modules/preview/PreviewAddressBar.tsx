@@ -3,13 +3,18 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { usePreferencesStore } from "@/modules/settings/preferences";
+import { setPreviewPortPresets } from "@/modules/settings/store";
 import {
   ArrowReloadHorizontalIcon,
   Globe02Icon,
   LinkSquare02Icon,
+  PencilEdit02Icon,
+  PlusSignIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -21,35 +26,15 @@ import {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-
-type PortPreset = {
-  port: number;
-  label: string;
-  hint: string;
-};
-
-// Curated dev-server ports. Ordered by frontend frequency, then backend.
-const PORT_PRESETS: readonly PortPreset[] = [
-  { port: 5173, label: "Vite", hint: "vite, sveltekit" },
-  { port: 5174, label: "Vite (alt)", hint: "second vite instance" },
-  { port: 3000, label: "Next.js", hint: "next, express, rails" },
-  { port: 3001, label: "Next.js (alt)", hint: "second next instance" },
-  { port: 4173, label: "Vite preview", hint: "vite preview" },
-  { port: 4200, label: "Angular", hint: "angular cli" },
-  { port: 4321, label: "Astro", hint: "astro" },
-  { port: 5500, label: "Live Server", hint: "vscode live server" },
-  { port: 6006, label: "Storybook", hint: "storybook" },
-  { port: 8080, label: "Webpack", hint: "webpack, vue cli" },
-  { port: 8081, label: "Metro", hint: "react native metro" },
-  { port: 8000, label: "Django / FastAPI", hint: "django, fastapi" },
-  { port: 8888, label: "Jupyter", hint: "jupyter notebook" },
-  { port: 5000, label: "Flask", hint: "flask" },
-  { port: 7860, label: "Gradio", hint: "gradio" },
-  { port: 11434, label: "Ollama", hint: "ollama api" },
-];
+import { PortPresetDialog } from "./PortPresetDialog";
+import {
+  upsertPreviewPortPreset,
+  type PreviewPortPreset,
+} from "./lib/portPresets";
 
 export type PreviewAddressBarHandle = {
   focus: () => void;
+  openPorts: () => void;
 };
 
 type Props = {
@@ -63,6 +48,11 @@ export const PreviewAddressBar = forwardRef<PreviewAddressBarHandle, Props>(
     const { t } = useTranslation();
     const [draft, setDraft] = useState(url);
     const inputRef = useRef<HTMLInputElement>(null);
+    const presets = usePreferencesStore((state) => state.previewPortPresets);
+    const [portsOpen, setPortsOpen] = useState(false);
+    const [editorOpen, setEditorOpen] = useState(false);
+    const [editingPreset, setEditingPreset] =
+      useState<PreviewPortPreset | null>(null);
 
     // Keep draft in sync when the parent updates the URL externally
     // (AI tool, detected localhost chip, etc.).
@@ -79,6 +69,7 @@ export const PreviewAddressBar = forwardRef<PreviewAddressBarHandle, Props>(
           el.focus();
           el.select();
         },
+        openPorts: () => setPortsOpen(true),
       }),
       [],
     );
@@ -111,6 +102,16 @@ export const PreviewAddressBar = forwardRef<PreviewAddressBarHandle, Props>(
       onSubmit(url);
     };
 
+    const openPortEditor = (preset: PreviewPortPreset | null) => {
+      setPortsOpen(false);
+      setEditingPreset(preset);
+      setEditorOpen(true);
+    };
+
+    const savePortPreset = (preset: PreviewPortPreset) => {
+      void setPreviewPortPresets(upsertPreviewPortPreset(presets, preset));
+    };
+
     return (
       <div className="shrink-0 border-b border-border/60">
         <div className="flex h-9 items-center gap-1 bg-card/40 px-1.5">
@@ -128,7 +129,7 @@ export const PreviewAddressBar = forwardRef<PreviewAddressBarHandle, Props>(
               strokeWidth={1.75}
             />
           </Button>
-          <DropdownMenu>
+          <DropdownMenu open={portsOpen} onOpenChange={setPortsOpen}>
             <DropdownMenuTrigger asChild>
               <Button
                 type="button"
@@ -149,22 +150,53 @@ export const PreviewAddressBar = forwardRef<PreviewAddressBarHandle, Props>(
               align="start"
               className="max-h-80 min-w-56 overflow-y-auto"
             >
-              {PORT_PRESETS.map((p) => (
-                <DropdownMenuItem
-                  key={p.port}
-                  onSelect={(e) => {
-                    e.preventDefault();
-                    void tryPort(p.port);
-                  }}
+              {presets.map((preset) => (
+                <div
+                  key={preset.id}
+                  className="group flex items-center rounded-2xl focus-within:bg-accent/40"
                 >
-                  <span className="flex-1">{p.label}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {checkingPort === p.port
-                      ? t("preview.checking")
-                      : `:${p.port}`}
-                  </span>
-                </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="min-w-0 flex-1 rounded-r-none py-2"
+                    title={preset.hint || undefined}
+                    onSelect={(event) => {
+                      event.preventDefault();
+                      void tryPort(preset.port);
+                    }}
+                  >
+                    <span className="min-w-0 flex-1 truncate">
+                      {preset.label}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {checkingPort === preset.port
+                        ? t("preview.checking")
+                        : `:${preset.port}`}
+                    </span>
+                  </DropdownMenuItem>
+                  <button
+                    type="button"
+                    title={t("preview.portEdit")}
+                    aria-label={t("preview.portEdit")}
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={() => openPortEditor(preset)}
+                    className="mr-1 flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-accent hover:text-foreground group-focus-within:opacity-100 group-hover:opacity-100"
+                  >
+                    <HugeiconsIcon
+                      icon={PencilEdit02Icon}
+                      size={12}
+                      strokeWidth={1.75}
+                    />
+                  </button>
+                </div>
               ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => openPortEditor(null)}>
+                <HugeiconsIcon
+                  icon={PlusSignIcon}
+                  size={13}
+                  strokeWidth={2}
+                />
+                <span className="flex-1">{t("preview.portsAdd")}</span>
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           <div className="flex min-w-0 flex-1 items-center">
@@ -218,6 +250,13 @@ export const PreviewAddressBar = forwardRef<PreviewAddressBarHandle, Props>(
             </button>
           </div>
         ) : null}
+        <PortPresetDialog
+          open={editorOpen}
+          initial={editingPreset}
+          presets={presets}
+          onOpenChange={setEditorOpen}
+          onSave={savePortPreset}
+        />
       </div>
     );
   },

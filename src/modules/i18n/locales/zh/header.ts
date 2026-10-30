@@ -7,6 +7,5 @@ export const headerZh: typeof header = {
   commandPalette: "命令面板",
   search: "搜索",
   gitSearch: "Git 搜索",
-  searchWithShortcut: "{{label}}（{{shortcut}}）",
   clearSearch: "清除搜索",
 };

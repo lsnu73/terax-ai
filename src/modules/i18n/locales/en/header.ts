@@ -5,6 +5,5 @@ export const header = {
   commandPalette: "Command palette",
   search: "Search",
   gitSearch: "Git search",
-  searchWithShortcut: "{{label}} ({{shortcut}})",
   clearSearch: "Clear search",
 };

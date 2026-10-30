@@ -21,6 +21,7 @@ type Props = {
   onSearchReady: TerminalStackProps["onSearchReady"];
   onCwd: TerminalStackProps["onCwd"];
   onExit: TerminalStackProps["onExit"];
+  onOpenPreviewUrl: TerminalStackProps["onOpenPreviewUrl"];
   onFocusLeaf: TerminalStackProps["onFocusLeaf"];
   registerEditorHandle: EditorStackProps["registerHandle"];
   onEditorDirtyChange: EditorStackProps["onDirtyChange"];
@@ -52,6 +53,7 @@ export function WorkspaceSurface({
   onSearchReady,
   onCwd,
   onExit,
+  onOpenPreviewUrl,
   onFocusLeaf,
   registerEditorHandle,
   onEditorDirtyChange,
@@ -90,6 +92,7 @@ export function WorkspaceSurface({
           onSearchReady={onSearchReady}
           onCwd={onCwd}
           onExit={onExit}
+          onOpenPreviewUrl={onOpenPreviewUrl}
           onFocusLeaf={onFocusLeaf}
         />
       </div>

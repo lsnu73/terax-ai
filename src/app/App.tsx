@@ -911,6 +911,11 @@ export default function App() {
     () => ({
       "commandPalette.open": () => openCommandPalette("commands"),
       "commandPalette.content": () => openCommandPalette("content"),
+      "devtools.open": () => {
+        void invoke("open_devtools").catch((error) => {
+          console.error("open_devtools failed:", error);
+        });
+      },
       "tab.new": openNewTab,
       "tab.newBlock": openNewBlockTab,
       "tab.newPrivate": openNewPrivateTab,
@@ -1557,6 +1562,7 @@ export default function App() {
                         onSearchReady={handleSearchReady}
                         onCwd={handleTerminalCwd}
                         onExit={handleLeafExit}
+                        onOpenPreviewUrl={openPreviewTab}
                         onFocusLeaf={handleFocusLeaf}
                         registerEditorHandle={registerEditorHandle}
                         onEditorDirtyChange={handleEditorDirty}

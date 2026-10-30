@@ -23,6 +23,10 @@ import {
 import { resolveDisplayName } from "@/modules/editor/lib/languageResolver";
 import { FileIcon } from "@/modules/explorer/FileIcon";
 import {
+  shortcutHintLabel,
+  useShortcutHint,
+} from "@/modules/shortcuts";
+import {
   leafIds,
   ptyIdForLeaf,
   useAgentActivityStore,
@@ -104,6 +108,7 @@ export function TabBar({
   compact,
 }: Props) {
   const { t } = useTranslation();
+  const closeHint = useShortcutHint("tab.close");
   const scrollRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -485,6 +490,7 @@ export function TabBar({
                     <span
                       role="button"
                       aria-label={t("tabbar.closeTab")}
+                      title={shortcutHintLabel(t("tabbar.closeTab"), closeHint)}
                       data-no-drag
                       onPointerDown={(e) => {
                         e.preventDefault();

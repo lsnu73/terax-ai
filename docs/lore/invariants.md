@@ -50,3 +50,9 @@
   - 违反代价：按钮与相邻区块标题等距时，用户无法判断按钮属于上方还是下方区块（2026-10-29 实际反馈：Params 的「添加参数」被误认为可能属于 Thinking）。
   - 强制点：`src/settings/sections/models/StructuredFields.tsx` 的 `ParamsForm` / `KeyValueEditor` 空态把提示与按钮收进同一虚线框；`ModelsSection.tsx` 两个编辑器把结构化字段包进独立的 `gap-4` 容器。
   - ⚠️ 此条暂无代码强制，属口头约定，靠评审把关；固定宽度输入框（如 `w-40`）里的占位提示同理必须能在该宽度内完整显示，长示例放 InfoHint 而非 placeholder。
+
+- **INV-012** 面向用户展示的快捷键必须从 `ShortcutId` 注册表和用户偏好动态生成，禁止在按钮提示、菜单或 placeholder 中硬编码键名。
+  - 违反代价：用户改键后提示仍显示旧键位，界面给出错误操作指令。
+  - 强制点：`src/modules/shortcuts/components/ShortcutTooltip.tsx` 的 `ShortcutTooltip` / `ShortcutHint`，以及 `src/modules/shortcuts/lib/useShortcutTokens.ts` 的 `useShortcutHint` / `shortcutHintLabel`；所有文案统一从 `src/modules/shortcuts/shortcuts.ts` 的 `SHORTCUTS` 与 preferences 的 `shortcuts` 取值。
+  - 注意：此条暂无 Lint 自动强制，新增带快捷键的按钮必须使用上述公共 API，靠代码评审把关。
+  - 代码索引：见 [atlas/features/快捷键提示.md](../atlas/features/快捷键提示.md)。
