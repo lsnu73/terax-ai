@@ -8,6 +8,7 @@ export type ParsedQuery = {
 
 const PREFIXES: ReadonlyArray<{ sigil: string; mode: PaletteMode }> = [
   { sigil: "#", mode: "content" },
+  { sigil: ">", mode: "paths" },
   { sigil: "?", mode: "help" },
 ];
 
@@ -22,4 +23,5 @@ export function parseQuery(raw: string): ParsedQuery {
 
 export const MODE_HINTS: ReadonlyArray<{ sigil: string; labelKey: string }> = [
   { sigil: "#", labelKey: "commands.palette.modeContent" },
+  { sigil: ">", labelKey: "commands.palette.modePaths" },
 ];

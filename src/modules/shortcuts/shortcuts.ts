@@ -30,6 +30,7 @@ export type ShortcutId =
   | "pane.swapDown"
   | "pane.source"
   | "terminal.clear"
+  | "terminal.pathHistory"
   | "search.focus"
   | "explorer.search"
   | "explorer.focus"
@@ -137,7 +138,7 @@ export const SHORTCUTS: Shortcut[] = [
     id: "tab.newEditor",
     labelKey: "shortcuts.tab.newEditor",
     group: "Tabs",
-    defaultBindings: [{ [MOD_PROP]: true, key: "e" }],
+    defaultBindings: [{ [MOD_PROP]: true, alt: true, key: "e" }],
   },
   {
     id: "tab.close",
@@ -204,6 +205,15 @@ export const SHORTCUTS: Shortcut[] = [
     labelKey: "shortcuts.pane.source",
     group: "Panes",
     defaultBindings: [{ [MOD_PROP]: true, key: "g" }],
+  },
+  {
+    id: "terminal.pathHistory",
+    labelKey: "shortcuts.terminal.pathHistory",
+    group: "Terminal",
+    // Ctrl/Cmd+E. Claimed from tab.newEditor while a terminal tab is active
+    // (see App's shortcutsDisabled): the history picker only makes sense with
+    // a terminal, and outside terminals Ctrl+E still opens a new editor tab.
+    defaultBindings: [{ [MOD_PROP]: true, key: "e" }],
   },
   {
     id: "terminal.clear",

@@ -68,6 +68,13 @@
 | `src/settings/sections/models/StructuredFields.tsx` | [AI模型配置](features/AI模型配置.md) | 设置页（主窗口 tab） | ParamsForm / EffortForm 等结构化表单 |
 | `src/modules/ai/components/ModelPicker.tsx` | [AI模型配置](features/AI模型配置.md) | AI 面板 | 思考强度滑条与模型选择 |
 | `src/modules/i18n/locales/en/settings/models.ts` | [AI模型配置](features/AI模型配置.md) | 英文文案 | Params/Effort 字段与规则文案 |
+| `src/modules/terminal/ghostty/core/terminalLinks.ts` | [终端链接打开](features/终端链接打开.md) | 终端路径历史 | URL 与绝对路径文本检测 |
+| `src/lib/open-path.ts` | [终端链接打开](features/终端链接打开.md) | 终端路径历史 | 路径识别与文件管理器打开 |
+| `src-tauri/src/modules/file_manager.rs` | [终端链接打开](features/终端链接打开.md) | 无 | 第三方文件管理器探测与打开命令 |
+| `src/modules/terminal/lib/terminalCd.ts` | [终端路径历史](features/终端路径历史.md) | [终端链接打开](features/终端链接打开.md) | cd 命令构造与提交 |
+| `src/modules/terminal/lib/pathHistory.ts` | [终端路径历史](features/终端路径历史.md) | 无 | 目录历史记录/封顶/筛选规则 |
+| `src/modules/terminal/path-history/PathHistoryDialog.tsx` | [终端路径历史](features/终端路径历史.md) | 无 | Ctrl+E 最近路径弹窗 |
+| `src/modules/command-palette/lib/mode.ts` | [终端路径历史](features/终端路径历史.md) | [命令面板](features/命令面板.md) | 面板 `>` 前缀路径模式解析 |
 | `src/modules/i18n/locales/zh/settings/models.ts` | [AI模型配置](features/AI模型配置.md) | 中文文案 | 与英文词典同构 |
 | `src/modules/settings/openSettings.ts` | 设置页（主窗口 tab） | [AI面板](features/AI面板.md) | 设置 tab 打开注册表，深层组件经此调用 |
 | `src/settings/sections/ShortcutsSection.tsx` | [撤销终端窗格拆分](features/撤销终端窗格拆分.md) | [终端命令与结果块](features/终端命令与结果块.md)、快捷键自定义 | 保存用户覆盖键位并警告 Ctrl+R 冲突 |

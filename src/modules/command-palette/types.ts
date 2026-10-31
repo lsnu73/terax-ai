@@ -17,4 +17,4 @@ export type PaletteItem = {
   run: () => void;
 };
 
-export type PaletteMode = "commands" | "content" | "help";
+export type PaletteMode = "commands" | "content" | "paths" | "help";

@@ -32,6 +32,7 @@ import {
   setTerminalFontSize,
   setTerminalFontWeight,
   setTerminalLetterSpacing,
+  setPathHistoryLimit,
   setTerminalScrollback,
   setTerminalShell,
   setTerminalRenderer,
@@ -40,6 +41,7 @@ import {
   TERMINAL_FONT_SIZES,
   TERMINAL_SCROLLBACK_PRESETS,
 } from "@/modules/settings/store";
+import { PATH_HISTORY_LIMIT_PRESETS } from "@/modules/terminal/lib/pathHistory";
 import { useTheme } from "@/modules/theme";
 import {
   ComputerIcon,
@@ -104,6 +106,7 @@ export function GeneralSection() {
   const explorerGitDecorations = usePreferencesStore(
     (s) => s.explorerGitDecorations,
   );
+  const pathHistoryLimit = usePreferencesStore((s) => s.pathHistoryLimit);
   const terminalRenderer = usePreferencesStore((s) => s.terminalRenderer);
   const terminalScreenReader = usePreferencesStore(
     (s) => s.terminalScreenReader,
@@ -527,6 +530,28 @@ export function GeneralSection() {
                 >
                   {t("settings.general.terminal.scrollback.lines", {
                     lines: lines.toLocaleString(currentLocale()),
+                  })}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </SettingRow>
+        <SettingRow
+          title={t("settings.general.terminal.pathHistory.title")}
+          description={t("settings.general.terminal.pathHistory.description")}
+        >
+          <Select
+            value={String(pathHistoryLimit)}
+            onValueChange={(v) => void setPathHistoryLimit(Number(v))}
+          >
+            <SelectTrigger size="sm" className="h-8 w-36 text-[12px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PATH_HISTORY_LIMIT_PRESETS.map((limit) => (
+                <SelectItem key={limit} value={String(limit)}>
+                  {t("settings.general.terminal.pathHistory.entries", {
+                    count: limit,
                   })}
                 </SelectItem>
               ))}

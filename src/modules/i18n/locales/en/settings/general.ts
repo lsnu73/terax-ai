@@ -107,6 +107,13 @@ export const settingsGeneral = {
         "Lines of history kept per terminal. Higher uses more RAM (~3 KB / line).",
       lines: "{{lines}} lines",
     },
+    pathHistory: {
+      title: "Recent paths",
+      description:
+        "Directories left by the terminal are kept for Ctrl+E (recent paths). Shift+click on a path cd's to it.",
+      entries_one: "{{count}} entry",
+      entries_other: "{{count}} entries",
+    },
     confirmClose: {
       title: "Confirm before killing a running process",
       description:

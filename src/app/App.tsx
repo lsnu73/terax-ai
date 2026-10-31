@@ -54,7 +54,12 @@ import { setLspNavigator } from "@/modules/lsp";
 import type { PreviewPaneHandle } from "@/modules/preview";
 import { openSettings, registerSettingsOpener } from "@/modules/settings/openSettings";
 import { usePreferencesStore } from "@/modules/settings/preferences";
-import { setShowHidden } from "@/modules/settings/store";
+import { setShowHidden, setPathHistory } from "@/modules/settings/store";
+import {
+  recordPathHistory,
+} from "@/modules/terminal/lib/pathHistory";
+import { cdTerminalLeafTo } from "@/modules/terminal/lib/terminalCd";
+import { PathHistoryDialog } from "@/modules/terminal/path-history/PathHistoryDialog";
 import {
   type ShortcutHandlers,
   type ShortcutId,
@@ -373,6 +378,7 @@ export default function App() {
   } = useSidebarPanel(explorerRef);
 
   const [newEditorOpen, setNewEditorOpen] = useState(false);
+  const [pathHistoryOpen, setPathHistoryOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [paletteInitialMode, setPaletteInitialMode] = useState<
     "commands" | "content"
@@ -922,6 +928,7 @@ export default function App() {
       "tab.newPrivate": openNewPrivateTab,
       "tab.newPreview": () => openPreviewTab(""),
       "tab.newEditor": () => setNewEditorOpen(true),
+      "terminal.pathHistory": () => setPathHistoryOpen(true),
       "tab.close": handleCloseTabOrPane,
       "tab.next": () => stepSwitcher(1),
       "tab.prev": () => stepSwitcher(-1),
@@ -1011,6 +1018,10 @@ export default function App() {
           : null;
       if (shouldDisablePaneSwapShortcut(id, terminalPaneCount)) return true;
       if (id === "pane.undoSplit") return activeTab?.kind !== "terminal";
+      // Ctrl/E: inside a terminal tab the history picker owns the key and the
+      // new-editor dialog steps aside; outside terminals the editor keeps it.
+      if (id === "terminal.pathHistory") return activeTab?.kind !== "terminal";
+      if (id === "tab.newEditor") return activeTab?.kind === "terminal";
       if (
         id === "editor.undo" ||
         id === "editor.redo" ||
@@ -1095,7 +1106,20 @@ export default function App() {
   const authorizedCwds = useRef(new Set<string>());
   const handleTerminalCwd = useCallback(
     (leafId: number, cwd: string) => {
+      // Browser-history model: record the directory the shell just left.
+      const previous = tabsRef.current.flatMap((t) =>
+        t.kind === "terminal" && hasLeaf(t.paneTree, leafId)
+          ? [findLeafCwd(t.paneTree, leafId)]
+          : [],
+      )[0];
       setLeafCwd(leafId, cwd);
+      if (previous && previous !== cwd) {
+        const { pathHistory, pathHistoryLimit } =
+          usePreferencesStore.getState();
+        void setPathHistory(
+          recordPathHistory(pathHistory, previous, pathHistoryLimit),
+        );
+      }
       if (cwd && !authorizedCwds.current.has(cwd)) {
         authorizedCwds.current.add(cwd);
         native.workspaceAuthorize(cwd).catch(() => {
@@ -1104,6 +1128,18 @@ export default function App() {
       }
     },
     [setLeafCwd],
+  );
+
+  const pathHistory = usePreferencesStore((s) => s.pathHistory);
+
+  const handlePathHistoryPick = useCallback(
+    (path: string) => {
+      const tab = tabsRef.current.find((t) => t.id === activeId);
+      if (tab?.kind !== "terminal") return;
+      cdTerminalLeafTo(tab.activeLeafId, path);
+      focusPane(tab.id, tab.activeLeafId);
+    },
+    [activeId, focusPane],
   );
 
   const handleFocusLeaf = useCallback(
@@ -1646,6 +1682,19 @@ export default function App() {
             commandItems={commandPaletteItems}
             workspaceRoot={explorerRoot}
             onOpenContentHit={openContentHit}
+            pathHistory={pathHistory}
+            onOpenHistoryPath={handlePathHistoryPick}
+          />
+
+          <PathHistoryDialog
+            open={pathHistoryOpen}
+            onOpenChange={setPathHistoryOpen}
+            onPick={handlePathHistoryPick}
+            disabledReasonKey={
+              activeTab?.kind === "terminal"
+                ? null
+                : "terminal.pathHistory.noTerminal"
+            }
           />
 
           <NewEditorDialog

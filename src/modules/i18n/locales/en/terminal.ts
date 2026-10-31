@@ -43,4 +43,13 @@ export const terminal = {
     input: "Terminal input",
     scrollback: "Terminal scrollback",
   },
+  pathHistory: {
+    title: "Recent paths",
+    searchPlaceholder: "Filter paths...",
+    searchButton: "Search",
+    empty: "No recent paths. Change directory in a terminal to record one.",
+    hintEnter: "Enter or click: cd the active terminal to the path",
+    hintLimit: "Keeping up to {{limit}} entries (Settings → General → Terminal)",
+    noTerminal: "No active terminal to switch. Open or focus a terminal tab first.",
+  },
 };

@@ -7,12 +7,14 @@ import {
 import { initializeSessionGeneration as startSessionInitialization } from "@/modules/terminal/ghostty/sessionInitialization";
 import { replaceSessionSurface } from "@/modules/terminal/ghostty/replaceSessionSurface";
 import { openExternalUrl } from "@/lib/external-link";
+import { openPathInFileManager, pathFromLink } from "@/lib/open-path";
 import { ensureMonoFontsLoaded, resolveFontFamily } from "@/lib/fonts";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import type { TerminalBackendKind } from "@/modules/terminal/backend/contracts";
 import { setLeafPresentation } from "@/modules/terminal/lib/ptyPresentation";
 import { PtyResizeDelivery } from "@/modules/terminal/lib/ptyResizeDelivery";
 import { useTerminalFont } from "@/modules/terminal/lib/useTerminalFont";
+import { cdTerminalLeafTo } from "@/modules/terminal/lib/terminalCd";
 import type { TerminalSearchController } from "@/modules/terminal/search/TerminalSearchController";
 import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -721,6 +723,22 @@ async function initializeSessionGeneration(
     onRequestFocus: () => focusGhosttySession(session.leafId),
     onOpenLink: (uri, modifiers) => {
       const focus = () => focusGhosttySession(session.leafId);
+      // Absolute paths: Ctrl/Cmd opens the file manager, Shift cd's the
+      // shell there. URLs keep the Shift-preview / Ctrl-browser split.
+      const path = pathFromLink(uri);
+      if (path) {
+        if (modifiers.shiftKey) {
+          focus();
+          cdTerminalLeafTo(session.leafId, path);
+          return;
+        }
+        if (modifiers.ctrlKey || modifiers.metaKey) {
+          focus();
+          void openPathInFileManager(path);
+          return;
+        }
+        return;
+      }
       if (
         modifiers.shiftKey &&
         /^https?:\/\//i.test(uri) &&

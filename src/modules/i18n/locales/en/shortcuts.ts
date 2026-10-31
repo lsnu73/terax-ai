@@ -39,6 +39,7 @@ export const shortcuts = {
   },
   terminal: {
     clear: "Clear terminal",
+    pathHistory: "Recent paths (terminal)",
   },
   search: {
     focus: "Find in tab",

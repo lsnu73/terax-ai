@@ -28,3 +28,39 @@ it("preserves Unicode and query parameters with correct text offsets", () => {
     "https://example.com/日本?q=one&x=2",
   );
 });
+
+it("detects Windows drive paths with either slash flavor", () => {
+  const text = "cd C:\\Users\\foo\\bar and also C:/work/x done.";
+  const links = detectTerminalLinks(text);
+  expect(links.map((link) => link.uri)).toEqual([
+    "C:\\Users\\foo\\bar",
+    "C:/work/x",
+  ]);
+  for (const link of links) {
+    expect(text.slice(link.start, link.end)).toBe(link.uri);
+  }
+});
+
+it("detects multi-segment POSIX absolute paths but not prose slashes", () => {
+  const text = "see /usr/local/bin and /etc, plus /home/me/docs.";
+  const links = detectTerminalLinks(text);
+  expect(links.map((link) => link.uri)).toEqual([
+    "/usr/local/bin",
+    "/home/me/docs",
+  ]);
+  expect(detectTerminalLinks("and/or 3 / 4 a/b")).toEqual([]);
+});
+
+it("never matches the path inside an already-detected URL", () => {
+  expect(detectTerminalLinks("https://example.com/foo/bar")).toEqual([
+    { start: 0, end: 27, uri: "https://example.com/foo/bar" },
+  ]);
+});
+
+it("trims trailing punctuation and unbalanced brackets from paths", () => {
+  const text = "open C:\\work\\demo). see (C:\\work\\a).";
+  expect(detectTerminalLinks(text).map((link) => link.uri)).toEqual([
+    "C:\\work\\demo",
+    "C:\\work\\a",
+  ]);
+});

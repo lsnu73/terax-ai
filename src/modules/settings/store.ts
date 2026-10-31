@@ -10,6 +10,11 @@ import {
   type PreviewPortPreset,
 } from "@/modules/preview/lib/portPresets";
 import type { KeyBinding, ShortcutId } from "@/modules/shortcuts/shortcuts";
+import {
+  PATH_HISTORY_LIMIT_DEFAULT,
+  PATH_HISTORY_LIMIT_MAX,
+  PATH_HISTORY_LIMIT_MIN,
+} from "@/modules/terminal/lib/pathHistory";
 import { emit, listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { LazyStore } from "@tauri-apps/plugin-store";
 
@@ -140,6 +145,10 @@ export type Preferences = {
   effortLevelByModel: Record<string, string>;
   favoriteModelIds: string[];
   recentModelIds: string[];
+  /** 终端目录历史（最近离开过的工作目录，最新在前）。 */
+  pathHistory: string[];
+  /** 历史保留条数。 */
+  pathHistoryLimit: number;
   vimMode: boolean;
   editorWordWrap: boolean;
   editorWordWrapColumn: number;
@@ -226,6 +235,8 @@ const KEY_AUTOCOMPLETE_MODEL = "autocompleteModelId";
 const KEY_EFFORT_LEVELS = "thinkingLevelByModel";
 const KEY_FAVORITE_MODELS = "favoriteModelIds";
 const KEY_RECENT_MODELS = "recentModelIds";
+const KEY_PATH_HISTORY = "pathHistory";
+const KEY_PATH_HISTORY_LIMIT = "pathHistoryLimit";
 const KEY_VIM_MODE = "vimMode";
 const KEY_EDITOR_WORD_WRAP = "editorWordWrap";
 const KEY_EDITOR_WORD_WRAP_COLUMN = "editorWordWrapColumn";
@@ -310,6 +321,8 @@ export const DEFAULT_PREFERENCES: Preferences = {
   effortLevelByModel: {},
   favoriteModelIds: [],
   recentModelIds: [],
+  pathHistory: [],
+  pathHistoryLimit: PATH_HISTORY_LIMIT_DEFAULT,
   vimMode: false,
   editorWordWrap: false,
   editorWordWrapColumn: EDITOR_WORD_WRAP_COLUMN_DEFAULT,
@@ -418,6 +431,19 @@ export async function loadPreferences(): Promise<Preferences> {
     recentModelIds: (
       get<string[]>(KEY_RECENT_MODELS) ?? DEFAULT_PREFERENCES.recentModelIds
     ).filter((id): id is string => typeof id === "string"),
+    pathHistory: (
+      get<string[]>(KEY_PATH_HISTORY) ?? DEFAULT_PREFERENCES.pathHistory
+    ).filter((id): id is string => typeof id === "string"),
+    pathHistoryLimit: (() => {
+      const raw = get<number>(KEY_PATH_HISTORY_LIMIT);
+      if (typeof raw !== "number" || !Number.isFinite(raw)) {
+        return DEFAULT_PREFERENCES.pathHistoryLimit;
+      }
+      return Math.min(
+        Math.max(Math.round(raw), PATH_HISTORY_LIMIT_MIN),
+        PATH_HISTORY_LIMIT_MAX,
+      );
+    })(),
     vimMode: get<boolean>(KEY_VIM_MODE) ?? DEFAULT_PREFERENCES.vimMode,
     editorWordWrap:
       get<boolean>(KEY_EDITOR_WORD_WRAP) ?? DEFAULT_PREFERENCES.editorWordWrap,
@@ -664,6 +690,14 @@ export async function setRecentModelIds(value: string[]): Promise<void> {
   await writePref(KEY_RECENT_MODELS, value);
 }
 
+export async function setPathHistory(value: string[]): Promise<void> {
+  await writePref(KEY_PATH_HISTORY, value);
+}
+
+export async function setPathHistoryLimit(value: number): Promise<void> {
+  await writePref(KEY_PATH_HISTORY_LIMIT, value);
+}
+
 export async function setVimMode(value: boolean): Promise<void> {
   await writePref(KEY_VIM_MODE, value);
 }
@@ -890,6 +924,8 @@ export async function onPreferencesChange(
     [KEY_AUTOCOMPLETE_MODEL]: "autocompleteModelId",
     [KEY_FAVORITE_MODELS]: "favoriteModelIds",
     [KEY_RECENT_MODELS]: "recentModelIds",
+    [KEY_PATH_HISTORY]: "pathHistory",
+    [KEY_PATH_HISTORY_LIMIT]: "pathHistoryLimit",
     [KEY_VIM_MODE]: "vimMode",
     [KEY_EDITOR_WORD_WRAP]: "editorWordWrap",
     [KEY_EDITOR_WORD_WRAP_COLUMN]: "editorWordWrapColumn",

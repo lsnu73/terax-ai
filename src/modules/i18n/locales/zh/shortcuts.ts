@@ -41,6 +41,7 @@ export const shortcutsZh: typeof shortcuts = {
   },
   terminal: {
     clear: "清空终端",
+    pathHistory: "最近路径（终端）",
   },
   search: {
     focus: "在标签页中查找",

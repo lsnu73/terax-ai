@@ -21,6 +21,7 @@ import {
   AlertCircleIcon,
   ArrowTurnBackwardIcon,
   CommandIcon,
+  FolderOpenIcon,
   Tick02Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -34,6 +35,7 @@ import {
 import { fuzzyBest } from "./lib/fuzzy";
 import { MODE_HINTS, parseQuery } from "./lib/mode";
 import { mruRank, mruSnapshot, recordUse } from "./lib/mru";
+import { filterPathHistory } from "@/modules/terminal/lib/pathHistory";
 import type { PaletteItem } from "./types";
 
 type Props = {
@@ -43,6 +45,9 @@ type Props = {
   commandItems: PaletteItem[];
   workspaceRoot: string | null;
   onOpenContentHit: (path: string, line: number) => void;
+  /** 终端目录历史（"> 前缀模式）与选中后的跳转回调。 */
+  pathHistory: string[];
+  onOpenHistoryPath: (path: string) => void;
 };
 
 const SHORTCUTS_BY_ID = new Map(SHORTCUTS.map((s) => [s.id, s]));
@@ -55,6 +60,8 @@ export function CommandPalette({
   commandItems,
   workspaceRoot,
   onOpenContentHit,
+  pathHistory,
+  onOpenHistoryPath,
 }: Props) {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
@@ -74,6 +81,14 @@ export function CommandPalette({
   );
 
   const mru = useMemo(() => (open ? mruSnapshot() : {}), [open]);
+
+  const historyPaths = useMemo(
+    () =>
+      parsed.mode === "paths" && open
+        ? filterPathHistory(pathHistory, parsed.term)
+        : [],
+    [open, parsed.mode, parsed.term, pathHistory],
+  );
 
   const rankedCommands = useMemo(() => {
     if (inThemes || parsed.mode !== "commands") return [];
@@ -167,6 +182,13 @@ export function CommandPalette({
     [onOpenContentHit, runAfterClose],
   );
 
+  const openHistoryPath = useCallback(
+    (path: string) => {
+      runAfterClose(() => onOpenHistoryPath(path));
+    },
+    [onOpenHistoryPath, runAfterClose],
+  );
+
   const commitTheme = useCallback(
     (id: string) => {
       setThemeId(id);
@@ -191,7 +213,9 @@ export function CommandPalette({
     ? t("commands.palette.placeholderThemes")
     : parsed.mode === "content"
       ? t("commands.palette.placeholderContent")
-      : t("commands.palette.placeholderCommands");
+      : parsed.mode === "paths"
+        ? t("commands.palette.placeholderPaths")
+        : t("commands.palette.placeholderCommands");
 
   return (
     <CommandDialog
@@ -314,6 +338,33 @@ export function CommandPalette({
                       </CommandItem>
                     ))}
                   </AsyncBody>
+                )}
+              </CommandGroup>
+            ) : parsed.mode === "paths" ? (
+              <CommandGroup heading={t("commands.palette.pathsHeading")}>
+                {pathHistory.length === 0 ? (
+                  <StatusItem label={t("commands.palette.noPaths")} />
+                ) : historyPaths.length === 0 ? (
+                  <StatusItem label={t("commands.palette.noMatches")} />
+                ) : (
+                  historyPaths.map((path) => (
+                    <CommandItem
+                      key={path}
+                      value={`path:${path}`}
+                      onSelect={() => openHistoryPath(path)}
+                      className="text-[12.5px]"
+                    >
+                      <HugeiconsIcon
+                        icon={FolderOpenIcon}
+                        size={14}
+                        strokeWidth={1.75}
+                        className="shrink-0 text-muted-foreground"
+                      />
+                      <span className="min-w-0 flex-1 truncate font-mono text-[11.5px]">
+                        {path}
+                      </span>
+                    </CommandItem>
+                  ))
                 )}
               </CommandGroup>
             ) : (

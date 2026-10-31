@@ -107,6 +107,13 @@ export const settingsGeneralZh: typeof settingsGeneral = {
         "每个终端保留的历史行数。数值越大占用内存越多（约 3 KB / 行）。",
       lines: "{{lines}} 行",
     },
+    pathHistory: {
+      title: "路径历史",
+      description:
+        "记录终端离开过的目录，供 Ctrl+E（最近路径）快速返回；Shift+点击路径可直接 cd 过去。",
+      entries_one: "{{count}} 条",
+      entries_other: "{{count}} 条",
+    },
     confirmClose: {
       title: "终止运行中的进程前确认",
       description:

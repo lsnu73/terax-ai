@@ -42,4 +42,13 @@ export const terminalZh: typeof terminal = {
     input: "终端输入",
     scrollback: "终端回滚区",
   },
+  pathHistory: {
+    title: "最近路径",
+    searchPlaceholder: "筛选路径…",
+    searchButton: "搜索",
+    empty: "还没有路径历史。在终端里切换过目录后就会记录。",
+    hintEnter: "回车或点击：在当前终端 cd 到该路径",
+    hintLimit: "最多保留 {{limit}} 条（设置 → 通用 → 终端）",
+    noTerminal: "没有可切换的终端。请先打开或聚焦一个终端标签页。",
+  },
 };

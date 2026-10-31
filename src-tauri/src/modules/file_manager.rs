@@ -13,7 +13,8 @@ use std::path::Path;
 /// Opens the app data directory, where `terax-ai-models.json` lives.
 ///
 /// The path is computed here rather than passed from the webview, so this
-/// command cannot be used to open arbitrary locations.
+/// command cannot be used to open arbitrary locations. For user-initiated
+/// opens (terminal path links) see [`open_path_in_file_manager`].
 #[tauri::command]
 pub fn open_ai_config_dir(app: tauri::AppHandle) -> Result<(), String> {
     use tauri::Manager;
@@ -21,6 +22,26 @@ pub fn open_ai_config_dir(app: tauri::AppHandle) -> Result<(), String> {
     let dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
     std::fs::create_dir_all(&dir).map_err(|e| format!("failed to create config dir: {e}"))?;
     open_dir(&dir)
+}
+
+/// Opens a location the user clicked in the terminal (Ctrl+click on an
+/// absolute path). Directories open as-is; files open their parent folder.
+/// The path must exist on disk, so a mistyped shell token can't spawn a
+/// file manager window.
+#[tauri::command]
+pub fn open_path_in_file_manager(path: String) -> Result<(), String> {
+    let clicked = Path::new(&path);
+    let target = if clicked.is_dir() {
+        clicked
+    } else if clicked.is_file() {
+        clicked.parent().unwrap_or_else(|| Path::new("/"))
+    } else {
+        return Err(format!("path does not exist: {path}"));
+    };
+    if !target.exists() {
+        return Err(format!("path does not exist: {path}"));
+    }
+    open_dir(target)
 }
 
 #[cfg(windows)]
