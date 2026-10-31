@@ -851,15 +851,15 @@ export function useSourceControlPanel(
         ]);
       const { text: diffText, truncated } = truncateDiff(diff.diffText);
       const chatState = useChatStore.getState();
-      const thinkingLevelId =
-        usePreferencesStore.getState().thinkingLevelByModel[selectedModelId] ??
+      const effortLevelId =
+        usePreferencesStore.getState().effortLevelByModel[selectedModelId] ??
         null;
       // 【导览 20】消费方四：用当前对话所选模型生成 Git 提交信息。
-      // 与聊天共用同一条构建链路（含 JSON 配置里的请求参数与思考档位）。
+      // 与聊天共用同一条构建链路（含 JSON 配置里的自定义参数与思考强度档位）。
       const model = await buildConfiguredLanguageModel(
         selectedModelId,
         chatState.apiKeys,
-        { thinkingLevelId },
+        { effortLevelId },
       );
       const result = await generateText({
         model,

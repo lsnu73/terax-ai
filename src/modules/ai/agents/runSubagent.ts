@@ -14,7 +14,7 @@ type Args = {
   keys: ProviderKeys;
   modelId: string;
   toolContext: ToolContext;
-  thinkingLevelId?: string | null;
+  effortLevelId?: string | null;
   onStep?: (label: string) => void;
 };
 
@@ -30,7 +30,7 @@ export async function runSubagent({
   keys,
   modelId,
   toolContext,
-  thinkingLevelId,
+  effortLevelId,
   onStep,
 }: Args): Promise<RunResult> {
   const def = SUBAGENTS[type];
@@ -49,7 +49,7 @@ export async function runSubagent({
   // 因此任何在 JSON 里声明的 Provider / 模型 / 参数都自动生效。
   // 另外它用的是 generateText（一次性返回），不是主聊天的流式 streamText。
   const model = await buildConfiguredLanguageModel(modelId, keys, {
-    thinkingLevelId,
+    effortLevelId,
   });
 
   const start = Date.now();

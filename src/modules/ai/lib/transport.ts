@@ -43,7 +43,7 @@ type Deps = {
   getKeys: () => ProviderKeys;
   toolContext: ToolContext;
   getModelId: () => string;
-  getThinkingLevelId: () => string | null;
+  getEffortLevelId: () => string | null;
   getCustomInstructions: () => string;
   getAgentPersona: () => { name: string; instructions: string } | null;
   getLive: () => LiveSnapshot;
@@ -62,7 +62,7 @@ type SendOptions = {
 
 /**
  * `useChat` 与 Agent 执行器之间的适配器。它为出站消息补充工作区/项目上下文，
- * 并透传实时的模型选择，包括模型选择器中选定的思考档位。
+ * 并透传实时的模型选择，包括模型选择器中选定的思考强度档位。
  */
 export function createContextAwareTransport(deps: Deps) {
   const run = async (options: SendOptions) => {
@@ -75,7 +75,7 @@ export function createContextAwareTransport(deps: Deps) {
     const result = await runAgentStream({
       keys: deps.getKeys(),
       modelId: deps.getModelId(),
-      thinkingLevelId: deps.getThinkingLevelId(),
+      effortLevelId: deps.getEffortLevelId(),
       customInstructions: deps.getCustomInstructions(),
       agentPersona: deps.getAgentPersona(),
       toolContext: deps.toolContext,

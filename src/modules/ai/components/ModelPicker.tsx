@@ -12,15 +12,15 @@ import {
   findModel,
   findProvider,
   providerNeedsKey,
-  thinkingLevelIndex,
-  thinkingLevels,
+  effortLevelIndex,
+  effortLevels,
   toModelInfo,
   useAiConfigStore,
   type ModelInfo,
 } from "@/modules/ai/config";
 import { openSettings } from "@/modules/settings/openSettings";
 import { usePreferencesStore } from "@/modules/settings/preferences";
-import { setThinkingLevel } from "@/modules/settings/store";
+import { setEffortLevel } from "@/modules/settings/store";
 import {
   AiBookIcon,
   ArrowDown01Icon,
@@ -51,7 +51,7 @@ export function ModelPicker({
   const setSelected = useChatStore((s) => s.setSelectedModelId);
   const favoriteIds = usePreferencesStore((s) => s.favoriteModelIds);
   const recentIds = usePreferencesStore((s) => s.recentModelIds);
-  const thinkingByModel = usePreferencesStore((s) => s.thinkingLevelByModel);
+  const effortByModel = usePreferencesStore((s) => s.effortLevelByModel);
   const config = useAiConfigStore((s) => s.config);
   const current = findModel(selected);
   const [search, setSearch] = useState("");
@@ -106,20 +106,20 @@ export function ModelPicker({
   }, [activeProvider, allModels, favoriteIds, recentIds, search, tab]);
 
   const levels = current
-    ? thinkingLevels(current.providerEntry, current.model)
+    ? effortLevels(current.providerEntry, current.model)
     : [];
   const levelIndex = current
-    ? thinkingLevelIndex(
+    ? effortLevelIndex(
         current.providerEntry,
         current.model,
-        thinkingByModel[selected] ?? null,
+        effortByModel[selected] ?? null,
       )
     : -1;
   const activeLevel = levelIndex >= 0 ? levels[levelIndex] : null;
   const offLabel =
-    current?.model.thinking?.offLabel ??
-    current?.providerEntry.thinking?.offLabel ??
-    t("ai.modelPicker.thinkingOff");
+    current?.model.effort?.offLabel ??
+    current?.providerEntry.effort?.offLabel ??
+    t("ai.modelPicker.effortOff");
 
   return (
     <DropdownMenu>
@@ -301,7 +301,7 @@ export function ModelPicker({
             <div className="mb-1.5 flex items-center justify-between">
               <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                 <HugeiconsIcon icon={BrainIcon} size={12} strokeWidth={1.75} />
-                {t("ai.modelPicker.thinkingLevel")}
+                {t("ai.modelPicker.effortLevel")}
               </span>
               <span className="text-[11px] font-medium text-foreground">
                 {activeLevel?.label ?? offLabel}
@@ -314,7 +314,7 @@ export function ModelPicker({
               value={[Math.max(0, levelIndex)]}
               onValueChange={(values) => {
                 const next = levels[values[0]];
-                if (next) void setThinkingLevel(selected, next.id);
+                if (next) void setEffortLevel(selected, next.id);
               }}
               onPointerDown={(e) => e.stopPropagation()}
               className="py-1"
@@ -330,7 +330,7 @@ export function ModelPicker({
               ))}
             </div>
             <p className="mt-1 text-[9.5px] leading-relaxed text-muted-foreground/60">
-              {t("ai.modelPicker.thinkingHint")}
+              {t("ai.modelPicker.effortHint")}
             </p>
           </div>
         ) : null}

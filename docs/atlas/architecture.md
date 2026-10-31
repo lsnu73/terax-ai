@@ -69,7 +69,7 @@ IPC 命令索引见 [../architecture/two-process-model.md](../architecture/two-p
 
 ## 配置与环境变量
 
-应用数据目录中的模型配置文件名为 **terax-ai-models.json**，会话索引为 **terax-ai-sessions.json**，各会话消息单独存放。API Key 只存操作系统钥匙串。模型配置的完整契约见 [../architecture/model-configuration.md](../architecture/model-configuration.md)。
+应用数据目录中的模型配置文件名为 **terax-ai-models.json**，会话索引为 **terax-ai-sessions.json**，各会话消息单独存放。API Key 只存操作系统钥匙串。模型配置的完整契约见 [features/AI模型配置.md](features/AI模型配置.md)。
 
 预览端口预设保存在偏好文件 **terax-settings.json** 的 `previewPortPresets` 字段。默认值来自 `src/modules/preview/lib/portPresets.ts`，加载时按稳定 ID 合并与去重。
 

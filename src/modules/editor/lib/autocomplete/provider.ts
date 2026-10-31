@@ -1,7 +1,7 @@
 import {
   autocompleteDefaultModel,
   modelSupportsTemperature,
-  thinkingLevels,
+  effortLevels,
   tryResolveModel,
 } from "@/modules/ai/config";
 import { buildLanguageModel } from "@/modules/ai/lib/agent";
@@ -45,7 +45,7 @@ export async function requestCompletion(
       `Autocomplete model "${modelId}" is not in the configuration.`,
     );
   }
-  const levels = thinkingLevels(info.providerEntry, info.model);
+  const levels = effortLevels(info.providerEntry, info.model);
   const levelId = levels[0]?.id ?? null;
   const model = await buildLanguageModel(
     info.providerEntry,

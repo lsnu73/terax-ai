@@ -10,7 +10,7 @@ export const settingsModelsZh: typeof settingsModels = {
   loading: "加载中…",
   configFile: {
     label: "配置文件",
-    info: "Provider、模型、请求参数与思考档位都保存在这个文件里。可以直接用编辑器修改，但修改后需要重新加载才会生效。",
+    info: "Provider、模型、自定义请求参数与思考强度档位都保存在这个文件里。可以直接用编辑器修改，但修改后需要重新加载才会生效。",
     reload: "从磁盘重新加载",
     reloadInfo:
       "从磁盘重新读取 JSON。设置页里尚未保存的修改会被丢弃；如果文件刚被外部编辑过，必须先点这里才能看到新配置。",
@@ -62,14 +62,14 @@ export const settingsModelsZh: typeof settingsModels = {
     addModel: "添加模型",
     noModelsYet:
       "暂无模型。可点击 “获取模型列表” 从厂商拉取，或手动添加模型 ID。",
-    advancedToggle: "高级：请求参数 / 思考档位 / 模型列表接口",
+    advancedToggle: "高级：Params 参数 / 思考强度 / 模型列表接口",
     advancedInfo:
-      "展开 Provider 级的高级配置：传输协议、鉴权方式、钥匙串账户、静态请求头、共享参数、兜底思考档位与模型列表接口。",
+      "展开 Provider 级的高级配置：传输协议、鉴权方式、钥匙串账户、静态请求头、共享 Params 参数、兜底思考强度档位与模型列表接口。",
     testing: "测试中…",
   },
   modelRow: {
-    levels_one: "思考 {{count}} 档",
-    levels_other: "思考 {{count}} 档",
+    levels_one: "思考强度 {{count}} 档",
+    levels_other: "思考强度 {{count}} 档",
     edit: "编辑模型",
     remove: "移除模型",
   },
@@ -80,7 +80,7 @@ export const settingsModelsZh: typeof settingsModels = {
     errorInput: "输入 token 必须是 ≥ 1000 的数字。",
     errorOutput: "输出 token 必须是正数。",
     errorParamsJson: "参数 JSON 无效：{{error}}",
-    errorThinkingJson: "思考档位 JSON 无效：{{error}}",
+    errorEffortJson: "思考强度 JSON 无效：{{error}}",
     errorExtraJson: "额外 JSON 无效：{{error}}",
     duplicateId: "模型 ID 已存在：{{id}}",
     modelId: {
@@ -119,12 +119,12 @@ export const settingsModelsZh: typeof settingsModels = {
       info: "逗号分隔的标记。reasoning 表示跨工具调用轮次保留推理内容（推理模型通常需要）；lite 仅作标记，系统提示词长度由 Sampling 右侧的 full/lite 决定。",
     },
     params: {
-      label: "Params（请求参数）",
-      info: "声明该模型额外发送的请求参数。表单模式适合大多数情况；JSON 模式可编辑全部字段。留空（[]）表示不额外发送参数。",
+      label: "Params（自定义请求参数）",
+      info: "每次请求都会携带的自定义请求体参数，例如 frequency_penalty 等高级采样参数。想设置思考强度请改用下方的 Effort 字段。",
     },
-    thinking: {
-      label: "Thinking（思考档位）",
-      info: "控制 Ctrl+I 模型选择窗底部的滑条。null 表示不显示滑条；每个档位把参数 key 映射到逻辑值，值为 null 表示该档位省略此参数。",
+    effort: {
+      label: "Effort（思考强度）",
+      info: "控制 Ctrl+I 模型选择窗底部的思考强度滑条。所有档位共用一个请求体参数名（path），每个档位只填写自己的取值；取值为 null 表示省略该参数（关闭思考）。",
     },
     extra: {
       label: "Extra（原始覆盖）",
@@ -168,11 +168,11 @@ export const settingsModelsZh: typeof settingsModels = {
     },
     params: {
       label: "Params（Provider 共享参数）",
-      info: "该 Provider 下所有模型共享的参数定义；模型重新声明同一 key 时会覆盖这里的定义。留空（[]）表示不额外发送参数。",
+      info: "该 Provider 下所有模型共享的自定义请求体参数；模型重新声明同一 key 时会覆盖这里的定义。想设置思考强度请改用下方的 Effort 字段。",
     },
-    thinking: {
-      label: "Thinking（Provider 兜底档位）",
-      info: "模型没有声明自己的 thinking 时使用这里的档位。null 表示默认不显示思考滑条；具体映射写法见“表单”模式或文档。",
+    effort: {
+      label: "Effort（Provider 兜底档位）",
+      info: "模型没有声明自己的思考强度档位时使用这里的档位。null 表示默认不显示思考强度滑条；档位在“表单”模式下配置。",
     },
     headers: {
       label: "Headers（静态请求头）",
@@ -210,10 +210,11 @@ export const settingsModelsZh: typeof settingsModels = {
   validation: {
     paramKeyRequired:
       "Params 第 {{index}} 项的 Key 不能为空（没有 Key 的参数会被丢弃）。",
-    thinkingNeedsLevel:
-      "Thinking 至少需要一个档位，或者设为 null 表示不显示滑块。",
-    thinkingLevelMissingId: "Thinking 第 {{index}} 个档位缺少 ID。",
-    thinkingLevelDuplicateId: "Thinking 档位 ID 重复：{{id}}。",
+    effortNeedsPath: "Effort 需要填写请求体参数名（path）。",
+    effortNeedsLevel:
+      "Effort 至少需要一个档位，或者设为 null 表示不显示滑块。",
+    effortLevelMissingId: "Effort 第 {{index}} 个档位缺少 ID。",
+    effortLevelDuplicateId: "Effort 档位 ID 重复：{{id}}。",
   },
   structured: {
     infoAria: "查看说明",
@@ -222,7 +223,7 @@ export const settingsModelsZh: typeof settingsModels = {
     switchError: "无法切换到表单：当前 JSON 解析失败（{{error}}）",
     parseParamsArray: "Params 必须是数组，例如 []。",
     parseParamsItems: "Params 数组中的每一项都必须是对象。",
-    parseThinking: "Thinking 必须是 null，或包含 levels 数组的对象。",
+    parseThinking: "Effort 必须是 null，或包含 path 与 levels 数组的对象。",
     parseExtra: "Extra 必须是一个 JSON 对象，例如 {}。",
     parseHeaders: "Headers 必须是一个 JSON 对象，例如 {}。",
     headerValueString: '请求头 "{{key}}" 的值必须是字符串。',
@@ -231,49 +232,40 @@ export const settingsModelsZh: typeof settingsModels = {
     noKeyValues: "还没有键值对。",
     removeRow: "删除这一行",
     paramsEmpty:
-      "未声明额外参数。大多数 OpenAI 兼容厂商可以留空；只有需要发送思考等级等厂商专有字段时才需要添加。",
+      "未声明自定义参数。大多数 OpenAI 兼容厂商可以留空。规则：想自定义请求体参数（如 frequency_penalty）在这里添加；想设置思考强度请改用下方的 Effort 字段。",
     paramTitle: "参数 #{{index}}",
     paramEnabled: "启用",
     paramRemove: "删除该参数",
-    paramKey: "Key（逻辑键）",
+    paramKey: "Key（请求体参数名）",
     paramKeyInfo:
-      "Thinking 档位通过这个键引用参数；同一 Provider 下重复声明会覆盖旧定义。",
+      "实际写入请求体的键名，点号会创建嵌套对象。想按档位调节思考强度请改用 Effort 字段。",
     paramLabel: "显示名（可选）",
-    paramLabelPlaceholder: "思考强度",
-    paramLocation: "位置",
-    paramLocationInfo: "body 写入 JSON 请求体；header 作为 HTTP 请求头发送。",
-    locationBody: "body（请求体）",
-    locationHeader: "header（请求头）",
-    paramType: "类型",
-    paramTypeInfo: "仅用于说明与校验；实际发送值仍由输入决定。",
-    paramPath: "发送路径",
-    paramPathInfo:
-      "实际写入请求的键名。点号会创建嵌套对象，例如 thinking.type。",
-    paramEnum: "可选值（逗号分隔）",
-    paramEnumInfo:
-      "限制该参数允许的取值；映射结果不在列表内时会被跳过并告警。留空表示不限制。",
-    paramDefault: "默认值",
-    paramDefaultInfo:
-      "档位没有覆盖时发送该值。留空表示不设置；支持 high、1024、true 或完整 JSON。",
-    paramDefaultPlaceholder: "留空 / high / 1024 / true",
-    paramMap: "取值映射 map",
-    paramMapInfo:
-      "把 Thinking 档位的逻辑取值翻译成实际发送给厂商的值。翻译结果为 null 表示该档位省略此参数（用于关闭思考）。",
-    paramMapKeyPlaceholder: "逻辑值，如 medium",
-    paramMapValuePlaceholder: "发送值，如 high；写 null 表示省略",
-    paramMapAdd: "添加映射",
+    paramLabelPlaceholder: "频率惩罚",
+    paramValue: "取值",
+    paramValueInfo:
+      "每次请求都原样发送。支持 high、1024、true 或完整 JSON；写 null 表示省略该键。",
+    paramValuePlaceholder: "high / 1024 / true / {\"a\":1}",
     paramDescription: "说明（可选）",
     paramDescriptionPlaceholder: "给未来的自己留一句说明",
     addParam: "添加参数",
-    thinkingNull: "当前为 null：该模型不会显示思考滑块，也不会发送思考参数。",
-    thinkingCreate: "创建思考档位",
-    thinkingOffSeed: "关闭",
-    thinkingDefault: "默认档位",
-    thinkingDefaultInfo:
+    paramsRule: "规则：自定义请求体参数用 Params；思考强度用 Effort。",
+    paramsRuleHint:
+      "Params 定义每次请求都携带的静态请求体参数（如 frequency_penalty、top_p）。想按档位调节思考强度时，不要在这里堆思考参数——请在 Effort 字段中配置。",
+    effortNull: "当前为 null：该模型不会显示思考强度滑块，也不会发送思考强度参数。",
+    effortCreate: "创建思考强度档位",
+    effortPath: "参数名（path）",
+    effortPathInfo:
+      "承载思考强度取值的请求体键名，例如 reasoning_effort 或 thinking.type。点号会创建嵌套对象。",
+    effortDefault: "默认档位",
+    effortDefaultInfo:
       "用户没有手动选择时使用该档位；删除默认档位后会回退到第一档。",
-    thinkingDefaultPlaceholder: "选择默认档位",
-    thinkingOffLabel: "最左档位标签",
-    thinkingOffLabelInfo: "滑条最左端的文字，一般为“关闭”。",
+    effortDefaultPlaceholder: "选择默认档位",
+    effortOffLabel: "最左档位标签",
+    effortOffLabelInfo: "滑条最左端的文字，一般为“关闭”。",
+    effortOffSeed: "关闭",
+    effortRule: "规则：思考强度用 Effort；其他自定义请求体参数用 Params。",
+    effortRuleHint:
+      "Effort 只负责思考强度：所有档位共用 path 里设置的参数名，每个档位只需填写自己的取值；取值为 null 表示省略该参数（关闭思考）。其他自定义参数请用 Params。",
     levelTitle: "档位 #{{index}}",
     levelLeftmost: "（最左 / 关闭）",
     levelRemove: "删除该档位",
@@ -282,12 +274,10 @@ export const settingsModelsZh: typeof settingsModels = {
       "档位的唯一标识：用户在滑条上选中的档位会按此 ID 记入偏好。修改已有档位的 ID 后，之前选过该档位的用户会回退到默认档位。",
     levelLabel: "显示名",
     levelLabelPlaceholder: "低 / 高 / 最高",
-    levelValues: "档位参数值",
-    levelValuesInfo:
-      "为每个参数 key 指定该档位使用的逻辑取值。取值为 null 表示该档位不发送这个参数；例如关闭思考时可发送 thinking.type=disabled 并省略 reasoning_effort。",
-    levelValuesKeyPlaceholder: "参数 key",
-    levelValuesValuePlaceholder: "逻辑值，如 high；null 表示省略",
-    levelValuesAdd: "添加参数值",
+    levelValue: "发送取值",
+    levelValueInfo:
+      "该档位实际写入思考强度参数的取值。留空表示省略参数（关闭）；支持 high、1024、true 或完整 JSON。",
+    levelValuePlaceholder: "high / 1024 / true；留空表示省略",
     addLevel: "添加档位",
     extraKeyPlaceholder: "键，如 stream_options",
     extraValuePlaceholder: '值，如 {"include_usage":true} / true / high',

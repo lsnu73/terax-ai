@@ -14,66 +14,28 @@ import {
   setAiConfig,
   systemPromptKind,
   TOOL_PROTOCOL_TAIL,
-  thinkingLevels,
+  effortLevels,
   tryResolveModel,
 } from "./config";
 
 const PARAMS = [
   {
-    key: "thinking.type",
-    location: "body" as const,
-    path: "thinking.type",
-    type: "string" as const,
-    enum: ["enabled", "disabled"],
+    key: "frequency_penalty",
+    label: "频率惩罚",
+    value: 0.5,
     enabled: true,
-  },
-  {
-    key: "reasoning_effort",
-    location: "body" as const,
-    path: "reasoning_effort",
-    type: "string" as const,
-    enabled: true,
-    map: {
-      none: null,
-      minimal: null,
-      low: "low",
-      medium: "high",
-      high: "high",
-      xhigh: "max",
-      max: "max",
-    },
   },
 ];
 
-const THINKING = {
+const EFFORT = {
+  path: "reasoning_effort",
   default: "high",
   offLabel: "关闭",
   levels: [
-    {
-      id: "off",
-      label: "关闭",
-      values: { "thinking.type": "disabled", reasoning_effort: "none" },
-    },
-    {
-      id: "low",
-      label: "低",
-      values: { "thinking.type": "enabled", reasoning_effort: "low" },
-    },
-    {
-      id: "medium",
-      label: "中",
-      values: { "thinking.type": "enabled", reasoning_effort: "medium" },
-    },
-    {
-      id: "high",
-      label: "高",
-      values: { "thinking.type": "enabled", reasoning_effort: "high" },
-    },
-    {
-      id: "xhigh",
-      label: "极高",
-      values: { "thinking.type": "enabled", reasoning_effort: "xhigh" },
-    },
+    { id: "off", label: "关闭", value: null },
+    { id: "low", label: "低", value: "low" },
+    { id: "high", label: "高", value: "high" },
+    { id: "max", label: "最高", value: "max" },
   ],
 };
 
@@ -87,7 +49,7 @@ function model(overrides: Partial<ModelEntry> = {}): ModelEntry {
     supportsAutocomplete: true,
     systemPrompt: "full",
     params: [],
-    thinking: null,
+    effort: null,
     extra: {},
     tags: [],
     ...overrides,
@@ -105,7 +67,7 @@ function provider(overrides: Partial<ProviderEntry> = {}): ProviderEntry {
     headers: {},
     modelsApi: null,
     params: PARAMS,
-    thinking: THINKING,
+    effort: EFFORT,
     models: [model()],
     icon: "brain",
     builtin: true,
@@ -136,17 +98,18 @@ describe("built-in catalog", () => {
     expect(seeded.defaults.modelId).toBe("");
   });
 
-  it("declares thinking ladders on providers, not in code", () => {
+  it("declares effort ladders on providers, not in code", () => {
     const seeded = defaultAiConfig();
     const zhipu = seeded.providers.find((p) => p.id === "zhipu");
-    expect(zhipu?.thinking?.levels.map((l) => l.id)).toEqual([
+    expect(zhipu?.effort?.path).toBe("reasoning_effort");
+    expect(zhipu?.effort?.levels.map((l) => l.id)).toEqual([
       "off",
       "low",
       "high",
       "max",
     ]);
-    const dashscope = seeded.providers.find((p) => p.id === "dashscope");
-    expect(dashscope?.params.map((p) => p.key)).toContain("thinking_budget");
+    const doubao = seeded.providers.find((p) => p.id === "volcengine");
+    expect(doubao?.effort?.path).toBe("thinking.type");
   });
 });
 
@@ -190,13 +153,89 @@ describe("normalizeAiConfig", () => {
     expect(result.warnings).toHaveLength(2);
   });
 
-  it("drops thinking configs with no levels", () => {
+  it("drops effort configs with no levels", () => {
     const result = normalizeAiConfig({
       providers: [
-        { id: "p", thinking: { default: "x", levels: [] }, models: [] },
+        { id: "p", effort: { path: "x", default: "x", levels: [] }, models: [] },
       ],
     });
-    expect(result.config.providers[0].thinking).toBeNull();
+    expect(result.config.providers[0].effort).toBeNull();
+  });
+
+  it("migrates a single-key legacy thinking config to the effort format", () => {
+    const result = normalizeAiConfig({
+      providers: [
+        {
+          id: "p",
+          thinking: {
+            default: "high",
+            offLabel: "关闭",
+            levels: [
+              { id: "off", label: "关闭", values: { reasoning_effort: null } },
+              { id: "high", label: "高", values: { reasoning_effort: "high" } },
+            ],
+          },
+          models: [],
+        },
+      ],
+    });
+    expect(result.config.providers[0].effort).toEqual({
+      path: "reasoning_effort",
+      default: "high",
+      offLabel: "关闭",
+      levels: [
+        { id: "off", label: "关闭", value: null },
+        { id: "high", label: "高", value: "high" },
+      ],
+    });
+  });
+
+  it("drops a multi-key legacy thinking config with a warning", () => {
+    const result = normalizeAiConfig({
+      providers: [
+        {
+          id: "p",
+          thinking: {
+            levels: [
+              {
+                id: "off",
+                label: "off",
+                values: { "thinking.type": "disabled", reasoning_effort: null },
+              },
+              {
+                id: "on",
+                label: "on",
+                values: { "thinking.type": "enabled", reasoning_effort: "low" },
+              },
+            ],
+          },
+          models: [],
+        },
+      ],
+    });
+    expect(result.config.providers[0].effort).toBeNull();
+    expect(
+      result.warnings.some((w) => w.includes("Legacy thinking config")),
+    ).toBe(true);
+  });
+
+  it("migrates legacy params: keeps body params with a value, drops the rest", () => {
+    const result = normalizeAiConfig({
+      providers: [
+        {
+          id: "p",
+          params: [
+            { key: "frequency_penalty", location: "body", path: "frequency_penalty", type: "number", default: 0.5, enabled: true },
+            { key: "reasoning_effort", location: "body", path: "reasoning_effort", type: "string", enum: ["low", "high"], map: { low: "low" }, enabled: true },
+            { key: "x-thing", location: "header", path: "X-Thing", type: "string", default: "v", enabled: true },
+          ],
+          models: [],
+        },
+      ],
+    });
+    expect(result.config.providers[0].params).toEqual([
+      { key: "frequency_penalty", label: "frequency_penalty", value: 0.5, enabled: true },
+    ]);
   });
 
   it("keeps valid systemPrompt kinds at all levels and drops invalid ones", () => {
@@ -242,32 +281,47 @@ describe("resolveRequestParams", () => {
     setAiConfig(config([provider()]));
   });
 
-  it("maps GLM notches through the declared map", () => {
+  it("sends custom params on every request", () => {
     const p = provider();
     const m = p.models[0];
     expect(resolveRequestParams(p, m, "high").body).toEqual({
-      thinking: { type: "enabled" },
+      frequency_penalty: 0.5,
       reasoning_effort: "high",
     });
-    expect(resolveRequestParams(p, m, "medium").body.reasoning_effort).toBe(
-      "high",
-    );
-    expect(resolveRequestParams(p, m, "xhigh").body.reasoning_effort).toBe(
-      "max",
-    );
   });
 
-  it("omits mapped-to-null values when thinking is off", () => {
+  it("omits the effort key when the level value is null", () => {
     const p = provider();
     const body = resolveRequestParams(p, p.models[0], "off").body;
-    expect(body).toEqual({ thinking: { type: "disabled" } });
+    expect(body).toEqual({ frequency_penalty: 0.5 });
     expect("reasoning_effort" in body).toBe(false);
   });
 
-  it("falls back to the model default notch", () => {
+  it("falls back to the model default level", () => {
     const p = provider();
     const body = resolveRequestParams(p, p.models[0]).body;
     expect(body.reasoning_effort).toBe("high");
+  });
+
+  it("lets a model override a provider param by key", () => {
+    const p = provider();
+    const m = model({
+      params: [
+        { key: "frequency_penalty", label: "x", value: 0, enabled: true },
+      ],
+    });
+    expect(resolveRequestParams(p, m, "off").body).toEqual({
+      frequency_penalty: 0,
+    });
+  });
+
+  it("skips a disabled param", () => {
+    const p = provider({
+      params: [
+        { key: "frequency_penalty", value: 0.5, enabled: false },
+      ],
+    });
+    expect(resolveRequestParams(p, p.models[0], "off").body).toEqual({});
   });
 
   it("merges the raw extra overlay last", () => {
@@ -304,71 +358,33 @@ describe("resolveRequestParams", () => {
     expect("reasoning_effort" in body).toBe(false);
   });
 
-  it("writes header parameters and keeps the wire name", () => {
+  it("writes nested effort paths and guards protected ones", () => {
     const p = provider({
-      params: [
-        {
-          key: "x-thinking",
-          location: "header",
-          path: "X-Thinking",
-          type: "string",
-          enabled: true,
-        },
-      ],
-      thinking: {
+      params: [],
+      effort: {
+        path: "thinking.type",
         default: "on",
         levels: [
-          { id: "off", label: "off", values: { "x-thinking": null } },
-          { id: "on", label: "on", values: { "x-thinking": "enabled" } },
+          { id: "off", label: "off", value: "disabled" },
+          { id: "on", label: "on", value: "enabled" },
         ],
       },
     });
-    expect(resolveRequestParams(p, p.models[0], "on").headers).toEqual({
-      "X-Thinking": "enabled",
+    expect(resolveRequestParams(p, p.models[0], "on").body).toEqual({
+      thinking: { type: "enabled" },
     });
-  });
 
-  it("supports a boolean switch plus a numeric budget", () => {
-    const p = provider({
-      params: [
-        {
-          key: "enable_thinking",
-          location: "body",
-          path: "enable_thinking",
-          type: "boolean",
-          enabled: true,
-        },
-        {
-          key: "thinking_budget",
-          location: "body",
-          path: "thinking_budget",
-          type: "number",
-          enabled: true,
-        },
-      ],
-      thinking: {
-        default: "low",
-        levels: [
-          {
-            id: "off",
-            label: "off",
-            values: { enable_thinking: false, thinking_budget: null },
-          },
-          {
-            id: "low",
-            label: "low",
-            values: { enable_thinking: true, thinking_budget: 1024 },
-          },
-        ],
+    const hijack = provider({
+      params: [],
+      effort: {
+        path: "model",
+        default: "on",
+        levels: [{ id: "on", label: "on", value: "evil" }],
       },
     });
-    expect(resolveRequestParams(p, p.models[0], "low").body).toEqual({
-      enable_thinking: true,
-      thinking_budget: 1024,
-    });
-    expect(resolveRequestParams(p, p.models[0], "off").body).toEqual({
-      enable_thinking: false,
-    });
+    const resolved = resolveRequestParams(hijack, hijack.models[0], "on");
+    expect("model" in resolved.body).toBe(false);
+    expect(resolved.warnings.length).toBe(1);
   });
 });
 
@@ -447,15 +463,16 @@ describe("registry helpers", () => {
     expect(providerNeedsKey(provider())).toBe(true);
   });
 
-  it("reads the thinking ladder from the model before the provider", () => {
+  it("reads the effort ladder from the model before the provider", () => {
     const p = provider();
     const m = model({
-      thinking: {
+      effort: {
+        path: "reasoning_effort",
         default: "only",
-        levels: [{ id: "only", label: "唯一", values: {} }],
+        levels: [{ id: "only", label: "唯一", value: "low" }],
       },
     });
-    expect(thinkingLevels(p, m).map((l) => l.id)).toEqual(["only"]);
-    expect(thinkingLevels(p, p.models[0]).map((l) => l.id)).toContain("medium");
+    expect(effortLevels(p, m).map((l) => l.id)).toEqual(["only"]);
+    expect(effortLevels(p, p.models[0]).map((l) => l.id)).toContain("high");
   });
 });

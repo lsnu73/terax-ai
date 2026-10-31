@@ -17,11 +17,11 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type {
+  EffortConfig,
   JsonObject,
   JsonValue,
   ModelsApiConfig,
   ParamDef,
-  ThinkingConfig,
 } from "@/modules/ai/config";
 import { t as i18nT } from "@/modules/i18n";
 import {
@@ -62,21 +62,6 @@ function displayLoose(value: JsonValue | undefined): string {
     return value;
   }
   return JSON.stringify(value);
-}
-
-function displayEnum(values: JsonValue[] | undefined): string {
-  return (values ?? [])
-    .map((value) => (typeof value === "string" ? value : JSON.stringify(value)))
-    .join(", ");
-}
-
-function parseEnum(text: string): JsonValue[] | undefined {
-  const parts = text
-    .split(",")
-    .map((part) => part.trim())
-    .filter(Boolean);
-  if (parts.length === 0) return undefined;
-  return parts.map((part) => parseLoose(part).value ?? part);
 }
 
 function withOptionalField<T>(base: T, key: string, value: unknown): T {
@@ -314,9 +299,9 @@ export function parseParamsArray(value: unknown): ParseResult<ParamDef[]> {
   return { ok: true, value: value as ParamDef[] };
 }
 
-export function parseThinking(
+export function parseEffort(
   value: unknown,
-): ParseResult<ThinkingConfig | null> {
+): ParseResult<EffortConfig | null> {
   if (value === null) return { ok: true, value: null };
   if (!isRecord(value) || !Array.isArray(value.levels)) {
     return {
@@ -324,7 +309,7 @@ export function parseThinking(
       error: i18nT("settings.models.structured.parseThinking"),
     };
   }
-  return { ok: true, value: value as unknown as ThinkingConfig };
+  return { ok: true, value: value as unknown as EffortConfig };
 }
 
 export function parseExtra(value: unknown): ParseResult<JsonObject> {
@@ -520,6 +505,19 @@ function KeyValueEditor({
   );
 }
 
+/** 档位取值的显示：null（省略参数）显示为空。 */
+function displayEffortValue(value: JsonValue | null | undefined): string {
+  if (value === null || value === undefined) return "";
+  return displayLoose(value);
+}
+
+/** 档位取值的解析：留空即 null（该档位省略参数）。 */
+function parseEffortValue(text: string): JsonValue | null {
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+  return parseLoose(trimmed).value ?? null;
+}
+
 export function ParamsForm({
   value,
   onChange,
@@ -542,9 +540,7 @@ export function ParamsForm({
           {
             key: "",
             label: "",
-            location: "body",
-            path: "",
-            type: "string",
+            value: "",
             enabled: true,
           },
         ])
@@ -609,16 +605,8 @@ export function ParamsForm({
             >
               <Input
                 value={row.key ?? ""}
-                onChange={(e) => {
-                  const previous = row.key ?? "";
-                  const nextKey = e.target.value;
-                  update(index, {
-                    key: nextKey,
-                    path:
-                      !row.path || row.path === previous ? nextKey : row.path,
-                  });
-                }}
-                placeholder="reasoning_effort"
+                onChange={(e) => update(index, { key: e.target.value })}
+                placeholder="frequency_penalty"
                 spellCheck={false}
                 className="h-7 font-mono text-[10.5px]"
               />
@@ -634,143 +622,19 @@ export function ParamsForm({
                 className="h-7 text-[10.5px]"
               />
             </MiniField>
-            <MiniField
-              label={t("settings.models.structured.paramLocation")}
-              info={t("settings.models.structured.paramLocationInfo")}
-            >
-              <Select
-                value={row.location ?? "body"}
-                onValueChange={(v) =>
-                  update(index, { location: v as ParamDef["location"] })
-                }
-              >
-                <SelectTrigger className="h-7 text-[10.5px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="body">
-                    {t("settings.models.structured.locationBody")}
-                  </SelectItem>
-                  <SelectItem value="header">
-                    {t("settings.models.structured.locationHeader")}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </MiniField>
-            <MiniField
-              label={t("settings.models.structured.paramType")}
-              info={t("settings.models.structured.paramTypeInfo")}
-            >
-              <Select
-                value={row.type ?? "string"}
-                onValueChange={(v) =>
-                  update(index, { type: v as ParamDef["type"] })
-                }
-              >
-                <SelectTrigger className="h-7 text-[10.5px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(
-                    ["string", "number", "boolean", "object", "array"] as const
-                  ).map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {type}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </MiniField>
-            <MiniField
-              label={t("settings.models.structured.paramPath")}
-              info={t("settings.models.structured.paramPathInfo")}
-            >
-              <Input
-                value={row.path ?? ""}
-                onChange={(e) => update(index, { path: e.target.value })}
-                placeholder="thinking.type"
-                spellCheck={false}
-                className="h-7 font-mono text-[10.5px]"
-              />
-            </MiniField>
-            <MiniField
-              label={t("settings.models.structured.paramEnum")}
-              info={t("settings.models.structured.paramEnumInfo")}
-            >
-              <Input
-                value={displayEnum(row.enum)}
-                onChange={(e) =>
-                  onChange(
-                    rows.map((item, i) =>
-                      i === index
-                        ? withOptionalField(
-                            item,
-                            "enum",
-                            parseEnum(e.target.value),
-                          )
-                        : item,
-                    ),
-                  )
-                }
-                placeholder="low, medium, high"
-                spellCheck={false}
-                className="h-7 font-mono text-[10.5px]"
-              />
-            </MiniField>
           </div>
           <MiniField
-            label={t("settings.models.structured.paramDefault")}
-            info={t("settings.models.structured.paramDefaultInfo")}
+            label={t("settings.models.structured.paramValue")}
+            info={t("settings.models.structured.paramValueInfo")}
           >
             <Input
-              value={displayLoose(row.default)}
+              value={displayLoose(row.value)}
               onChange={(e) =>
-                onChange(
-                  rows.map((item, i) =>
-                    i === index
-                      ? withOptionalField(
-                          item,
-                          "default",
-                          parseLoose(e.target.value).value,
-                        )
-                      : item,
-                  ),
-                )
+                update(index, { value: parseLoose(e.target.value).value ?? "" })
               }
-              placeholder={t(
-                "settings.models.structured.paramDefaultPlaceholder",
-              )}
+              placeholder={t("settings.models.structured.paramValuePlaceholder")}
               spellCheck={false}
               className="h-7 font-mono text-[10.5px]"
-            />
-          </MiniField>
-          <MiniField
-            label={t("settings.models.structured.paramMap")}
-            info={t("settings.models.structured.paramMapInfo")}
-          >
-            <KeyValueEditor
-              value={row.map ?? {}}
-              onChange={(next) =>
-                onChange(
-                  rows.map((item, i) =>
-                    i === index
-                      ? withOptionalField(
-                          item,
-                          "map",
-                          Object.keys(next).length > 0 ? next : undefined,
-                        )
-                      : item,
-                  ),
-                )
-              }
-              mode="json"
-              keyPlaceholder={t(
-                "settings.models.structured.paramMapKeyPlaceholder",
-              )}
-              valuePlaceholder={t(
-                "settings.models.structured.paramMapValuePlaceholder",
-              )}
-              addLabel={t("settings.models.structured.paramMapAdd")}
             />
           </MiniField>
           <MiniField label={t("settings.models.structured.paramDescription")}>
@@ -786,44 +650,49 @@ export function ParamsForm({
         </div>
       ))}
       {rows.length > 0 ? addParamButton : null}
+      <p className="flex items-start gap-1 text-[9.5px] leading-relaxed text-muted-foreground/60">
+        <InfoHint text={t("settings.models.structured.paramsRuleHint")} />
+        {t("settings.models.structured.paramsRule")}
+      </p>
     </div>
   );
 }
 
-function nextLevelId(levels: ThinkingConfig["levels"]): string {
+function nextLevelId(levels: EffortConfig["levels"]): string {
   let index = levels.length + 1;
   while (levels.some((level) => level.id === `level-${index}`)) index += 1;
   return `level-${index}`;
 }
 
-export function ThinkingForm({
+export function EffortForm({
   value,
   onChange,
 }: {
-  value: ThinkingConfig | null;
-  onChange: (next: ThinkingConfig | null) => void;
+  value: EffortConfig | null;
+  onChange: (next: EffortConfig | null) => void;
 }) {
   const { t } = useTranslation();
   if (!value) {
-    const off = t("settings.models.structured.thinkingOffSeed");
+    const off = t("settings.models.structured.effortOffSeed");
     return (
       <div className="flex items-center justify-between gap-2 rounded-md border border-dashed border-border/50 px-2 py-2">
         <span className="text-[10px] leading-relaxed text-muted-foreground/80">
-          {t("settings.models.structured.thinkingNull")}
+          {t("settings.models.structured.effortNull")}
         </span>
         <Button
           size="sm"
           variant="outline"
           onClick={() =>
             onChange({
+              path: "reasoning_effort",
               default: "off",
               offLabel: off,
-              levels: [{ id: "off", label: off, values: {} }],
+              levels: [{ id: "off", label: off, value: null }],
             })
           }
           className="h-6 shrink-0 px-2 text-[10px]"
         >
-          {t("settings.models.structured.thinkingCreate")}
+          {t("settings.models.structured.effortCreate")}
         </Button>
       </div>
     );
@@ -833,7 +702,7 @@ export function ThinkingForm({
   const defaultId = value.default ?? levels[0]?.id ?? "";
   const updateLevel = (
     index: number,
-    patch: Partial<ThinkingConfig["levels"][number]>,
+    patch: Partial<EffortConfig["levels"][number]>,
   ) => {
     onChange({
       ...value,
@@ -862,8 +731,20 @@ export function ThinkingForm({
     <div className="flex flex-col gap-2">
       <div className="grid grid-cols-2 gap-2">
         <MiniField
-          label={t("settings.models.structured.thinkingDefault")}
-          info={t("settings.models.structured.thinkingDefaultInfo")}
+          label={t("settings.models.structured.effortPath")}
+          info={t("settings.models.structured.effortPathInfo")}
+        >
+          <Input
+            value={value.path ?? ""}
+            onChange={(e) => onChange({ ...value, path: e.target.value })}
+            placeholder="reasoning_effort"
+            spellCheck={false}
+            className="h-7 font-mono text-[10.5px]"
+          />
+        </MiniField>
+        <MiniField
+          label={t("settings.models.structured.effortDefault")}
+          info={t("settings.models.structured.effortDefaultInfo")}
         >
           <Select
             value={defaultId}
@@ -873,7 +754,7 @@ export function ThinkingForm({
             <SelectTrigger className="h-7 text-[10.5px]">
               <SelectValue
                 placeholder={t(
-                  "settings.models.structured.thinkingDefaultPlaceholder",
+                  "settings.models.structured.effortDefaultPlaceholder",
                 )}
               />
             </SelectTrigger>
@@ -886,26 +767,26 @@ export function ThinkingForm({
             </SelectContent>
           </Select>
         </MiniField>
-        <MiniField
-          label={t("settings.models.structured.thinkingOffLabel")}
-          info={t("settings.models.structured.thinkingOffLabelInfo")}
-        >
-          <Input
-            value={value.offLabel ?? ""}
-            onChange={(e) =>
-              onChange(
-                withOptionalField(
-                  value,
-                  "offLabel",
-                  e.target.value || undefined,
-                ),
-              )
-            }
-            placeholder={t("settings.models.structured.thinkingOffSeed")}
-            className="h-7 text-[10.5px]"
-          />
-        </MiniField>
       </div>
+      <MiniField
+        label={t("settings.models.structured.effortOffLabel")}
+        info={t("settings.models.structured.effortOffLabelInfo")}
+      >
+        <Input
+          value={value.offLabel ?? ""}
+          onChange={(e) =>
+            onChange(
+              withOptionalField(
+                value,
+                "offLabel",
+                e.target.value || undefined,
+              ),
+            )
+          }
+          placeholder={t("settings.models.structured.effortOffSeed")}
+          className="h-7 text-[10.5px]"
+        />
+      </MiniField>
 
       {levels.map((level, index) => (
         <div
@@ -929,7 +810,7 @@ export function ThinkingForm({
               <HugeiconsIcon icon={Cancel01Icon} size={10} strokeWidth={1.75} />
             </Button>
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             <MiniField
               label={t("settings.models.structured.levelId")}
               info={t("settings.models.structured.levelIdInfo")}
@@ -962,24 +843,25 @@ export function ThinkingForm({
                 className="h-7 text-[10.5px]"
               />
             </MiniField>
+            <MiniField
+              label={t("settings.models.structured.levelValue")}
+              info={t("settings.models.structured.levelValueInfo")}
+            >
+              <Input
+                value={displayEffortValue(level.value)}
+                onChange={(e) =>
+                  updateLevel(index, {
+                    value: parseEffortValue(e.target.value),
+                  })
+                }
+                placeholder={t(
+                  "settings.models.structured.levelValuePlaceholder",
+                )}
+                spellCheck={false}
+                className="h-7 font-mono text-[10.5px]"
+              />
+            </MiniField>
           </div>
-          <MiniField
-            label={t("settings.models.structured.levelValues")}
-            info={t("settings.models.structured.levelValuesInfo")}
-          >
-            <KeyValueEditor
-              value={level.values ?? {}}
-              onChange={(next) => updateLevel(index, { values: next })}
-              mode="json"
-              keyPlaceholder={t(
-                "settings.models.structured.levelValuesKeyPlaceholder",
-              )}
-              valuePlaceholder={t(
-                "settings.models.structured.levelValuesValuePlaceholder",
-              )}
-              addLabel={t("settings.models.structured.levelValuesAdd")}
-            />
-          </MiniField>
         </div>
       ))}
 
@@ -991,7 +873,7 @@ export function ThinkingForm({
           onChange({
             ...value,
             default: value.default ?? levels[0]?.id ?? id,
-            levels: [...levels, { id, label: id, values: {} }],
+            levels: [...levels, { id, label: id, value: null }],
           });
         }}
         className="h-7 gap-1 self-start px-2 text-[10.5px]"
@@ -999,6 +881,10 @@ export function ThinkingForm({
         <HugeiconsIcon icon={Add01Icon} size={11} strokeWidth={2} />
         {t("settings.models.structured.addLevel")}
       </Button>
+      <p className="flex items-start gap-1 text-[9.5px] leading-relaxed text-muted-foreground/60">
+        <InfoHint text={t("settings.models.structured.effortRuleHint")} />
+        {t("settings.models.structured.effortRule")}
+      </p>
     </div>
   );
 }

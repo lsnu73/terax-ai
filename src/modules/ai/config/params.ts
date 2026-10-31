@@ -1,25 +1,25 @@
 import type {
   JsonObject,
   JsonValue,
+  EffortConfig,
+  EffortLevel,
   ModelEntry,
   ParamDef,
   ProviderEntry,
   ResolvedRequestParams,
-  ThinkingConfig,
-  ThinkingLevel,
 } from "./types";
 
 /**
  * 请求参数引擎。
  *
  * 合并顺序（后者覆盖前者）：
- *   1. Provider 级参数默认值
- *   2. Model 级参数默认值
- *   3. 当前思考档位的取值（经过各参数的 `map`）
+ *   1. Provider 级自定义参数
+ *   2. Model 级自定义参数（同 key 整体替换）
+ *   3. 当前思考强度档位的取值（写入 EffortConfig.path 指向的键）
  *   4. 模型的原始 `extra` JSON 覆盖
  *
- * 值为 `null`（无论来自档位还是 `map` 产出）表示从请求体中移除该键，
- * 这是厂商不接受某个值、只能靠省略参数来表达“关闭思考”的方式。
+ * 值为 `null` 表示从请求体中移除该键——这是厂商不接受某个取值、
+ * 只能靠省略参数来表达“关闭思考”的方式。
  */
 
 /** 传输层独占的 body 键，用户参数不得覆盖。 */
@@ -32,22 +32,8 @@ export const PROTECTED_BODY_KEYS: ReadonlySet<string> = new Set([
   "input",
 ]);
 
-const PROTECTED_HEADERS: ReadonlySet<string> = new Set([
-  "host",
-  "content-length",
-  "connection",
-  "authorization",
-  "content-type",
-  "accept",
-  "transfer-encoding",
-]);
-
 function isObject(v: JsonValue | undefined): v is JsonObject {
   return typeof v === "object" && v !== null && !Array.isArray(v);
-}
-
-function equalJson(a: JsonValue, b: JsonValue): boolean {
-  return JSON.stringify(a) === JSON.stringify(b);
 }
 
 /** 点号路径会创建嵌套对象；`null` 值删除对应的叶子节点。 */
@@ -107,19 +93,26 @@ export function mergeParamDefs(
   return [...byKey.values()];
 }
 
-export function thinkingLevels(
+/** 思考强度配置：模型优先，其次 Provider 兜底。 */
+export function effortConfig(
   provider: ProviderEntry,
   model: ModelEntry,
-): ThinkingLevel[] {
-  const config: ThinkingConfig | null = model.thinking ?? provider.thinking;
-  return config?.levels ?? [];
+): EffortConfig | null {
+  return model.effort ?? provider.effort;
 }
 
-export function thinkingDefaultLevelId(
+export function effortLevels(
+  provider: ProviderEntry,
+  model: ModelEntry,
+): EffortLevel[] {
+  return effortConfig(provider, model)?.levels ?? [];
+}
+
+export function effortDefaultLevelId(
   provider: ProviderEntry,
   model: ModelEntry,
 ): string | null {
-  const config = model.thinking ?? provider.thinking;
+  const config = effortConfig(provider, model);
   if (!config || config.levels.length === 0) return null;
   const wanted = config.default;
   return config.levels.some((l) => l.id === wanted)
@@ -127,52 +120,35 @@ export function thinkingDefaultLevelId(
     : config.levels[0].id;
 }
 
-export function thinkingLevelIndex(
+export function effortLevelIndex(
   provider: ProviderEntry,
   model: ModelEntry,
   levelId: string | null | undefined,
 ): number {
-  const levels = thinkingLevels(provider, model);
+  const levels = effortLevels(provider, model);
   if (levels.length === 0) return -1;
   if (levelId) {
     const idx = levels.findIndex((l) => l.id === levelId);
     if (idx >= 0) return idx;
   }
-  const fallback = thinkingDefaultLevelId(provider, model);
+  const fallback = effortDefaultLevelId(provider, model);
   const idx = levels.findIndex((l) => l.id === fallback);
   return idx >= 0 ? idx : 0;
 }
 
-function wireValue(
-  def: ParamDef,
-  logical: JsonValue,
+function applyBodyValue(
+  body: JsonObject,
+  path: string,
+  value: JsonValue | null,
   warnings: string[],
-): JsonValue | null {
-  if (!def.map) return logical;
-  const key = typeof logical === "string" ? logical : JSON.stringify(logical);
-  if (!(key in def.map)) return logical;
-  const mapped = def.map[key];
-  if (mapped === null) return null;
-  if (def.enum && !def.enum.some((v) => equalJson(v, mapped))) {
-    warnings.push(
-      `Param "${def.key}": mapped value ${JSON.stringify(mapped)} is outside enum; skipped`,
-    );
-    return null;
+  source: string,
+): void {
+  const segments = path.split(".");
+  if (PROTECTED_BODY_KEYS.has(segments[0])) {
+    warnings.push(`Body key "${path}" is transport-owned; skipped (${source})`);
+    return;
   }
-  return mapped;
-}
-
-function checkStaticValue(
-  def: ParamDef,
-  value: JsonValue,
-  warnings: string[],
-): boolean {
-  if (!def.enum || def.enum.length === 0) return true;
-  if (def.enum.some((v) => equalJson(v, value))) return true;
-  warnings.push(
-    `Param "${def.key}": value ${JSON.stringify(value)} is outside enum; skipped`,
-  );
-  return false;
+  setAtPath(body, path, value);
 }
 
 /**
@@ -185,43 +161,27 @@ export function resolveRequestParams(
   levelId?: string | null,
 ): ResolvedRequestParams {
   const body: JsonObject = {};
-  const headers: Record<string, string> = {};
   const warnings: string[] = [];
   const defs = mergeParamDefs(provider, model);
 
-  const levels = thinkingLevels(provider, model);
-  const index = thinkingLevelIndex(provider, model, levelId);
-  const active = index >= 0 ? levels[index] : null;
-
   for (const def of defs) {
     if (!def.enabled) continue;
-    const logical =
-      active && def.key in active.values
-        ? active.values[def.key]
-        : def.default;
-    if (logical === undefined) continue;
-    if (logical === null) continue;
-    const value = wireValue(def, logical, warnings);
-    if (value === null) continue;
-    if (!checkStaticValue(def, value, warnings)) continue;
+    if (def.value === null) continue;
+    applyBodyValue(body, def.key, def.value, warnings, `param "${def.key}"`);
+  }
 
-    if (def.location === "header") {
-      const name = (def.path || def.key).toLowerCase();
-      if (PROTECTED_HEADERS.has(name)) {
-        warnings.push(`Header "${def.path || def.key}" is transport-owned; skipped`);
-        continue;
-      }
-      headers[def.path || def.key] =
-        typeof value === "string" ? value : JSON.stringify(value);
-      continue;
-    }
-
-    const segments = (def.path || def.key).split(".");
-    if (PROTECTED_BODY_KEYS.has(segments[0])) {
-      warnings.push(`Body key "${def.path}" is transport-owned; skipped`);
-      continue;
-    }
-    setAtPath(body, def.path || def.key, value);
+  const config = effortConfig(provider, model);
+  const levels = effortLevels(provider, model);
+  const index = effortLevelIndex(provider, model, levelId);
+  const active = index >= 0 ? levels[index] : null;
+  if (config && active && active.value !== null) {
+    applyBodyValue(
+      body,
+      config.path,
+      active.value,
+      warnings,
+      `effort level "${active.id}"`,
+    );
   }
 
   for (const [key, value] of Object.entries(model.extra)) {
@@ -234,5 +194,5 @@ export function resolveRequestParams(
     else mergeAtPath(body, key, value);
   }
 
-  return { body, headers, warnings };
+  return { body, warnings };
 }

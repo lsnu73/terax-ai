@@ -136,8 +136,8 @@ export type Preferences = {
   autocompleteTrigger: AutocompleteTrigger;
   autocompleteProvider: AutocompleteProviderId;
   autocompleteModelId: string;
-  /** 每个模型的思考滑块位置（档位 id）。缺省时使用模型默认档位。 */
-  thinkingLevelByModel: Record<string, string>;
+  /** 每个模型的思考强度滑块位置（档位 id）。缺省时使用模型默认档位。 */
+  effortLevelByModel: Record<string, string>;
   favoriteModelIds: string[];
   recentModelIds: string[];
   vimMode: boolean;
@@ -222,7 +222,8 @@ const KEY_AUTOCOMPLETE_ENABLED = "autocompleteEnabled";
 const KEY_AUTOCOMPLETE_TRIGGER = "autocompleteTrigger";
 const KEY_AUTOCOMPLETE_PROVIDER = "autocompleteProvider";
 const KEY_AUTOCOMPLETE_MODEL = "autocompleteModelId";
-const KEY_THINKING_LEVELS = "thinkingLevelByModel";
+// 存储键沿用旧名，避免已保存的档位选择丢失；字段与函数均已更名为 effort。
+const KEY_EFFORT_LEVELS = "thinkingLevelByModel";
 const KEY_FAVORITE_MODELS = "favoriteModelIds";
 const KEY_RECENT_MODELS = "recentModelIds";
 const KEY_VIM_MODE = "vimMode";
@@ -306,7 +307,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   autocompleteTrigger: "auto",
   autocompleteProvider: "",
   autocompleteModelId: "",
-  thinkingLevelByModel: {},
+  effortLevelByModel: {},
   favoriteModelIds: [],
   recentModelIds: [],
   vimMode: false,
@@ -408,9 +409,9 @@ export async function loadPreferences(): Promise<Preferences> {
     autocompleteModelId:
       get<string>(KEY_AUTOCOMPLETE_MODEL) ??
       DEFAULT_PREFERENCES.autocompleteModelId,
-    thinkingLevelByModel:
-      get<Record<string, string>>(KEY_THINKING_LEVELS) ??
-      DEFAULT_PREFERENCES.thinkingLevelByModel,
+    effortLevelByModel:
+      get<Record<string, string>>(KEY_EFFORT_LEVELS) ??
+      DEFAULT_PREFERENCES.effortLevelByModel,
     favoriteModelIds: (
       get<string[]>(KEY_FAVORITE_MODELS) ?? DEFAULT_PREFERENCES.favoriteModelIds
     ).filter((id): id is string => typeof id === "string"),
@@ -635,24 +636,24 @@ export async function setAutocompleteModelId(value: string): Promise<void> {
   await writePref(KEY_AUTOCOMPLETE_MODEL, value);
 }
 
-export async function setThinkingLevelByModel(
+export async function setEffortLevelByModel(
   value: Record<string, string>,
 ): Promise<void> {
-  await writePref(KEY_THINKING_LEVELS, value);
+  await writePref(KEY_EFFORT_LEVELS, value);
 }
 
-export async function setThinkingLevel(
+export async function setEffortLevel(
   modelId: string,
   levelId: string | null,
 ): Promise<void> {
   const current =
-    (await store.get(KEY_THINKING_LEVELS).catch(() => null)) as
+    (await store.get(KEY_EFFORT_LEVELS).catch(() => null)) as
       | Record<string, string>
       | null;
   const next = { ...(current ?? {}) };
   if (levelId) next[modelId] = levelId;
   else delete next[modelId];
-  await writePref(KEY_THINKING_LEVELS, next);
+  await writePref(KEY_EFFORT_LEVELS, next);
 }
 
 export async function setFavoriteModelIds(value: string[]): Promise<void> {
@@ -877,7 +878,7 @@ export async function onPreferencesChange(
     [KEY_BG_OPACITY]: "backgroundOpacity",
     [KEY_BG_BLUR]: "backgroundBlur",
     [KEY_WINDOW_VIBRANCY]: "windowVibrancy",
-    [KEY_THINKING_LEVELS]: "thinkingLevelByModel",
+    [KEY_EFFORT_LEVELS]: "effortLevelByModel",
     [KEY_EDITOR_THEME]: "editorTheme",
     [KEY_EDITOR_FONT_SIZE]: "editorFontSize",
     [KEY_CUSTOM_INSTRUCTIONS]: "customInstructions",

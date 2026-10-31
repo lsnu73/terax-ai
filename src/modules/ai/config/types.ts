@@ -16,49 +16,43 @@ export type JsonValue =
 
 export type JsonObject = { [key: string]: JsonValue };
 
-/** 参数写入出站 HTTP 请求的位置。 */
-export type ParamLocation = "body" | "header";
-
-export type ParamType = "string" | "number" | "boolean" | "object" | "array";
-
 /**
- * 动态声明的请求参数。
+ * 自定义请求体参数：每次请求都随请求体发送的高级参数，
+ * 例如频率惩罚系数（frequency_penalty）、top_p 等。
  *
- * `key` 是逻辑标识，思考档位通过它引用参数。`path` 是实际发送时的键名
- * （点号会创建嵌套对象）。`map` 把逻辑档位值翻译为厂商的实际取值；
- * 映射结果为 `null` 表示“完全不发送该键”，用于厂商不接受 `"none"`、
- * 只能通过省略参数来关闭思考的场景。
+ * `key` 是实际发送的键名（点号会创建嵌套对象）；发送值就是 `value`。
+ * 想按档位调节思考强度请使用 `EffortConfig`，不要在这里堆思考参数。
  */
 export type ParamDef = {
+  /** 实际写入请求体的键名；点号会创建嵌套对象。 */
   key: string;
   label?: string;
-  location: ParamLocation;
-  /** body 参数的发送路径；header 参数的头名称。默认等于 key。 */
-  path: string;
-  type: ParamType;
-  default?: JsonValue;
-  /** 允许的发送值。仅作校验：越界值会被跳过并产生 warning。 */
-  enum?: JsonValue[];
-  /** 逻辑值（字符串化）-> 发送值；null 表示省略该键。 */
-  map?: Record<string, JsonValue | null>;
+  /** 每次请求都发送的值；`null` 表示省略该键。 */
+  value: JsonValue;
   enabled: boolean;
   description?: string;
 };
 
-/** 思考滑块的一个档位。索引 0 恒为“关闭”。 */
-export type ThinkingLevel = {
+/** 思考强度滑块的一个档位。索引 0 恒为“关闭”。 */
+export type EffortLevel = {
   id: string;
   label: string;
-  /** 参数 key -> 逻辑值。`null` 表示该档位省略此参数。 */
-  values: Record<string, JsonValue | null>;
+  /** 该档位发送给厂商的实际取值；`null` 表示省略参数（关闭思考）。 */
+  value: JsonValue | null;
 };
 
-export type ThinkingConfig = {
+/**
+ * 思考强度档位：所有档位共用一个请求体参数名（`path`），
+ * 每个档位只负责给出该档位的实际取值。
+ */
+export type EffortConfig = {
+  /** 实际发送的请求体参数名（点号路径），如 reasoning_effort、thinking.type。 */
+  path: string;
   /** 用户未选择时使用的档位 id，默认取 levels[0]。 */
   default?: string;
-  /** 最左档位的标签，默认“Off”。 */
+  /** 最左档位的标签，默认“关闭”。 */
   offLabel?: string;
-  levels: ThinkingLevel[];
+  levels: EffortLevel[];
 };
 
 /**
@@ -90,8 +84,10 @@ export type ModelEntry = {
   supportsAutocomplete: boolean;
   /** 缺省时跟随 Provider / 全局设置；"custom" 使用 AiConfig.prompts.custom。 */
   systemPrompt?: SystemPromptKind;
+  /** 每次请求额外携带的自定义请求体参数。 */
   params: ParamDef[];
-  thinking: ThinkingConfig | null;
+  /** 模型未自行声明思考强度档位时的兜底阶梯。 */
+  effort: EffortConfig | null;
   /** 原始逃生口：在所有参数之后合并进请求体。 */
   extra: JsonObject;
   /** 自由标记："reasoning" 表示跨轮保留 assistant 的推理内容。 */
@@ -136,10 +132,10 @@ export type ProviderEntry = {
   modelsApi: ModelsApiConfig | null;
   /** 该 Provider 下所有模型共享的系统提示词档位；缺省跟随全局设置。 */
   systemPrompt?: SystemPromptKind;
-  /** 该 Provider 下所有模型共享的参数。 */
+  /** 该 Provider 下所有模型共享的自定义请求体参数；模型重新声明同一 key 会整体替换。 */
   params: ParamDef[];
-  /** 模型未自行声明思考档位时的兜底阶梯。 */
-  thinking: ThinkingConfig | null;
+  /** 模型未自行声明思考强度档位时的兜底阶梯。 */
+  effort: EffortConfig | null;
   models: ModelEntry[];
   /** Provider 图标注册表中的键；找不到时回退为插头图标。 */
   icon: string;
@@ -176,6 +172,5 @@ export type ModelInfo = {
 
 export type ResolvedRequestParams = {
   body: JsonObject;
-  headers: Record<string, string>;
   warnings: string[];
 };

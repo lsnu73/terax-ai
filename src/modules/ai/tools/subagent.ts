@@ -32,8 +32,8 @@ Auto-executes (no approval) — subagents are read-only by design.`,
       execute: async ({ type, prompt, description }) => {
         const { apiKeys, selectedModelId, patchAgentMeta } =
           useChatStore.getState();
-        const thinkingLevelId =
-          usePreferencesStore.getState().thinkingLevelByModel[selectedModelId] ??
+        const effortLevelId =
+          usePreferencesStore.getState().effortLevelByModel[selectedModelId] ??
           null;
         try {
           const r = await runSubagent({
@@ -41,7 +41,7 @@ Auto-executes (no approval) — subagents are read-only by design.`,
             prompt,
             keys: apiKeys,
             modelId: selectedModelId,
-            thinkingLevelId,
+            effortLevelId,
             toolContext: ctx,
             onStep: (label) => patchAgentMeta({ step: label }),
           });

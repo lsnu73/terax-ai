@@ -103,7 +103,7 @@ function mergePayload(
 }
 
 /**
- * 包装传输层 fetch，把用户声明的任意参数合并进请求体/请求头。
+ * 包装传输层 fetch，把用户声明的任意参数合并进请求体。
  * 这里刻意不感知厂商：参数名和取值全部来自 JSON 配置，
  * 绝不硬编码在本文件中。
  */
@@ -111,18 +111,11 @@ function withRequestParams(
   base: typeof fetch,
   params: ResolvedRequestParams,
 ): typeof fetch {
-  if (
-    Object.keys(params.body).length === 0 &&
-    Object.keys(params.headers).length === 0
-  ) {
+  if (Object.keys(params.body).length === 0) {
     return base;
   }
   return (input, init) => {
     if (!init) return base(input, init);
-    const headers = new Headers(init.headers);
-    for (const [key, value] of Object.entries(params.headers)) {
-      headers.set(key, value);
-    }
     let body = init.body;
     if (typeof body === "string" && body.length > 0) {
       try {
@@ -134,7 +127,7 @@ function withRequestParams(
         // 非 JSON 请求体保持原样。
       }
     }
-    return base(input, { ...init, headers, body });
+    return base(input, { ...init, body });
   };
 }
 
@@ -202,7 +195,7 @@ export async function buildLanguageModel(
   provider: ProviderEntry,
   model: ModelEntry,
   keys: ProviderKeys,
-  thinkingLevelId?: string | null,
+  effortLevelId?: string | null,
 ): Promise<LanguageModel> {
   const apiKey = keys[provider.id] ?? null;
   if (providerNeedsKey(provider) && !apiKey) {
@@ -213,7 +206,7 @@ export async function buildLanguageModel(
       t("ai.agentErrors.emptyBaseUrl", { provider: provider.label }),
     );
   }
-  const params = resolveRequestParams(provider, model, thinkingLevelId);
+  const params = resolveRequestParams(provider, model, effortLevelId);
   for (const warning of params.warnings) {
     console.warn(`[ai-config] ${warning}`);
   }
@@ -226,7 +219,6 @@ export async function buildLanguageModel(
     JSON.stringify(provider.headers),
     model.id,
     JSON.stringify(params.body),
-    JSON.stringify(params.headers),
   ].join("\u0000");
   const hit = modelCache.get(cacheKey);
   if (hit) return hit;
@@ -250,7 +242,7 @@ export async function buildLanguageModel(
 }
 
 export type BuildConfiguredOptions = {
-  thinkingLevelId?: string | null;
+  effortLevelId?: string | null;
 };
 
 /** 通过配置解析模型 ID，然后构建模型实例。 */
@@ -264,7 +256,7 @@ export function buildConfiguredLanguageModel(
     info.providerEntry,
     info.model,
     keys,
-    opts.thinkingLevelId,
+    opts.effortLevelId,
   );
 }
 
@@ -305,8 +297,8 @@ export type AgentUsageDelta = AgentUsage & {
 export type RunAgentOptions = {
   keys: ProviderKeys;
   modelId?: string;
-  /** 该模型在思考滑块上选中的档位。 */
-  thinkingLevelId?: string | null;
+  /** 该模型在思考强度滑块上选中的档位。 */
+  effortLevelId?: string | null;
   customInstructions?: string;
   agentPersona?: { name: string; instructions: string } | null;
   toolContext: ToolContext;
@@ -330,7 +322,7 @@ export async function runAgentStream(opts: RunAgentOptions) {
     info.providerEntry,
     info.model,
     opts.keys,
-    opts.thinkingLevelId,
+    opts.effortLevelId,
   );
 
   const stableSystem = buildStableSystem(

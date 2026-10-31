@@ -5,12 +5,13 @@ export {
 } from "./defaults";
 export { normalizeAiConfig, normalizeParam } from "./normalize";
 export {
+  effortConfig,
+  effortDefaultLevelId,
+  effortLevelIndex,
+  effortLevels,
   mergeParamDefs,
   PROTECTED_BODY_KEYS,
   resolveRequestParams,
-  thinkingDefaultLevelId,
-  thinkingLevelIndex,
-  thinkingLevels,
 } from "./params";
 export {
   AI_CONFIG_STORE_PATH,
@@ -54,21 +55,19 @@ export { getAiConfigSnapshot, useAiConfigStore } from "./store";
 export type {
   AiConfig,
   AuthConfig,
+  EffortConfig,
+  EffortLevel,
   JsonObject,
   JsonValue,
   ModelEntry,
   ModelInfo,
   ModelsApiConfig,
   ParamDef,
-  ParamLocation,
-  ParamType,
   ProtocolId,
   ProviderEntry,
   ResolvedRequestParams,
   SystemPromptKind,
   SystemPromptOverrides,
-  ThinkingConfig,
-  ThinkingLevel,
 } from "./types";
 
 /** 动态 ID 就是普通字符串；保留别名只为让调用处更易读。 */

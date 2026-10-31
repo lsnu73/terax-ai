@@ -2,19 +2,17 @@ import { defaultAiConfig } from "./defaults";
 import type {
   AiConfig,
   AuthConfig,
+  EffortConfig,
+  EffortLevel,
   JsonObject,
   JsonValue,
   ModelEntry,
   ModelsApiConfig,
   ParamDef,
-  ParamLocation,
-  ParamType,
   ProtocolId,
   ProviderEntry,
   SystemPromptKind,
   SystemPromptOverrides,
-  ThinkingConfig,
-  ThinkingLevel,
 } from "./types";
 
 type Rec = Record<string, unknown>;
@@ -70,14 +68,6 @@ function jsonMap(v: unknown): Record<string, JsonValue | null> | undefined {
   return out;
 }
 
-const PARAM_TYPES: ReadonlySet<string> = new Set([
-  "string",
-  "number",
-  "boolean",
-  "object",
-  "array",
-]);
-
 const PROTOCOLS: ReadonlySet<string> = new Set([
   "openai-compatible",
   "anthropic",
@@ -97,29 +87,26 @@ function normalizeSystemPromptKind(raw: unknown): SystemPromptKind | undefined {
     : undefined;
 }
 
+/**
+ * 把一条参数定义收敛为新格式 `{ key, value, enabled }`。
+ *
+ * 兼容旧格式：`location: "header"` 的条目（请求头已改由 `headers` 静态配置
+ * 承担）、没有可发送取值的条目、以及仅服务于旧思考档位的 `map`/`enum`
+ * 装饰字段都会被丢弃。
+ */
 export function normalizeParam(raw: unknown): ParamDef | null {
   if (!isRec(raw)) return null;
-  const key = str(raw.key).trim();
+  const key = str(raw.key).trim() || str(raw.path).trim();
   if (!key) return null;
-  const location: ParamLocation = raw.location === "header" ? "header" : "body";
-  const type: ParamType = PARAM_TYPES.has(str(raw.type))
-    ? (raw.type as ParamType)
-    : "string";
-  const map = jsonMap(raw.map);
-  const enumValues = Array.isArray(raw.enum)
-    ? (raw.enum
-        .map((v) => jsonValue(v))
-        .filter((v) => v !== undefined) as JsonValue[])
-    : undefined;
+  const value =
+    raw.value !== undefined ? jsonValue(raw.value) : jsonValue(raw.default);
+  if (raw.location === "header" || value === undefined || value === null) {
+    return null;
+  }
   return {
     key,
     label: str(raw.label) || key,
-    location,
-    path: str(raw.path).trim() || key,
-    type,
-    ...(raw.default !== undefined ? { default: jsonValue(raw.default) } : {}),
-    ...(enumValues && enumValues.length > 0 ? { enum: enumValues } : {}),
-    ...(map && Object.keys(map).length > 0 ? { map } : {}),
+    value,
     enabled: raw.enabled !== false,
     ...(typeof raw.description === "string" && raw.description
       ? { description: raw.description }
@@ -127,30 +114,99 @@ export function normalizeParam(raw: unknown): ParamDef | null {
   };
 }
 
-function normalizeThinking(raw: unknown): ThinkingConfig | null {
-  if (!isRec(raw)) return null;
-  const levelsRaw = Array.isArray(raw.levels) ? raw.levels : [];
-  const levels: ThinkingLevel[] = [];
+/**
+ * 把思考强度档位收敛为新格式：一个 `path` + 每档一个实际取值。
+ *
+ * 兼容旧 `thinking` 格式（每档一个 `values` 表、参数靠 `key` 逻辑引用）：
+ * 旧档位在全部档位中恰好共用一个参数键时自动迁移为该键上的取值阶梯；
+ * 引用了多个参数键的旧配置无法无损迁移，丢弃并返回 warning。
+ */
+function normalizeEffort(
+  raw: unknown,
+  legacy: unknown,
+  warnings: string[],
+): EffortConfig | null {
+  const config = normalizeEffortShape(raw) ?? migrateLegacyThinking(legacy, warnings);
+  return config;
+}
+
+function normalizeEffortShape(raw: unknown): EffortConfig | null {
+  if (!isRec(raw) || !Array.isArray(raw.levels)) return null;
+  const path = str(raw.path).trim();
+  if (!path) return null;
+  const levels: EffortLevel[] = [];
   const seen = new Set<string>();
-  for (const item of levelsRaw) {
+  for (const item of raw.levels) {
     if (!isRec(item)) continue;
     const id = str(item.id).trim();
     if (!id || seen.has(id)) continue;
-    const values = isRec(item.values) ? (jsonMap(item.values) ?? {}) : {};
     seen.add(id);
-    levels.push({ id, label: str(item.label) || id, values });
+    const value =
+      item.value === undefined ? (item.default as unknown) : item.value;
+    levels.push({
+      id,
+      label: str(item.label) || id,
+      value: value === undefined ? null : jsonValue(value) ?? null,
+    });
   }
   if (levels.length === 0) return null;
   const fallback = levels[0].id;
   const wanted = str(raw.default);
   return {
+    path,
     levels,
     default: seen.has(wanted) ? wanted : fallback,
     ...(str(raw.offLabel) ? { offLabel: str(raw.offLabel) } : {}),
   };
 }
 
-function normalizeModel(raw: unknown): ModelEntry | null {
+function migrateLegacyThinking(
+  raw: unknown,
+  warnings: string[],
+): EffortConfig | null {
+  if (!isRec(raw) || !Array.isArray(raw.levels)) return null;
+  const levels: EffortLevel[] = [];
+  const valueTables: Record<string, JsonValue | null>[] = [];
+  const seen = new Set<string>();
+  const keys = new Set<string>();
+  for (const item of raw.levels) {
+    if (!isRec(item)) continue;
+    const id = str(item.id).trim();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    const values = isRec(item.values) ? (jsonMap(item.values) ?? {}) : {};
+    for (const [k, v] of Object.entries(values)) {
+      if (v !== null) keys.add(k);
+    }
+    levels.push({ id, label: str(item.label) || id, value: null });
+    valueTables.push(values);
+  }
+  if (levels.length === 0) return null;
+  if (keys.size !== 1) {
+    warnings.push(
+      "Legacy thinking config referenced multiple parameter keys; it cannot be migrated to the single-path effort format and was dropped. Please reconfigure the effort ladder in Settings → Models.",
+    );
+    return null;
+  }
+  const path = [...keys][0];
+  const migrated: EffortLevel[] = levels.map((level, i) => ({
+    ...level,
+    value: jsonValue(valueTables[i][path] ?? null) ?? null,
+  }));
+  const fallback = migrated[0].id;
+  const wanted = str(raw.default);
+  return {
+    path,
+    levels: migrated,
+    default: seen.has(wanted) ? wanted : fallback,
+    ...(str(raw.offLabel) ? { offLabel: str(raw.offLabel) } : {}),
+  };
+}
+
+function normalizeModel(
+  raw: unknown,
+  warnings: string[],
+): ModelEntry | null {
   if (!isRec(raw)) return null;
   const id = str(raw.id).trim();
   if (!id) return null;
@@ -172,7 +228,7 @@ function normalizeModel(raw: unknown): ModelEntry | null {
       ? { systemPrompt: normalizeSystemPromptKind(raw.systemPrompt) }
       : {}),
     params,
-    thinking: normalizeThinking(raw.thinking),
+    effort: normalizeEffort(raw.effort, raw.thinking, warnings),
     extra: isRec(raw.extra) ? jsonObject(raw.extra) : {},
     tags: Array.isArray(raw.tags)
       ? raw.tags.filter((t): t is string => typeof t === "string")
@@ -229,7 +285,7 @@ function normalizeProvider(
   const models: ModelEntry[] = [];
   if (Array.isArray(raw.models)) {
     for (const m of raw.models) {
-      const parsed = normalizeModel(m);
+      const parsed = normalizeModel(m, warnings);
       if (parsed) models.push(parsed);
     }
   }
@@ -261,7 +317,7 @@ function normalizeProvider(
       ? { systemPrompt: normalizeSystemPromptKind(raw.systemPrompt) }
       : {}),
     params,
-    thinking: normalizeThinking(raw.thinking),
+    effort: normalizeEffort(raw.effort, raw.thinking, warnings),
     models,
     icon: str(raw.icon).trim() || "plug",
     builtin: bool(raw.builtin, false),

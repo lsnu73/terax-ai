@@ -43,10 +43,10 @@ export const ai = {
     open: "Open",
     favorite: "Favorite",
     unfavorite: "Unfavorite",
-    thinkingLevel: "思考等级",
+    effortLevel: "思考等级",
     /** 兜底 off 档位标签；实际档位名来自模型配置。 */
-    thinkingOff: "关闭",
-    thinkingHint: "终端场景下思考会增加延迟，建议保持关闭。",
+    effortOff: "关闭",
+    effortHint: "终端场景下思考会增加延迟，建议保持关闭。",
   },
   miniWindow: {
     closeEsc: "Close (Esc)",

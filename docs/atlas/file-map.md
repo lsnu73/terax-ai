@@ -58,6 +58,17 @@
 | `src/modules/i18n/locales/en/shortcuts.ts` | [快捷键提示](features/快捷键提示.md) | 英文文案 | 快捷键名称 |
 | `src/modules/i18n/locales/zh/shortcuts.ts` | [快捷键提示](features/快捷键提示.md) | 中文文案 | 与英文词典同构 |
 | `src/settings/SettingsView.tsx` | 设置页（主窗口 tab） | 偏好同步 | 设置页内嵌视图：分区导航与各分区渲染 |
+| `src/modules/ai/config/types.ts` | [AI模型配置](features/AI模型配置.md) | 无 | `ParamDef` / `EffortConfig` 等数据模型 |
+| `src/modules/ai/config/defaults.ts` | [AI模型配置](features/AI模型配置.md) | 无 | 内置厂商目录与思考强度档位 |
+| `src/modules/ai/config/normalize.ts` | [AI模型配置](features/AI模型配置.md) | 无 | 配置收敛与旧 thinking/ParamDef 迁移 |
+| `src/modules/ai/config/params.ts` | [AI模型配置](features/AI模型配置.md) | AI 对话与工具审批 | 请求参数引擎：params、effort 档位、extra 合并 |
+| `src/modules/ai/config/persist.ts` | [AI模型配置](features/AI模型配置.md) | 无 | terax-ai-models.json 读写 |
+| `src/modules/ai/lib/agent.ts` | [AI模型配置](features/AI模型配置.md) | AI 对话与工具审批 | withRequestParams 把解析后的参数合并进出站请求 |
+| `src/settings/sections/ModelsSection.tsx` | [AI模型配置](features/AI模型配置.md) | 设置页（主窗口 tab） | 模型/Provider 编辑器与校验 |
+| `src/settings/sections/models/StructuredFields.tsx` | [AI模型配置](features/AI模型配置.md) | 设置页（主窗口 tab） | ParamsForm / EffortForm 等结构化表单 |
+| `src/modules/ai/components/ModelPicker.tsx` | [AI模型配置](features/AI模型配置.md) | AI 面板 | 思考强度滑条与模型选择 |
+| `src/modules/i18n/locales/en/settings/models.ts` | [AI模型配置](features/AI模型配置.md) | 英文文案 | Params/Effort 字段与规则文案 |
+| `src/modules/i18n/locales/zh/settings/models.ts` | [AI模型配置](features/AI模型配置.md) | 中文文案 | 与英文词典同构 |
 | `src/modules/settings/openSettings.ts` | 设置页（主窗口 tab） | [AI面板](features/AI面板.md) | 设置 tab 打开注册表，深层组件经此调用 |
 | `src/settings/sections/ShortcutsSection.tsx` | [撤销终端窗格拆分](features/撤销终端窗格拆分.md) | [终端命令与结果块](features/终端命令与结果块.md)、快捷键自定义 | 保存用户覆盖键位并警告 Ctrl+R 冲突 |
 | `src/modules/command-palette/CommandPalette.tsx` | [命令面板](features/命令面板.md) | 主题切换 | 面板 UI、查询模式分流与主题预览 |

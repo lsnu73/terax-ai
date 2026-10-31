@@ -43,10 +43,10 @@ function makeChat(sessionId: string): Chat<UIMessage> {
     getKeys: () => useChatStore.getState().apiKeys,
     toolContext,
     getModelId: () => useChatStore.getState().selectedModelId,
-    getThinkingLevelId: () => {
+    getEffortLevelId: () => {
       const { selectedModelId } = useChatStore.getState();
       return (
-        usePreferencesStore.getState().thinkingLevelByModel[selectedModelId] ??
+        usePreferencesStore.getState().effortLevelByModel[selectedModelId] ??
         null
       );
     },

@@ -8,7 +8,7 @@ export const settingsModels = {
   loading: "Loading…",
   configFile: {
     label: "Configuration file",
-    info: "Providers, models, request params and thinking levels are all stored in this file. You can edit it directly, but changes only take effect after reloading.",
+    info: "Providers, models, custom request params and effort levels are all stored in this file. You can edit it directly, but changes only take effect after reloading.",
     reload: "Reload from disk",
     reloadInfo:
       "Re-reads the JSON from disk. Unsaved changes on this page are discarded; if the file was just edited externally, you must click here to see the new configuration.",
@@ -63,14 +63,14 @@ export const settingsModels = {
     addModel: "Add model",
     noModelsYet:
       'No models yet. Click "Fetch model list" to pull from the provider, or add a model ID manually.',
-    advancedToggle: "Advanced: request params / thinking levels / models API",
+    advancedToggle: "Advanced: params / effort / models API",
     advancedInfo:
-      "Provider-level advanced configuration: transport protocol, auth method, keychain account, static headers, shared params, fallback thinking levels and the models list API.",
+      "Provider-level advanced configuration: transport protocol, auth method, keychain account, static headers, shared params, fallback effort levels and the models list API.",
     testing: "Testing…",
   },
   modelRow: {
-    levels_one: "{{count}} thinking level",
-    levels_other: "{{count}} thinking levels",
+    levels_one: "{{count}} effort level",
+    levels_other: "{{count}} effort levels",
     edit: "Edit model",
     remove: "Remove model",
   },
@@ -81,7 +81,7 @@ export const settingsModels = {
     errorInput: "Input tokens must be a number ≥ 1000.",
     errorOutput: "Output tokens must be a positive number.",
     errorParamsJson: "Invalid params JSON: {{error}}",
-    errorThinkingJson: "Invalid thinking JSON: {{error}}",
+    errorEffortJson: "Invalid effort JSON: {{error}}",
     errorExtraJson: "Invalid extra JSON: {{error}}",
     duplicateId: "Model ID already exists: {{id}}",
     modelId: {
@@ -120,12 +120,12 @@ export const settingsModels = {
       info: "Comma-separated tags. reasoning keeps reasoning content across tool-call rounds (reasoning models usually need this); lite is only a marker — system prompt length is decided by full/lite on the right of Sampling.",
     },
     params: {
-      label: "Params (request params)",
-      info: "Declares extra request params this model sends. Form mode suits most cases; JSON mode edits all fields. Empty ([]) sends no extra params.",
+      label: "Params (custom request params)",
+      info: "Extra request-body params sent with every request, e.g. frequency_penalty and other advanced sampling params. To configure reasoning-effort levels, use Effort below instead.",
     },
-    thinking: {
-      label: "Thinking (levels)",
-      info: "Controls the slider at the bottom of the Ctrl+I model picker. null hides the slider; each level maps param keys to logical values, and a null value omits that param at that level.",
+    effort: {
+      label: "Effort (reasoning effort)",
+      info: "Controls the reasoning-effort slider at the bottom of the Ctrl+I model picker. All levels share one request-body param name (path); each level only sets its own value. A null value omits the param (thinking off).",
     },
     extra: {
       label: "Extra (raw overrides)",
@@ -169,11 +169,11 @@ export const settingsModels = {
     },
     params: {
       label: "Params (shared by provider)",
-      info: "Param definitions shared by all models under this provider; a model re-declaring the same key overrides the definition here. Empty ([]) sends no extra params.",
+      info: "Custom request-body params shared by all models under this provider; a model re-declaring the same key overrides the definition here. To configure reasoning-effort levels, use Effort below instead.",
     },
-    thinking: {
-      label: "Thinking (provider fallback)",
-      info: "Used when a model doesn't declare its own thinking. null hides the thinking slider by default; see form mode or the docs for the mapping syntax.",
+    effort: {
+      label: "Effort (provider fallback)",
+      info: "Used when a model doesn't declare its own effort. null hides the effort slider by default; configure the levels in form mode.",
     },
     headers: {
       label: "Headers (static)",
@@ -211,10 +211,11 @@ export const settingsModels = {
   validation: {
     paramKeyRequired:
       "Param #{{index}} is missing a Key (params without a Key are discarded).",
-    thinkingNeedsLevel:
-      "Thinking needs at least one level, or set it to null to hide the slider.",
-    thinkingLevelMissingId: "Thinking level #{{index}} is missing an ID.",
-    thinkingLevelDuplicateId: "Duplicate thinking level ID: {{id}}.",
+    effortNeedsPath: "Effort needs a request-body param name (path).",
+    effortNeedsLevel:
+      "Effort needs at least one level, or set it to null to hide the slider.",
+    effortLevelMissingId: "Effort level #{{index}} is missing an ID.",
+    effortLevelDuplicateId: "Duplicate effort level ID: {{id}}.",
   },
   structured: {
     infoAria: "Show info",
@@ -225,7 +226,7 @@ export const settingsModels = {
       "Cannot switch to form: the current JSON failed to parse ({{error}})",
     parseParamsArray: "Params must be an array, e.g. [].",
     parseParamsItems: "Every item in the Params array must be an object.",
-    parseThinking: "Thinking must be null, or an object with a levels array.",
+    parseThinking: "Effort must be null, or an object with a path and a levels array.",
     parseExtra: "Extra must be a JSON object, e.g. {}.",
     parseHeaders: "Headers must be a JSON object, e.g. {}.",
     headerValueString: 'The value of header "{{key}}" must be a string.',
@@ -234,52 +235,43 @@ export const settingsModels = {
     noKeyValues: "No key-value pairs yet.",
     removeRow: "Remove this row",
     paramsEmpty:
-      "No extra params declared. Most OpenAI-compatible providers can leave this empty; only add params for provider-specific fields like thinking effort.",
+      "No custom params declared. Most OpenAI-compatible providers can leave this empty. Rule: custom request-body params (e.g. frequency_penalty) go here; reasoning-effort levels go in the Effort field instead.",
     paramTitle: "Param #{{index}}",
     paramEnabled: "Enabled",
     paramRemove: "Remove this param",
-    paramKey: "Key (logical key)",
+    paramKey: "Key (request-body name)",
     paramKeyInfo:
-      "Thinking levels reference the param through this key; re-declaring it under the same provider overrides the old definition.",
+      "The key actually written into the request body. Dots create nested objects. To adjust reasoning effort by level, use the Effort field instead.",
     paramLabel: "Display name (optional)",
-    paramLabelPlaceholder: "Reasoning effort",
-    paramLocation: "Location",
-    paramLocationInfo:
-      "body writes into the JSON request body; header sends it as an HTTP header.",
-    locationBody: "body (request body)",
-    locationHeader: "header (HTTP header)",
-    paramType: "Type",
-    paramTypeInfo:
-      "For documentation and validation only; the actual value sent is decided by input.",
-    paramPath: "Send path",
-    paramPathInfo:
-      "The key actually written into the request. Dots create nested objects, e.g. thinking.type.",
-    paramEnum: "Allowed values (comma-separated)",
-    paramEnumInfo:
-      "Restricts the values this param accepts; mapped results outside the list are skipped with a warning. Empty means unrestricted.",
-    paramDefault: "Default value",
-    paramDefaultInfo:
-      "Sent when no level overrides it. Empty means unset; supports high, 1024, true or full JSON.",
-    paramDefaultPlaceholder: "empty / high / 1024 / true",
-    paramMap: "Value mapping (map)",
-    paramMapInfo:
-      "Translates a Thinking level's logical value into the actual value sent to the provider. A translated value of null omits this param at that level (used to turn off thinking).",
-    paramMapKeyPlaceholder: "logical value",
-    paramMapValuePlaceholder: "value sent, e.g. high; null omits",
-    paramMapAdd: "Add mapping",
+    paramLabelPlaceholder: "Frequency penalty",
+    paramValue: "Value",
+    paramValueInfo:
+      "Sent with every request as-is. Supports high, 1024, true or full JSON; write null to omit this key.",
+    paramValuePlaceholder: 'high / 1024 / true / {"a":1}',
     paramDescription: "Note (optional)",
     paramDescriptionPlaceholder: "Leave a note for your future self",
     addParam: "Add param",
-    thinkingNull:
-      "Currently null: this model shows no thinking slider and sends no thinking params.",
-    thinkingCreate: "Create thinking levels",
-    thinkingOffSeed: "Off",
-    thinkingDefault: "Default level",
-    thinkingDefaultInfo:
+    paramsRule:
+      "Rule: custom request-body params go here; reasoning-effort levels go in Effort.",
+    paramsRuleHint:
+      "Params defines static extra request-body params (e.g. frequency_penalty, top_p) sent with every request. For per-level reasoning effort, don't add thinking params here — configure them in Effort.",
+    effortNull:
+      "Currently null: this model shows no effort slider and sends no effort param.",
+    effortCreate: "Create effort levels",
+    effortPath: "Param name (path)",
+    effortPathInfo:
+      "The request-body key that carries the effort value, e.g. reasoning_effort or thinking.type. Dots create nested objects.",
+    effortDefault: "Default level",
+    effortDefaultInfo:
       "Used when the user hasn't picked one manually; deleting the default level falls back to the first level.",
-    thinkingDefaultPlaceholder: "Select default level",
-    thinkingOffLabel: "Leftmost level label",
-    thinkingOffLabelInfo: 'Text at the far left of the slider, usually "Off".',
+    effortDefaultPlaceholder: "Select default level",
+    effortOffLabel: "Leftmost level label",
+    effortOffLabelInfo: 'Text at the far left of the slider, usually "Off".',
+    effortOffSeed: "Off",
+    effortRule:
+      "Rule: reasoning-effort levels go here; other custom request-body params go in Params.",
+    effortRuleHint:
+      "Effort is for reasoning intensity only: all levels share the param name set in path, and each level only fills in its own value. A null value omits the param (thinking off). For other custom params use Params.",
     levelTitle: "Level #{{index}}",
     levelLeftmost: "(leftmost / off)",
     levelRemove: "Remove this level",
@@ -288,12 +280,10 @@ export const settingsModels = {
       "Unique identifier for this level: the slider choice is stored in preferences under this ID. Changing an existing level's ID invalidates previously saved selections, which fall back to the default level.",
     levelLabel: "Display name",
     levelLabelPlaceholder: "Low / High / Max",
-    levelValues: "Level param values",
-    levelValuesInfo:
-      "Assigns each param key the logical value used at this level. A null value means this level doesn't send that param; e.g. to turn off thinking, send thinking.type=disabled and omit reasoning_effort.",
-    levelValuesKeyPlaceholder: "param key",
-    levelValuesValuePlaceholder: "logical value, e.g. high; null omits",
-    levelValuesAdd: "Add param value",
+    levelValue: "Sent value",
+    levelValueInfo:
+      'The actual value written to the effort param at this level. Leave empty to omit the param (off); supports "low", 1024, true or full JSON.',
+    levelValuePlaceholder: "high / 1024 / true; empty omits",
     addLevel: "Add level",
     extraKeyPlaceholder: "e.g. stream_options",
     extraValuePlaceholder: 'value, e.g. {"include_usage":true} / true / high',

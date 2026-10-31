@@ -27,8 +27,8 @@ import {
   type ProviderEntry,
   providerSupportsKey,
   type SystemPromptKind,
-  type ThinkingConfig,
-  thinkingLevels,
+  type EffortConfig,
+  effortLevels,
   useAiConfigStore,
 } from "@/modules/ai/config";
 import {
@@ -81,9 +81,9 @@ import {
   parseHeaders,
   parseModelsApi,
   parseParamsArray,
-  parseThinking,
+  parseEffort,
   StructuredJsonField,
-  ThinkingForm,
+  EffortForm,
 } from "./models/StructuredFields";
 
 type TestState =
@@ -127,22 +127,25 @@ function validateParamKeys(params: ParamDef[] | undefined): string | null {
   return null;
 }
 
-function validateThinkingLevels(
-  thinking: ThinkingConfig | null | undefined,
+function validateEffortConfig(
+  effort: EffortConfig | null | undefined,
 ): string | null {
-  const levels = thinking?.levels ?? [];
-  if (thinking && levels.length === 0) {
-    return i18nT("settings.models.validation.thinkingNeedsLevel");
+  if (effort && !effort.path?.trim()) {
+    return i18nT("settings.models.validation.effortNeedsPath");
+  }
+  const levels = effort?.levels ?? [];
+  if (effort && levels.length === 0) {
+    return i18nT("settings.models.validation.effortNeedsLevel");
   }
   const seen = new Set<string>();
   for (let i = 0; i < levels.length; i++) {
     const id = levels[i]?.id?.trim();
     if (!id)
-      return i18nT("settings.models.validation.thinkingLevelMissingId", {
+      return i18nT("settings.models.validation.effortLevelMissingId", {
         index: i + 1,
       });
     if (seen.has(id))
-      return i18nT("settings.models.validation.thinkingLevelDuplicateId", {
+      return i18nT("settings.models.validation.effortLevelDuplicateId", {
         id,
       });
     seen.add(id);
@@ -880,9 +883,9 @@ function defaultModelFor(id: string, provider: ProviderEntry): ModelEntry {
     supportsTemperature: true,
     supportsAutocomplete: true,
     params: [],
-    thinking: null,
+    effort: null,
     extra: {},
-    tags: provider.thinking ? ["reasoning"] : [],
+    tags: provider.effort ? ["reasoning"] : [],
   };
 }
 
@@ -899,7 +902,7 @@ function ModelRow({
 }) {
   const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
-  const levels = thinkingLevels(provider, model);
+  const levels = effortLevels(provider, model);
 
   return (
     <div className="flex flex-col rounded-md border border-border/40 bg-card/40">
@@ -987,8 +990,8 @@ function ModelEditor({
   const [paramsText, setParamsText] = useState(
     initial.params.length > 0 ? stringify(initial.params) : "",
   );
-  const [thinkingText, setThinkingText] = useState(
-    initial.thinking ? stringify(initial.thinking) : "",
+  const [effortText, setEffortText] = useState(
+    initial.effort ? stringify(initial.effort) : "",
   );
   const [extraText, setExtraText] = useState(
     Object.keys(initial.extra).length > 0 ? stringify(initial.extra) : "",
@@ -1027,18 +1030,18 @@ function ModelEditor({
       setError(paramsError);
       return;
     }
-    const thinking = parseJson<ThinkingConfig>(thinkingText);
-    if (thinking.error) {
+    const effort = parseJson<EffortConfig | null>(effortText);
+    if (effort.error) {
       setError(
-        t("settings.models.modelEditor.errorThinkingJson", {
-          error: thinking.error,
+        t("settings.models.modelEditor.errorEffortJson", {
+          error: effort.error,
         }),
       );
       return;
     }
-    const thinkingError = validateThinkingLevels(thinking.value);
-    if (thinkingError) {
-      setError(thinkingError);
+    const effortError = validateEffortConfig(effort.value);
+    if (effortError) {
+      setError(effortError);
       return;
     }
     const extra = parseJson<JsonObject>(extraText);
@@ -1061,7 +1064,7 @@ function ModelEditor({
         supportsAutocomplete: autocomplete,
         ...(systemPrompt === "inherit" ? {} : { systemPrompt }),
         params: params.value ?? [],
-        thinking: thinking.value ?? null,
+        effort: effort.value ?? null,
         extra: extra.value ?? {},
         tags: tags
           .split(",")
@@ -1223,35 +1226,22 @@ function ModelEditor({
 ]`}
         />
         <StructuredJsonField
-          label={t("settings.models.modelEditor.thinking.label")}
-          info={t("settings.models.modelEditor.thinking.info")}
-          valueText={thinkingText}
-          onChangeText={setThinkingText}
-          parse={parseThinking}
-          emptyValue={null as ThinkingConfig | null}
+          label={t("settings.models.modelEditor.effort.label")}
+          info={t("settings.models.modelEditor.effort.info")}
+          valueText={effortText}
+          onChangeText={setEffortText}
+          parse={parseEffort}
+          emptyValue={null as EffortConfig | null}
           renderForm={(value, onChange) => (
-            <ThinkingForm value={value} onChange={onChange} />
+            <EffortForm value={value} onChange={onChange} />
           )}
           placeholder={`{
+  "path": "reasoning_effort",
   "default": "high",
   "offLabel": "关闭",
   "levels": [
-    {
-      "id": "off",
-      "label": "关闭",
-      "values": {
-        "thinking.type": "disabled",
-        "reasoning_effort": null
-      }
-    },
-    {
-      "id": "high",
-      "label": "高",
-      "values": {
-        "thinking.type": "enabled",
-        "reasoning_effort": "high"
-      }
-    }
+    { "id": "off", "label": "关闭", "value": null },
+    { "id": "high", "label": "高", "value": "high" }
   ]
 }`}
         />
@@ -1321,8 +1311,8 @@ function ProviderAdvancedEditor({
   const [paramsText, setParamsText] = useState(
     provider.params.length > 0 ? stringify(provider.params) : "",
   );
-  const [thinkingText, setThinkingText] = useState(
-    provider.thinking ? stringify(provider.thinking) : "",
+  const [effortText, setEffortText] = useState(
+    provider.effort ? stringify(provider.effort) : "",
   );
   const [headersText, setHeadersText] = useState(
     Object.keys(provider.headers).length > 0 ? stringify(provider.headers) : "",
@@ -1336,11 +1326,11 @@ function ProviderAdvancedEditor({
   const save = async () => {
     setError(null);
     const params = parseJson<ParamDef[]>(paramsText);
-    const thinking = parseJson<ThinkingConfig>(thinkingText);
+    const effort = parseJson<EffortConfig | null>(effortText);
     const headers = parseJson<Record<string, string>>(headersText);
     const api = parseJson<ProviderEntry["modelsApi"]>(apiText);
     const failure =
-      params.error ?? thinking.error ?? headers.error ?? api.error;
+      params.error ?? effort.error ?? headers.error ?? api.error;
     if (failure) {
       setError(t("settings.models.advanced.errorJson", { error: failure }));
       return;
@@ -1350,9 +1340,9 @@ function ProviderAdvancedEditor({
       setError(paramsError);
       return;
     }
-    const thinkingError = validateThinkingLevels(thinking.value);
-    if (thinkingError) {
-      setError(thinkingError);
+    const effortError = validateEffortConfig(effort.value);
+    if (effortError) {
+      setError(effortError);
       return;
     }
     setSaving(true);
@@ -1370,7 +1360,7 @@ function ProviderAdvancedEditor({
         icon: icon.trim() || "plug",
         systemPrompt: systemPrompt === "inherit" ? undefined : systemPrompt,
         params: params.value ?? [],
-        thinking: thinking.value ?? null,
+        effort: effort.value ?? null,
         headers: headers.value ?? {},
         modelsApi: api.value ?? null,
       });
@@ -1526,44 +1516,30 @@ function ProviderAdvancedEditor({
           )}
           placeholder={`[
   {
-    "key": "thinking.type",
-    "location": "body",
-    "path": "thinking.type",
-    "type": "string",
-    "enabled": true,
-    "enum": ["enabled", "disabled"]
+    "key": "frequency_penalty",
+    "label": "频率惩罚",
+    "value": 0.5,
+    "enabled": true
   }
 ]`}
         />
         <StructuredJsonField
-          label={t("settings.models.advanced.thinking.label")}
-          info={t("settings.models.advanced.thinking.info")}
-          valueText={thinkingText}
-          onChangeText={setThinkingText}
-          parse={parseThinking}
-          emptyValue={null as ThinkingConfig | null}
+          label={t("settings.models.advanced.effort.label")}
+          info={t("settings.models.advanced.effort.info")}
+          valueText={effortText}
+          onChangeText={setEffortText}
+          parse={parseEffort}
+          emptyValue={null as EffortConfig | null}
           renderForm={(value, onChange) => (
-            <ThinkingForm value={value} onChange={onChange} />
+            <EffortForm value={value} onChange={onChange} />
           )}
           placeholder={`{
+  "path": "reasoning_effort",
   "default": "high",
   "offLabel": "关闭",
   "levels": [
-    {
-      "id": "off",
-      "label": "关闭",
-      "values": {
-        "thinking.type": "disabled"
-      }
-    },
-    {
-      "id": "high",
-      "label": "高",
-      "values": {
-        "thinking.type": "enabled",
-        "reasoning_effort": "high"
-      }
-    }
+    { "id": "off", "label": "关闭", "value": null },
+    { "id": "high", "label": "高", "value": "high" }
   ]
 }`}
         />

@@ -40,9 +40,9 @@ export const aiZh: typeof ai = {
     open: "打开",
     favorite: "收藏",
     unfavorite: "取消收藏",
-    thinkingLevel: "思考等级",
-    thinkingOff: "关闭",
-    thinkingHint: "终端场景下思考会增加延迟，建议保持关闭。",
+    effortLevel: "思考强度",
+    effortOff: "关闭",
+    effortHint: "调整模型思考强度；关闭或低档位可降低终端场景下的延迟。",
   },
   miniWindow: {
     closeEsc: "关闭（Esc）",
