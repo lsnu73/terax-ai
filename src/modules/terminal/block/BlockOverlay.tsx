@@ -1,4 +1,3 @@
-import { homeRelativePath } from "@/lib/homeRelativePath";
 import "@/modules/terminal/block/block.css";
 
 import { cn } from "@/lib/utils";
@@ -6,13 +5,10 @@ import {
   ArrowDown01Icon,
   ArrowUp01Icon,
   Cancel01Icon,
-  Clock01Icon,
   CommandLineIcon,
-  Refresh01Icon,
   Search01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { homeDir } from "@tauri-apps/api/path";
 import { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { useTranslation } from "react-i18next";
@@ -22,13 +18,6 @@ import type {
   PositionedBlock,
   VisibleBlocks,
 } from "./lib/blockTypes";
-
-let cachedHome: string | null = null;
-void homeDir()
-  .then((h) => {
-    cachedHome = h.replace(/\\/g, "/").replace(/\/+$/, "");
-  })
-  .catch(() => {});
 
 type Props = {
   subscribe: (cb: () => void) => () => void;
@@ -42,32 +31,9 @@ type Props = {
   clearSearch: () => void;
   searchId: string | null;
   onCloseSearch: () => void;
-  promptReady: boolean;
-  onRunAgain: (command: string) => void;
 };
 
 const EMPTY: VisibleBlocks = { blocks: [], sticky: null, generation: 0 };
-
-function fmtDuration(ms: number): string | null {
-  if (!Number.isFinite(ms) || ms <= 0) return null;
-  if (ms < 1000) return `${ms}ms`;
-  if (ms < 60000) return `${(ms / 1000).toFixed(ms < 10000 ? 1 : 0)}s`;
-  if (ms < 3_600_000) {
-    const m = Math.floor(ms / 60000);
-    const s = Math.round((ms % 60000) / 1000);
-    return s ? `${m}m ${s}s` : `${m}m`;
-  }
-  const h = Math.floor(ms / 3_600_000);
-  const m = Math.round((ms % 3_600_000) / 60000);
-  return m ? `${h}h ${m}m` : `${h}h`;
-}
-
-function fmtTime(ms: number): string {
-  const d = new Date(ms);
-  const h = String(d.getHours()).padStart(2, "0");
-  const m = String(d.getMinutes()).padStart(2, "0");
-  return `${h}:${m}`;
-}
 
 function sameBlock(
   a: PositionedBlock | null,
@@ -152,41 +118,37 @@ type ChromeProps = {
   all: Props;
 };
 
-// No chrome while the command runs; the bar lands together with the divider
-// once the block is finished.
-function BlockChrome({ block, all }: ChromeProps) {
+// No chrome while the command runs; only the divider lands with the bar once
+// the block is finished (the bar itself only carries the failed exit code).
+function BlockChrome({ block }: ChromeProps) {
   if (block.running) return null;
+  const failed = !block.ok && block.exitCode !== null;
   return (
-    <>
-      <div
-        className={cn("bt-divider", !block.ok && "bt-divider-fail")}
-        style={{ top: block.bottom }}
-      />
-      <div className="bt-bar" style={{ top: block.headerTop }}>
-        <Meta block={block} />
-        <Toolbar block={block} all={all} />
-      </div>
-    </>
-  );
-}
-
-function Meta({ block }: { block: PositionedBlock }) {
-  return (
-    <span className="bt-head-meta">
-      {block.cwd && (
-        <span className="bt-cwd">
-          {homeRelativePath(block.cwd, cachedHome)}
-        </span>
+    <div
+      className={cn("bt-divider", !block.ok && "bt-divider-fail")}
+      style={{ top: block.bottom }}
+    >
+      {failed && (
+        <div className="bt-bar">
+          <ExitCode block={block} />
+        </div>
       )}
-      <span className="bt-clock">
-        <HugeiconsIcon icon={Clock01Icon} size={11} strokeWidth={1.75} />
-        {fmtTime(block.startedAt)}
-      </span>
-    </span>
+    </div>
   );
 }
 
-function StickyHeader({ block, all }: ChromeProps) {
+function ExitCode({ block }: { block: PositionedBlock }) {
+  const { t } = useTranslation();
+  return (
+    <div className="bt-tools">
+      <span className="bt-exit">
+        {t("terminal.block.exitCode", { code: block.exitCode })}
+      </span>
+    </div>
+  );
+}
+
+function StickyHeader({ block }: ChromeProps) {
   const { t } = useTranslation();
   return (
     <div className="bt-sticky">
@@ -199,36 +161,6 @@ function StickyHeader({ block, all }: ChromeProps) {
       <span className="bt-sticky-cmd">
         {block.command || t("terminal.block.commandFallback")}
       </span>
-      <Toolbar block={block} all={all} />
-    </div>
-  );
-}
-
-function Toolbar({ block, all }: ChromeProps) {
-  const { t } = useTranslation();
-  const duration = block.running
-    ? null
-    : fmtDuration(block.finishedAt - block.startedAt);
-  const failed = !block.running && !block.ok && block.exitCode !== null;
-  return (
-    <div className="bt-tools">
-      {failed && (
-        <span className="bt-exit">
-          {t("terminal.block.exitCode", { code: block.exitCode })}
-        </span>
-      )}
-      {duration && <span className="bt-dur">{duration}</span>}
-      {!block.running && block.canRerun && (
-        <button
-          type="button"
-          title={t("terminal.block.runAgain")}
-          className="bt-btn"
-          disabled={!all.promptReady}
-          onClick={() => all.onRunAgain(block.command)}
-        >
-          <HugeiconsIcon icon={Refresh01Icon} size={12.5} strokeWidth={1.75} />
-        </button>
-      )}
     </div>
   );
 }
@@ -343,7 +275,7 @@ function SearchBtn({
   onClick,
 }: {
   title: string;
-  icon: typeof Refresh01Icon;
+  icon: typeof Cancel01Icon;
   onClick: () => void;
 }) {
   return (

@@ -1,7 +1,7 @@
 # AI 窗口采用单聊天引擎跨 Webview 镜像
 
 - 日期：2026-10-30
-- 状态：已采纳
+- 状态：已被取代（2026-10-31 AI 迁入主窗口右侧面板，见 [AI面板与设置页迁入主窗口](2026-10-31-AI面板与设置页迁入主窗口.md)；单聊天引擎原则保留，跨 Webview 镜像协议已删除）
 
 ## 背景
 
@@ -26,7 +26,7 @@
 
 ## 相关功能代码
 
-- 功能文档：[atlas/features/独立AI窗口.md](../../atlas/features/独立AI窗口.md)
+- 功能文档：[atlas/features/AI面板.md](../../atlas/features/AI面板.md)
 - 主窗口桥：`src/modules/ai/components/AgentRunBridge.tsx`
 - 跨窗口契约：`src/modules/ai/lib/aiWindowBridge.ts`
 - 独立页面：`src/ai/AiWindowApp.tsx`

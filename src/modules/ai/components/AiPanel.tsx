@@ -8,27 +8,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { IS_MAC } from "@/lib/platform";
 import { cn } from "@/lib/utils";
 import { AiChatView } from "@/modules/ai/components/AiChat";
-import { AiWindowComposer } from "@/modules/ai/components/AiWindowComposer";
+import { AiPanelComposer } from "@/modules/ai/components/AiPanelComposer";
 import { PlanDiffReview } from "@/modules/ai/components/PlanDiffReview";
 import { TodoStrip } from "@/modules/ai/components/TodoStrip";
-import { useAiBootstrap } from "@/modules/ai/hooks/useAiBootstrap";
-import {
-  AI_WINDOW_COMMAND_EVENT,
-  AI_WINDOW_PREFILL_EVENT,
-  AI_WINDOW_READY_EVENT,
-  AI_WINDOW_SNAPSHOT_EVENT,
-  type AiWindowCommand,
-  type AiWindowPrefill,
-  type AiWindowSnapshot,
-} from "@/modules/ai/lib/aiWindowBridge";
-import type { SessionMeta } from "@/modules/ai/lib/sessions";
-import { useChatStore } from "@/modules/ai/store/chatStore";
-import { usePlanStore } from "@/modules/ai/store/planStore";
-import { useTodosStore } from "@/modules/ai/store/todoStore";
-import { useWorkspaceEnvStore } from "@/modules/workspace";
+import { getOrCreateChat } from "@/modules/ai/store/chatRuntime";
 import {
   Add01Icon,
   AlertCircleIcon,
@@ -39,10 +24,15 @@ import {
   TerminalIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { invoke } from "@tauri-apps/api/core";
-import { emitTo, listen } from "@tauri-apps/api/event";
-import { useEffect, useState } from "react";
+import { useChat, type UIMessage } from "@ai-sdk/react";
+import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { buildComposerMessage, type ComposerSubmission } from "../lib/composerMessage";
+import type { SessionMeta } from "../lib/sessions";
+import { useSnippetsStore } from "../store/snippetsStore";
+import { useAiPanelStore } from "../store/aiPanelStore";
+import { useChatStore } from "../store/chatStore";
+import { usePlanStore } from "../store/planStore";
 
 const SUGGESTIONS = [
   {
@@ -65,112 +55,118 @@ const SUGGESTIONS = [
   },
 ] as const;
 
-export function AiWindowApp() {
-  useAiBootstrap({ mirror: true });
-  const { t } = useTranslation();
-  const [snapshot, setSnapshot] = useState<AiWindowSnapshot | null>(null);
-  const [prefill, setPrefill] = useState<AiWindowPrefill | null>(null);
-  const busy =
-    snapshot?.status === "submitted" || snapshot?.status === "streaming";
+/**
+ * 主窗口右侧的 AI 面板。与 AgentRunBridge 共享同一 Chat 实例，
+ * 直接读写 chat/plan/todo stores —— 独立窗口时代的快照镜像与
+ * 命令桥在这里都不再需要。
+ */
+export function AiPanel({ onClose }: { onClose: () => void }) {
+  const sessionId = useChatStore((s) => s.activeSessionId);
+  if (!sessionId) {
+    return (
+      <div className="flex h-full items-center justify-center gap-2 text-xs text-muted-foreground">
+        <Spinner className="size-3" />
+      </div>
+    );
+  }
+  return <AiPanelSession sessionId={sessionId} onClose={onClose} />;
+}
 
-  useEffect(() => {
-    const unlisten = listen<AiWindowSnapshot>(
-      AI_WINDOW_SNAPSHOT_EVENT,
-      (event) => {
-        const next = event.payload;
-        setSnapshot(next);
-        useChatStore.setState((state) => ({
-          activeSessionId: next.sessionId,
-          sessions: next.sessions,
-          selectedModelId: next.selectedModelId,
-          agentMeta: next.agentMeta,
-          aiWindow: { open: true },
-          live: {
-            ...state.live,
-            getWorkspaceRoot: () => next.workspaceRoot,
-          },
-        }));
-        useWorkspaceEnvStore.setState({ env: next.workspaceEnv });
-        usePlanStore.setState({
-          active: next.planActive,
-          queue: next.planQueue,
-        });
-        if (next.sessionId) {
-          const sessionId = next.sessionId;
-          useTodosStore.setState((state) => ({
-            bySession: { ...state.bySession, [sessionId]: next.todos },
-            hydrated: new Set(state.hydrated).add(sessionId),
-          }));
-        }
-      },
-    );
-    const prefillListener = listen<AiWindowPrefill>(
-      AI_WINDOW_PREFILL_EVENT,
-      (event) => setPrefill(event.payload),
-    );
-    void emitTo("main", AI_WINDOW_READY_EVENT, {});
-    return () => {
-      void unlisten.then((fn) => fn());
-      void prefillListener.then((fn) => fn());
-    };
-  }, []);
+function AiPanelSession({
+  sessionId,
+  onClose,
+}: {
+  sessionId: string;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+  const sessions = useChatStore((s) => s.sessions);
+  const agentMeta = useChatStore((s) => s.agentMeta);
+  const prefill = useAiPanelStore((s) => s.prefill);
+  const clearPrefill = useAiPanelStore((s) => s.clearPrefill);
+  const planActive = usePlanStore((s) => s.active);
+  const planQueue = usePlanStore((s) => s.queue);
+
+  const chat = useMemo(() => getOrCreateChat(sessionId), [sessionId]);
+  const { status, messages, error, clearError, addToolApprovalResponse } =
+    useChat<UIMessage>({ chat });
+  const busy = status === "submitted" || status === "streaming";
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      const mod = event.ctrlKey || event.metaKey;
-      if (
-        mod &&
-        !event.shiftKey &&
-        !event.altKey &&
-        event.key.toLowerCase() === "i"
-      ) {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        invoke("close_ai_window").catch(console.error);
-        return;
-      }
-      if (event.key === "F12") {
-        event.preventDefault();
-        invoke("open_devtools").catch(console.error);
-        return;
-      }
       if (event.key !== "Escape") return;
       const target = event.target as HTMLElement | null;
       if (target?.closest("input, textarea")) return;
-      invoke("close_ai_window").catch(console.error);
+      event.preventDefault();
+      onClose();
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, []);
+  }, [onClose]);
 
-  const sendCommand = async (command: AiWindowCommand) => {
-    await emitTo("main", AI_WINDOW_COMMAND_EVENT, command);
-  };
-  const close = () => {
-    void invoke("close_ai_window").catch(console.error);
+  const sendSubmission = async (submission: ComposerSubmission) => {
+    if (!chat) return;
+    const message = buildComposerMessage(
+      submission,
+      useSnippetsStore.getState().snippets,
+    );
+    if (message.kind === "handled") return;
+    useChatStore
+      .getState()
+      .patchAgentMeta({ hitStepCap: false, compactionNotice: null });
+    void chat.sendMessage({
+      role: "user",
+      parts: message.parts,
+    } as Parameters<typeof chat.sendMessage>[0]);
   };
 
   return (
     <TooltipProvider>
-      <div className="relative flex h-screen flex-col overflow-hidden bg-background text-foreground">
-        <Header
-          snapshot={snapshot}
-          busy={busy}
-          onClose={close}
-          onSendCommand={sendCommand}
-        />
-        {snapshot?.planActive ? (
+      <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background text-foreground">
+        <header className="flex h-10 shrink-0 items-center gap-2 border-b border-border/60 bg-card/60 px-3 select-none">
+          <span className="text-[12px] font-semibold tracking-tight">
+            Terax AI
+          </span>
+          <SessionPicker
+            sessionId={sessionId}
+            sessions={sessions}
+            onNewSession={() => useChatStore.getState().newSession()}
+            onSwitchSession={(id) => useChatStore.getState().switchSession(id)}
+            onDeleteSession={(id) => useChatStore.getState().deleteSession(id)}
+          />
+          <div className="flex-1" />
+          {busy ? (
+            <span className="flex min-w-0 items-center gap-1 text-[10px] text-muted-foreground">
+              <Spinner className="size-2.5 shrink-0" />
+              <span className="max-w-28 truncate">
+                {agentMeta.step ?? t("ai.common.thinking")}
+              </span>
+            </span>
+          ) : null}
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            onClick={onClose}
+            className="size-6 shrink-0"
+            aria-label={t("ai.common.close")}
+            title={t("ai.miniWindow.closeEsc")}
+          >
+            <HugeiconsIcon icon={Cancel01Icon} size={12} strokeWidth={1.75} />
+          </Button>
+        </header>
+        {planActive ? (
           <div className="flex shrink-0 items-center gap-2 border-b border-border/40 bg-muted/40 px-3 py-1.5 text-[11px]">
             <span className="size-1.5 shrink-0 rounded-full bg-amber-500" />
             <span className="font-medium">{t("ai.plan.modeLabel")}</span>
             <span className="min-w-0 flex-1 truncate text-muted-foreground">
-              {snapshot.planQueue.length > 0
-                ? t("ai.plan.queued", { count: snapshot.planQueue.length })
+              {planQueue.length > 0
+                ? t("ai.plan.queued", { count: planQueue.length })
                 : t("ai.plan.noEditsQueued")}
             </span>
             <button
               type="button"
-              onClick={() => void sendCommand({ type: "disable-plan" })}
+              onClick={() => usePlanStore.getState().disable()}
               className="rounded px-1.5 py-0.5 text-[10.5px] text-muted-foreground hover:bg-muted hover:text-foreground"
             >
               {t("ai.plan.exit")}
@@ -178,48 +174,48 @@ export function AiWindowApp() {
           </div>
         ) : null}
         <div className="min-h-0 flex-1">
-          {!snapshot ? (
+          {!chat ? (
             <div className="flex h-full items-center justify-center gap-2 text-xs text-muted-foreground">
               <Spinner className="size-3" />
               {t("ai.miniWindow.loadingSessions")}
             </div>
-          ) : snapshot.messages.length === 0 ? (
+          ) : messages.length === 0 ? (
             <EmptyState
-              onPick={(text) =>
-                setPrefill((previous) => ({
-                  at: (previous?.at ?? Date.now()) + 1,
-                  text,
-                }))
-              }
+              onPick={(text) => useAiPanelStore.getState().prefillPanel({ text })}
             />
           ) : (
             <AiChatView
-              messages={snapshot.messages}
-              status={snapshot.status}
-              error={snapshot.error ? new Error(snapshot.error) : undefined}
-              clearError={() => void sendCommand({ type: "clear-error" })}
+              messages={messages}
+              status={status}
+              error={error ?? undefined}
+              clearError={clearError}
               addToolApprovalResponse={(argument) =>
-                sendCommand({ type: "approval", ...argument })
+                void addToolApprovalResponse(argument)
               }
-              stop={() => sendCommand({ type: "stop" })}
-              onContinue={() => void sendCommand({ type: "continue" })}
+              stop={() => void chat.stop()}
+              onContinue={() => {
+                useChatStore.getState().patchAgentMeta({ hitStepCap: false });
+                void chat.sendMessage({
+                  text: "Continue from where you stopped. Don't recap, just keep going.",
+                });
+              }}
             />
           )}
         </div>
-        <TodoStrip sessionId={snapshot?.sessionId ?? null} />
-        <AiWindowComposer
+        <TodoStrip sessionId={sessionId} />
+        <AiPanelComposer
           prefill={prefill}
-          onPrefillApplied={() => setPrefill(null)}
-          onSend={(submission) => sendCommand({ type: "send", submission })}
-          onStop={() => void sendCommand({ type: "stop" })}
-          messages={snapshot?.messages ?? null}
-          onSelectModel={(id) => void sendCommand({ type: "select-model", id })}
+          onPrefillApplied={clearPrefill}
+          onSend={sendSubmission}
+          onStop={() => void chat?.stop()}
+          messages={chat ? messages : null}
+          onSelectModel={(id) => useChatStore.getState().setSelectedModelId(id)}
         />
         <PlanDiffReview
-          onRemoveOne={(id) => void sendCommand({ type: "plan-remove", id })}
-          onClear={() => void sendCommand({ type: "plan-clear" })}
+          onRemoveOne={(id) => usePlanStore.getState().removeOne(id)}
+          onClear={() => usePlanStore.getState().clear()}
           onApplyAll={async () => {
-            await sendCommand({ type: "plan-apply" });
+            await usePlanStore.getState().applyAll();
             return [];
           }}
         />
@@ -228,79 +224,23 @@ export function AiWindowApp() {
   );
 }
 
-function Header({
-  snapshot,
-  busy,
-  onClose,
-  onSendCommand,
-}: {
-  snapshot: AiWindowSnapshot | null;
-  busy: boolean;
-  onClose: () => void;
-  onSendCommand: (command: AiWindowCommand) => Promise<void>;
-}) {
-  const { t } = useTranslation();
-  return (
-    <header
-      data-tauri-drag-region
-      className="shrink-0 border-b border-border/60 bg-card/60 select-none"
-    >
-      <div
-        data-tauri-drag-region
-        className={cn(
-          "flex h-10 items-center gap-2 pr-2",
-          IS_MAC ? "pl-20" : "pl-3",
-        )}
-      >
-        <div data-tauri-drag-region className="flex min-w-0 items-center gap-2">
-          <img src="/logo.png" alt="" className="size-5 shrink-0" />
-          <span className="text-[12px] font-semibold tracking-tight">
-            Terax AI
-          </span>
-        </div>
-        {snapshot ? (
-          <SessionPicker snapshot={snapshot} onSendCommand={onSendCommand} />
-        ) : null}
-        <div className="flex-1" data-tauri-drag-region />
-        {busy ? (
-          <span className="flex min-w-0 items-center gap-1 text-[10px] text-muted-foreground">
-            <Spinner className="size-2.5 shrink-0" />
-            <span className="max-w-28 truncate">
-              {snapshot?.agentMeta.step ?? t("ai.common.thinking")}
-            </span>
-          </span>
-        ) : null}
-        <Button
-          type="button"
-          size="icon"
-          variant="ghost"
-          onClick={onClose}
-          className="size-6 shrink-0"
-          aria-label={t("ai.common.close")}
-          title={t("ai.miniWindow.closeEsc")}
-        >
-          <HugeiconsIcon icon={Cancel01Icon} size={12} strokeWidth={1.75} />
-        </Button>
-      </div>
-    </header>
-  );
-}
-
 function SessionPicker({
-  snapshot,
-  onSendCommand,
+  sessionId,
+  sessions,
+  onNewSession,
+  onSwitchSession,
+  onDeleteSession,
 }: {
-  snapshot: AiWindowSnapshot;
-  onSendCommand: (command: AiWindowCommand) => Promise<void>;
+  sessionId: string | null;
+  sessions: SessionMeta[];
+  onNewSession: () => void;
+  onSwitchSession: (id: string) => void;
+  onDeleteSession: (id: string) => void;
 }) {
   const { t } = useTranslation();
-  const active =
-    snapshot.sessions.find((session) => session.id === snapshot.sessionId) ??
-    null;
+  const active = sessions.find((s) => s.id === sessionId) ?? null;
   if (!active) return null;
-  const sorted = [...snapshot.sessions].sort(
-    (a, b) => b.updatedAt - a.updatedAt,
-  );
+  const sorted = [...sessions].sort((a, b) => b.updatedAt - a.updatedAt);
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -315,7 +255,7 @@ function SessionPicker({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="min-w-56">
         <DropdownMenuItem
-          onSelect={() => void onSendCommand({ type: "new-session" })}
+          onSelect={onNewSession}
           className="gap-2 text-xs"
         >
           <HugeiconsIcon icon={Add01Icon} size={12} strokeWidth={1.75} />
@@ -326,13 +266,9 @@ function SessionPicker({
           <SessionRow
             key={session.id}
             session={session}
-            active={session.id === snapshot.sessionId}
-            onSelect={() =>
-              void onSendCommand({ type: "switch-session", id: session.id })
-            }
-            onDelete={() =>
-              void onSendCommand({ type: "delete-session", id: session.id })
-            }
+            active={session.id === sessionId}
+            onSelect={() => onSwitchSession(session.id)}
+            onDelete={() => onDeleteSession(session.id)}
           />
         ))}
       </DropdownMenuContent>

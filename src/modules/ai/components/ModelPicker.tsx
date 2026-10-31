@@ -18,7 +18,7 @@ import {
   useAiConfigStore,
   type ModelInfo,
 } from "@/modules/ai/config";
-import { openSettingsWindow } from "@/modules/settings/openSettingsWindow";
+import { openSettings } from "@/modules/settings/openSettings";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import { setThinkingLevel } from "@/modules/settings/store";
 import {
@@ -253,7 +253,7 @@ export function ModelPicker({
             {allModels.length === 0 ? (
               <button
                 type="button"
-                onClick={() => void openSettingsWindow("models")}
+                onClick={() => void openSettings("models")}
                 className="group mx-2 my-2 flex w-[calc(100%-1rem)] items-center gap-2 rounded-md border border-dashed border-border/70 bg-muted/20 px-3 py-2 text-left text-[11px] text-muted-foreground transition-colors hover:border-border hover:bg-accent/40 hover:text-foreground"
               >
                 <HugeiconsIcon
@@ -284,7 +284,7 @@ export function ModelPicker({
                   showProviderIcon={activeProvider === null}
                   onPick={() => {
                     if (!hasKeyFor(m.provider)) {
-                      void openSettingsWindow("models");
+                      void openSettings("models");
                       return;
                     }
                     (onSelectModel ?? setSelected)(m.id);
@@ -409,7 +409,7 @@ function ProviderConfigureCTA({ providerId }: { providerId: string }) {
   return (
     <button
       type="button"
-      onClick={() => void openSettingsWindow("models")}
+      onClick={() => void openSettings("models")}
       className="group mx-2 mb-1 flex w-[calc(100%-1rem)] items-center gap-2 rounded-md border border-dashed border-border/70 bg-muted/20 px-3 py-2 text-left text-[11px] text-muted-foreground transition-colors hover:border-border hover:bg-accent/40 hover:text-foreground"
     >
       <HugeiconsIcon icon={Settings01Icon} size={13} strokeWidth={1.75} />

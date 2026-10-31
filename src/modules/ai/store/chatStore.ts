@@ -72,10 +72,6 @@ const IDLE_META: AgentMeta = {
   compactionNotice: null,
 };
 
-type AiWindowState = {
-  open: boolean;
-};
-
 type ApprovalResponder = (approvalId: string, approved: boolean) => void;
 
 type StoreState = {
@@ -99,10 +95,6 @@ type StoreState = {
   // 初始值来自 JSON 配置的 defaults.modelId；下拉选择器见【导览 21】。
   selectedModelId: string;
   setSelectedModelId: (id: string) => void;
-
-  aiWindow: AiWindowState;
-  openAiWindow: () => void;
-  closeAiWindow: () => void;
 
   focusSignal: number;
   focusInput: () => void;
@@ -218,10 +210,6 @@ export const useChatStore = create<StoreState>((set, get) => ({
     set({ selectedModelId: id });
     void pushRecentModel(id);
   },
-
-  aiWindow: { open: false },
-  openAiWindow: () => set({ aiWindow: { open: true } }),
-  closeAiWindow: () => set({ aiWindow: { open: false } }),
 
   focusSignal: 0,
   focusInput: () => set((s) => ({ focusSignal: s.focusSignal + 1 })),

@@ -37,7 +37,7 @@ Terax 是一个终端优先、AI 原生的跨平台桌面开发工作区，使�
 | Ghostty model | 保存终端网格、滚动历史和解析状态的 WASM 模型 | `packages/ghostty-core/` |
 | BYOK | 用户提供自己的模型服务密钥或本地端点 | `src/modules/ai/` |
 | Provider | 一家模型服务商或兼容端点的配置条目 | `ProviderEntry`，`src/modules/ai/config/types.ts` |
-| 设置窗口 | 独立的 Tauri webview，不是主窗口内嵌面板 | `src/settings/main.tsx` |
+| 设置页 | 主窗口内的 Settings tab（经 openSettings 打开），不是独立窗口 | `src/settings/SettingsView.tsx` |
 
 易混淆术语的详细裁定沿用 [../lore/glossary.md](../lore/glossary.md)，不在此复制。
 

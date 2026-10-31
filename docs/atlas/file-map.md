@@ -2,7 +2,7 @@
 
 > 只收录有业务含义的源文件。自动生成文件、测试、构建脚本和纯配置不在此列。
 > 一个文件涉及多个功能时，第二列登记主归属，其余登记在第三列。
-> 最后校验：2026-10-30
+> 最后校验：2026-10-31
 
 | 文件 | 主归属功能 | 次要归属 | 说明 |
 |---|---|---|---|
@@ -19,17 +19,17 @@
 | `src/modules/tabs/NewTabMenu.tsx` | [快捷键提示](features/快捷键提示.md) | 标签页管理 | 新建标签菜单动态显示快捷键 |
 | `src/modules/tabs/TabBar.tsx` | [快捷键提示](features/快捷键提示.md) | 标签页管理 | 标签关闭按钮动态标题 |
 | `src/modules/ai/components/AiOpenButton.tsx` | [快捷键提示](features/快捷键提示.md) | [独立AI窗口](features/独立AI窗口.md) | 状态栏 AI 开关与动态快捷键提示 |
-| `src/ai/AiWindowApp.tsx` | [独立AI窗口](features/独立AI窗口.md) | AI 对话 | 独立 AI 页面、会话、模型和 Composer 组装 |
-| `src/modules/ai/components/AiWindowComposer.tsx` | [独立AI窗口](features/独立AI窗口.md) | AI 对话 | 完整 Composer 与 prefill；元信息行组装 |
-| `src/modules/ai/components/ApprovalModeToggle.tsx` | [独立AI窗口](features/独立AI窗口.md) | AI 对话与工具审批 | 执行审批模式切换（review/auto） |
-| `src/modules/ai/lib/approvalMode.ts` | [独立AI窗口](features/独立AI窗口.md) | AI 对话与工具审批 | 工具 needsApproval 按偏好动态判定 |
-| `src/modules/ai/components/AgentRunBridge.tsx` | [独立AI窗口](features/独立AI窗口.md) | AI 对话与工具审批 | 主窗口唯一聊天引擎、命令处理和快照镜像 |
-| `src/modules/ai/lib/aiWindow.ts` | [独立AI窗口](features/独立AI窗口.md) | 选区与文件 prefill | 原生窗口开关和失败回滚 |
-| `src/modules/ai/lib/aiWindowBridge.ts` | [独立AI窗口](features/独立AI窗口.md) | 跨窗口 IPC | 快照、prefill 与命令契约 |
-| `src/modules/ai/lib/composerMessage.ts` | [独立AI窗口](features/独立AI窗口.md) | AI 对话 | Composer 到 AI SDK parts 的纯转换 |
-| `src-tauri/src/modules/ai_window.rs` | [独立AI窗口](features/独立AI窗口.md) | 原生窗口 | 异步创建、聚焦与销毁 AI 窗口；挂主窗口 parent 并 skip_taskbar |
+| `src/modules/ai/components/AiPanel.tsx` | [AI面板](features/AI面板.md) | AI 对话 | 右侧面板页面：聊天、会话、计划横幅与空态 |
+| `src/modules/ai/components/AiPanelComposer.tsx` | [AI面板](features/AI面板.md) | AI 对话 | 完整 Composer 与 prefill；元信息行组装 |
+| `src/modules/ai/components/ApprovalModeToggle.tsx` | [AI面板](features/AI面板.md) | AI 对话与工具审批 | 执行审批模式切换（review/auto） |
+| `src/modules/ai/lib/approvalMode.ts` | [AI面板](features/AI面板.md) | AI 对话与工具审批 | 工具 needsApproval 按偏好动态判定 |
+| `src/modules/ai/components/AgentRunBridge.tsx` | [AI面板](features/AI面板.md) | AI 对话与工具审批 | 主窗口唯一聊天引擎、agentMeta 与持久化、AI diff tab 管理 |
+| `src/modules/ai/lib/aiPanel.ts` | [AI面板](features/AI面板.md) | 选区与文件 prefill | 面板开关封装与 Provider 检查 |
+| `src/modules/ai/store/aiPanelStore.ts` | [AI面板](features/AI面板.md) | 无 | 面板开关与 prefill 状态 |
+| `src/modules/ai/lib/aiPanelBridge.ts` | [AI面板](features/AI面板.md) | 无 | prefill 类型契约 |
+| `src/modules/ai/lib/composerMessage.ts` | [AI面板](features/AI面板.md) | AI 对话 | Composer 到 AI SDK parts 的纯转换 |
 | `src/modules/explorer/FileExplorer.tsx` | [快捷键提示](features/快捷键提示.md) | 文件资源管理器 | 文件搜索按钮动态标题 |
-| `src/modules/tabs/lib/useTabs.ts` | [撤销终端窗格拆分](features/撤销终端窗格拆分.md) | [终端命令与结果块](features/终端命令与结果块.md)、标签与分屏状态 | 记录拆分历史、恢复焦点并维护统一终端标签 |
+| `src/modules/tabs/lib/useTabs.ts` | [撤销终端窗格拆分](features/撤销终端窗格拆分.md) | [终端命令与结果块](features/终端命令与结果块.md)、标签与分屏状态、[AI面板](features/AI面板.md) | 记录拆分历史、恢复焦点、维护终端标签与 settings tab 单例 |
 | `src/modules/terminal/lib/panes.ts` | [撤销终端窗格拆分](features/撤销终端窗格拆分.md) | [终端链接打开](features/终端链接打开.md) | 叶节点查询、拆分与移除 |
 | `src/modules/terminal/lib/terminalSessionApi.ts` | [撤销终端窗格拆分](features/撤销终端窗格拆分.md) | 终端会话生命周期 | 释放被撤销窗格资源 |
 | `src/modules/terminal/lib/terminalLinks.ts` | [终端链接打开](features/终端链接打开.md) | 终端输入 | 定义链接修饰键与打开契约 |
@@ -38,7 +38,7 @@
 | `src/modules/terminal/ghostty/webgl/WebGlTerminalSurface.ts` | [终端链接打开](features/终端链接打开.md) | 终端渲染回退 | WebGL 链接点击与修饰键透传 |
 | `src/modules/terminal/TerminalPane.tsx` | [终端命令与结果块](features/终端命令与结果块.md) | [终端链接打开](features/终端链接打开.md)、终端会话与渲染 | 选区优先、块右键命中与受控块搜索 |
 | `src/modules/terminal/block/BlockContextMenu.tsx` | [终端命令与结果块](features/终端命令与结果块.md) | AI prefill 与剪贴板 | 六项块操作右键菜单 |
-| `src/modules/terminal/block/BlockOverlay.tsx` | [终端命令与结果块](features/终端命令与结果块.md) | 终端块展示 | 块头元信息、状态、耗时、重跑与受控搜索 |
+| `src/modules/terminal/block/BlockOverlay.tsx` | [终端命令与结果块](features/终端命令与结果块.md) | 终端块展示 | 块尾分隔线、失败退出码与受控搜索 |
 | `src/modules/terminal/ghostty/GhosttyBlocks.ts` | [终端命令与结果块](features/终端命令与结果块.md) | Ghostty model 适配 | OSC 133 块边界、读取、搜索与右键命中 |
 | `src/modules/terminal/ghostty/GhosttyBlockOverlay.tsx` | [终端命令与结果块](features/终端命令与结果块.md) | 会话桥接 | 连接块控制器、覆盖层与受控搜索 |
 | `src-tauri/src/modules/pty/scripts/profile.ps1` | [终端命令与结果块](features/终端命令与结果块.md) | PowerShell 集成 | OSC 133 标记、命令行上报与块头间隔空行 |
@@ -57,4 +57,12 @@
 | `src/modules/i18n/locales/zh/preview.ts` | [预览端口管理](features/预览端口管理.md) | 中文文案 | 与英文词典同构 |
 | `src/modules/i18n/locales/en/shortcuts.ts` | [快捷键提示](features/快捷键提示.md) | 英文文案 | 快捷键名称 |
 | `src/modules/i18n/locales/zh/shortcuts.ts` | [快捷键提示](features/快捷键提示.md) | 中文文案 | 与英文词典同构 |
+| `src/settings/SettingsView.tsx` | 设置页（主窗口 tab） | 偏好同步 | 设置页内嵌视图：分区导航与各分区渲染 |
+| `src/modules/settings/openSettings.ts` | 设置页（主窗口 tab） | [AI面板](features/AI面板.md) | 设置 tab 打开注册表，深层组件经此调用 |
 | `src/settings/sections/ShortcutsSection.tsx` | [撤销终端窗格拆分](features/撤销终端窗格拆分.md) | [终端命令与结果块](features/终端命令与结果块.md)、快捷键自定义 | 保存用户覆盖键位并警告 Ctrl+R 冲突 |
+| `src/modules/command-palette/CommandPalette.tsx` | [命令面板](features/命令面板.md) | 主题切换 | 面板 UI、查询模式分流与主题预览 |
+| `src/modules/command-palette/commands.ts` | [命令面板](features/命令面板.md) | 无 | 命令清单注册与禁用态 |
+| `src/modules/command-palette/lib/mode.ts` | [命令面板](features/命令面板.md) | 无 | `#`/`?` 前缀查询分流 |
+| `src/modules/command-palette/lib/fuzzy.ts` | [命令面板](features/命令面板.md) | 无 | 命令模糊匹配打分 |
+| `src/modules/command-palette/lib/mru.ts` | [命令面板](features/命令面板.md) | 无 | 会话内最近使用排序 |
+| `src/modules/command-palette/hooks/useContentSearch.ts` | [命令面板](features/命令面板.md) | 无 | `#` 内容搜索异步查询 |

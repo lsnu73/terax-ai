@@ -1,5 +1,7 @@
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
+import { SettingsView } from "@/settings/SettingsView";
+import type { SettingsTab } from "@/modules/settings/openSettings";
 import { AiDiffStack, EditorStack, GitDiffStack } from "@/modules/editor";
 import { GitHistoryStack } from "@/modules/git-history";
 import { MarkdownStack } from "@/modules/markdown";
@@ -33,6 +35,7 @@ type Props = {
   onOpenCommitFile: GitHistoryStackProps["onOpenCommitFile"];
   onGitHistorySearchHandle: GitHistoryStackProps["onSearchHandle"];
   onSetMarkdownView: EditorStackProps["onSetMarkdownView"];
+  onSettingsSectionChange: (section: SettingsTab) => void;
 };
 
 const LAYER = "absolute inset-0";
@@ -65,6 +68,7 @@ export function WorkspaceSurface({
   onOpenCommitFile,
   onGitHistorySearchHandle,
   onSetMarkdownView,
+  onSettingsSectionChange,
 }: Props) {
   const kind = activeTab?.kind;
   const isTerminalTab = kind === "terminal";
@@ -74,6 +78,8 @@ export function WorkspaceSurface({
   const isAiDiffTab = kind === "ai-diff";
   const isGitDiffTab = kind === "git-diff" || kind === "git-commit-file";
   const isGitHistoryTab = kind === "git-history";
+  const isSettingsTab = kind === "settings";
+  const settingsTab = tabs.find((t) => t.kind === "settings");
 
   return (
     <div className="relative h-full min-h-0">
@@ -161,6 +167,24 @@ export function WorkspaceSurface({
           onSearchHandle={onGitHistorySearchHandle}
         />
       </div>
+      {settingsTab ? (
+        <div
+          className={cn(
+            LAYER,
+            !isSettingsTab && "invisible pointer-events-none",
+          )}
+          aria-hidden={!isSettingsTab}
+        >
+          <SettingsView
+            section={
+              activeTab?.kind === "settings"
+                ? activeTab.section
+                : settingsTab.section
+            }
+            onSectionChange={onSettingsSectionChange}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }

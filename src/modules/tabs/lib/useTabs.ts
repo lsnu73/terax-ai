@@ -1,4 +1,5 @@
 import { isMarkdownPath } from "@/lib/utils";
+import type { SettingsTab as SettingsTabSection } from "@/modules/settings/openSettings";
 import {
   type AgentInstanceCount,
   createAgentPanePlan,
@@ -124,6 +125,14 @@ export type GitCommitFileDiffTab = TabBase & {
   originalPath: string | null;
 };
 
+export type SettingsTabState = TabBase & {
+  id: number;
+  kind: "settings";
+  title: string;
+  /** 最近一次打开设置时指定的分区；面板内部切换会同步回来。 */
+  section: SettingsTabSection;
+};
+
 export type Tab =
   | TerminalTab
   | EditorTab
@@ -132,7 +141,8 @@ export type Tab =
   | AiDiffTab
   | GitDiffTab
   | GitHistoryTab
-  | GitCommitFileDiffTab;
+  | GitCommitFileDiffTab
+  | SettingsTabState;
 
 export type TabPatch = Partial<{
   title: string;
@@ -1110,6 +1120,53 @@ export function useTabs(initial?: Partial<TerminalTab>) {
     [],
   );
 
+  // 设置页是全局单例 tab：已存在时只激活并按需切换分区，不重复开。
+  const openSettingsTab = useCallback((section?: SettingsTabSection) => {
+    const curr = tabsRef.current;
+    const existing = curr.find((t) => t.kind === "settings");
+    if (existing) {
+      const nextTabs = section
+        ? curr.map((t) =>
+            t.kind === "settings" && t.id === existing.id
+              ? { ...t, section }
+              : t,
+          )
+        : curr;
+      if (nextTabs !== curr) {
+        tabsRef.current = nextTabs;
+        setTabs(nextTabs);
+      }
+      setActiveId(existing.id);
+      return existing.id;
+    }
+    const id = nextIdRef.current++;
+    const nextTabs: Tab[] = [
+      ...curr,
+      {
+        id,
+        kind: "settings",
+        spaceId: activeSpaceIdRef.current,
+        title: "Settings",
+        section: section ?? "general",
+      },
+    ];
+    tabsRef.current = nextTabs;
+    setTabs(nextTabs);
+    setActiveId(id);
+    return id;
+  }, []);
+
+  const setSettingsSection = useCallback(
+    (id: number, section: SettingsTabSection) => {
+      setTabs((curr) =>
+        curr.map((t) =>
+          t.kind === "settings" && t.id === id ? { ...t, section } : t,
+        ),
+      );
+    },
+    [],
+  );
+
   const closeTab = useCallback((id: number) => {
     let toDispose: number[] = [];
     setTabs((curr) => {
@@ -1463,6 +1520,8 @@ export function useTabs(initial?: Partial<TerminalTab>) {
     openGitDiffTab,
     openCommitHistoryTab,
     openCommitFileDiffTab,
+    openSettingsTab,
+    setSettingsSection,
     setAiDiffStatus,
     closeAiDiffTab,
     closeTab,

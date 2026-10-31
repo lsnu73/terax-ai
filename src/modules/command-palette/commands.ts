@@ -241,15 +241,6 @@ export function createCommandItems(
       run: noop,
     },
     {
-      id: "history.open",
-      titleKey: "commands.search.commandHistory",
-      group: "Search",
-      keywords: ["history", "shell", "rerun", "previous commands"],
-      icon: TerminalIcon,
-      trailing: ">",
-      run: noop,
-    },
-    {
       id: "search.focus",
       titleKey: "commands.search.findInTab",
       group: "Search",

@@ -173,7 +173,7 @@ describe("built startup graph", () => {
     if (outDir) rmSync(outDir, { recursive: true, force: true });
   });
 
-  for (const html of ["index.html", "settings.html"]) {
+  for (const html of ["index.html"]) {
     it(`${html}: no AI SDK, zod, Streamdown, CodeMirror or icon-set code is preloaded`, () => {
       const result = analyzeDist(outDir, [html])[html];
       expect(result.trace.missing).toEqual([]);
@@ -193,7 +193,7 @@ describe("built startup graph", () => {
       chunks.map((f) => [f, readFileSync(join(assets, f), "utf8")]),
     );
     const startup = new Set(
-      ["index.html", "settings.html"].flatMap((html) => [
+      ["index.html"].flatMap((html) => [
         ...analyzeDist(outDir, [html])[html].trace.files.keys(),
       ]),
     );

@@ -16,6 +16,7 @@ import {
   type ComposerSubmission,
 } from "./composerMessage";
 import { getChat, useChatStore } from "../store/chatStore";
+import { useAiPanelStore } from "../store/aiPanelStore";
 import { useSnippetsStore } from "../store/snippetsStore";
 
 export type FileAttachment = ComposerFile;
@@ -230,7 +231,7 @@ export function AiComposerProvider({
     }
     const store = useChatStore.getState();
     store.patchAgentMeta({ hitStepCap: false, compactionNotice: null });
-    if (!store.aiWindow.open) store.openAiWindow();
+    useAiPanelStore.getState().openPanel();
     void (async () => {
       const { getOrCreateChat } = await import("../store/chatRuntime");
       const chat = getOrCreateChat(sessionId);

@@ -64,11 +64,11 @@
 
 ## AI 与模型配置
 
-### 独立 AI 窗口  `src/ai/`、`src/modules/ai/lib/aiWindowBridge.ts`、`src-tauri/src/modules/ai_window.rs`
+### AI 面板（主窗口右侧）  `src/modules/ai/components/AiPanel.tsx`、`src/modules/ai/store/aiPanelStore.ts`
 - 职责：把完整 Composer 和对话视图放进可跨屏移动的原生窗口，同时保持唯一聊天运行时。
-- 对外暴露：快捷键 `ai.toggle`；Tauri 异步命令 `open_ai_window` / `close_ai_window`；定向快照与命令事件。
+- 对外暴露：快捷键 `ai.toggle`；zustand 状态 `useAiPanelStore`（open / prefill）。
 - 关键依赖：[AI webview] →（结构化命令）→ [主窗口 AgentRunBridge] → [唯一 Chat] →（定向快照）→ [AI webview]。
-- 代码索引：见 [atlas/features/独立AI窗口.md](../atlas/features/独立AI窗口.md)
+- 代码索引：见 [atlas/features/AI面板.md](../atlas/features/AI面板.md)
 - 易错点：同步命令创建或销毁窗口会阻塞 Windows 事件循环，见 pitfalls/2026-10-30-同步命令创建AI窗口阻塞事件循环.md。
 - 决策依据：见 decisions/2026-10-30-AI窗口采用单聊天引擎跨Webview镜像.md
 
@@ -90,7 +90,7 @@
 - 易错点：钥匙串账户列表来自当前配置快照；配置未 hydrate 时读取会得到空列表（见对应 pitfall）。
 
 ### 模型设置页与思考滑块  `src/settings/sections/ModelsSection.tsx`、`src/settings/sections/models/StructuredFields.tsx`、`src/modules/ai/components/ModelPicker.tsx`
-- 职责：ModelsSection 负责 Provider/模型的增删改、连通性测试、模型列表拉取与高级 JSON 编辑；StructuredFields 为结构化 JSON 字段提供「表单 / JSON」双模式编辑（Params/Thinking/Extra/Headers/Models API）与 InfoHint 悬浮说明；ModelPicker 在独立 AI 窗口的模型选择器中渲染思考滑块。
+- 职责：ModelsSection 负责 Provider/模型的增删改、连通性测试、模型列表拉取与高级 JSON 编辑；StructuredFields 为结构化 JSON 字段提供「表单 / JSON」双模式编辑（Params/Thinking/Extra/Headers/Models API）与 InfoHint 悬浮说明；ModelPicker 在 AI 面板的模型选择器中渲染思考滑块。
 - 关键依赖：[ModelsSection] → [useAiConfigStore.replace] → [persist.writeAiConfig] →（Tauri 事件 `terax://ai-models-changed`）→ [主窗口]。
 - 易错点：UI 与手改 JSON 必须走同一条 `normalizeAiConfig`；滑块档位来自所选模型自己的阶梯，无阶梯时不渲染；表单组件的值同步陷阱见 pitfalls/2026-10-28-form-editor-value-sync.md。
 - 决策依据：见 decisions/2026-10-28-form-json-dual-mode.md

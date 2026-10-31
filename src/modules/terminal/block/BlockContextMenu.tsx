@@ -3,7 +3,7 @@ import {
   ContextMenuItem,
 } from "@/components/ui/context-menu";
 import { writeTerminalClipboard } from "@/modules/terminal/lib/terminalClipboard";
-import { prefillAiWindow } from "@/modules/ai/lib/aiWindow";
+import { prefillAiPanel } from "@/modules/ai/lib/aiPanel";
 import {
   ComputerTerminal02Icon,
   Copy01Icon,
@@ -19,7 +19,6 @@ import { capAttachOutput } from "./lib/outputCap";
 
 type Props = {
   block: PositionedBlock | null;
-  promptReady: boolean;
   readOutput: (id: string) => string | null;
   onRunAgain: (command: string) => void;
   onSearch: (id: string) => void;
@@ -28,7 +27,6 @@ type Props = {
 
 export function BlockContextMenu({
   block,
-  promptReady,
   readOutput,
   onRunAgain,
   onSearch,
@@ -46,7 +44,7 @@ export function BlockContextMenu({
   const attach = () => {
     const out = capAttachOutput(output());
     const text = out ? `$ ${block.command}\n${out}` : `$ ${block.command}`;
-    prefillAiWindow({ selection: { text, source: "terminal" } });
+    prefillAiPanel({ selection: { text, source: "terminal" } });
   };
 
   return (
@@ -60,7 +58,11 @@ export function BlockContextMenu({
       <MenuItem
         icon={Refresh01Icon}
         label={t("terminal.block.runAgain")}
-        disabled={block.running || !promptReady || !block.canRerun}
+        // promptReady is deliberately not consulted: the session mode can get
+        // stuck on "running" when a ConPTY stream drops the OSC 133 D marker,
+        // which would grey this out forever. Rerunning only forwards the
+        // command to the PTY, the same as typing it.
+        disabled={block.running || !block.canRerun}
         onClick={() => onRunAgain(block.command)}
       />
       <MenuItem

@@ -1,23 +1,9 @@
 import { useChat, type UIMessage } from "@ai-sdk/react";
 import type { ToolUIPart, UIMessagePart } from "ai";
-import { emitTo, listen } from "@tauri-apps/api/event";
-import { useCallback, useEffect, useMemo, useRef } from "react";
-import { tryResolveModel } from "../config";
-import { openAiWindow } from "../lib/aiWindow";
-import {
-  AI_WINDOW_COMMAND_EVENT,
-  AI_WINDOW_READY_EVENT,
-  AI_WINDOW_SNAPSHOT_EVENT,
-  type AiWindowCommand,
-  type AiWindowSnapshot,
-} from "../lib/aiWindowBridge";
+import { useEffect, useMemo, useRef } from "react";
 import { native } from "../lib/native";
 import { checkReadable } from "../lib/security";
-import { usePlanStore } from "../store/planStore";
-import { useTodosStore } from "../store/todoStore";
-import { useWorkspaceEnvStore } from "@/modules/workspace";
-import { buildComposerMessage } from "../lib/composerMessage";
-import { useSnippetsStore } from "../store/snippetsStore";
+import { useAiPanelStore } from "../store/aiPanelStore";
 import { resolvePath } from "../tools/tools";
 import {
   flushPersist,
@@ -28,11 +14,11 @@ import { getOrCreateChat } from "../store/chatRuntime";
 
 /**
  * Headless bridge that owns the single chat engine and mirrors its lifecycle
- * into the store and the native AI window.
+ * into the store and the main-window AI panel.
  *
  * Side effects:
  *  - Patches `agentMeta` on every status / approvals change.
- *  - Auto-opens the AI window when an approval is pending.
+ *  - Auto-opens the AI panel when an approval is pending.
  *  - For pending `write_file` calls, opens an AI diff tab in the editor area
  *    so the user can review the proposed change before approving.
  *  - Persists messages of the active session on every change.
@@ -74,159 +60,11 @@ function Bridge({
   closeAiDiffTab,
 }: BridgeProps) {
   const chat = useMemo(() => getOrCreateChat(sessionId), [sessionId]);
-  const { status, messages, error, clearError, addToolApprovalResponse } =
+  const { status, messages, addToolApprovalResponse } =
     useChat<UIMessage>({ chat });
   const patch = useChatStore((s) => s.patchAgentMeta);
   const persistMessages = useChatStore((s) => s.persistMessages);
   const setApprovalResponder = useChatStore((s) => s.setApprovalResponder);
-  const sessions = useChatStore((s) => s.sessions);
-  const selectedModelId = useChatStore((s) => s.selectedModelId);
-  const agentMeta = useChatStore((s) => s.agentMeta);
-  const planActive = usePlanStore((s) => s.active);
-  const planQueue = usePlanStore((s) => s.queue);
-  const todos = useTodosStore((s) => s.bySession[sessionId]);
-  const workspaceRoot = useChatStore((s) => s.live.getWorkspaceRoot());
-  const workspaceEnv = useWorkspaceEnvStore((s) => s.env);
-  const aiWindowOpen = useChatStore((s) => s.aiWindow.open);
-
-  const modelLabel = useMemo(
-    () => tryResolveModel(selectedModelId)?.label ?? selectedModelId,
-    [selectedModelId],
-  );
-  const snapshot = useMemo<AiWindowSnapshot>(
-    () => ({
-      sessionId,
-      sessions,
-      messages,
-      status,
-      error: error?.message ?? null,
-      selectedModelId,
-      modelLabel,
-      agentMeta,
-      planActive,
-      planQueue,
-      todos: todos ?? [],
-      workspaceRoot,
-      workspaceEnv,
-    }),
-    [
-      sessionId,
-      sessions,
-      messages,
-      status,
-      error,
-      selectedModelId,
-      modelLabel,
-      agentMeta,
-      planActive,
-      planQueue,
-      todos,
-      workspaceRoot,
-      workspaceEnv,
-    ],
-  );
-  const emitSnapshot = useCallback(() => {
-    if (!useChatStore.getState().aiWindow.open) return;
-    void emitTo("ai", AI_WINDOW_SNAPSHOT_EVENT, snapshot);
-  }, [snapshot]);
-
-  useEffect(() => {
-    if (!aiWindowOpen) return;
-    const timer = setTimeout(
-      emitSnapshot,
-      status === "streaming" || status === "submitted" ? 60 : 0,
-    );
-    return () => clearTimeout(timer);
-  }, [aiWindowOpen, emitSnapshot, status]);
-
-  useEffect(() => {
-    let alive = true;
-    const unlisten = listen(AI_WINDOW_READY_EVENT, () => {
-      if (alive) emitSnapshot();
-    });
-    return () => {
-      alive = false;
-      void unlisten.then((fn) => fn());
-    };
-  }, [emitSnapshot]);
-
-  useEffect(() => {
-    let disposed = false;
-    const unlisten = listen<AiWindowCommand>(
-      AI_WINDOW_COMMAND_EVENT,
-      (event) => {
-        if (disposed) return;
-        const command = event.payload;
-        const store = useChatStore.getState();
-        switch (command.type) {
-          case "send": {
-            const message = buildComposerMessage(
-              command.submission,
-              useSnippetsStore.getState().snippets,
-            );
-            if (message.kind === "handled") return;
-            store.patchAgentMeta({ hitStepCap: false, compactionNotice: null });
-            void chat.sendMessage({
-              role: "user",
-              parts: message.parts,
-            } as Parameters<typeof chat.sendMessage>[0]);
-            return;
-          }
-          case "stop":
-            void chat.stop();
-            return;
-          case "continue":
-            store.patchAgentMeta({ hitStepCap: false });
-            void chat.sendMessage({
-              text: "Continue from where you stopped. Don't recap, just keep going.",
-            });
-            return;
-          case "approval":
-            void addToolApprovalResponse({
-              id: command.id,
-              approved: command.approved,
-            });
-            return;
-          case "clear-error":
-            clearError();
-            return;
-          case "select-model":
-            store.setSelectedModelId(command.id);
-            return;
-          case "new-session":
-            store.newSession();
-            return;
-          case "switch-session":
-            store.switchSession(command.id);
-            return;
-          case "delete-session":
-            store.deleteSession(command.id);
-            return;
-          case "disable-plan":
-            usePlanStore.getState().disable();
-            return;
-          case "plan-remove":
-            usePlanStore.getState().removeOne(command.id);
-            return;
-          case "plan-clear":
-            usePlanStore.getState().clear();
-            return;
-          case "plan-apply":
-            void usePlanStore.getState().applyAll().then((results) => {
-              const failed = results.filter((result) => !result.ok);
-              if (failed.length > 0) {
-                console.error("plan apply failures:", failed);
-              }
-            });
-            return;
-        }
-      },
-    );
-    return () => {
-      disposed = true;
-      void unlisten.then((fn) => fn());
-    };
-  }, [chat, addToolApprovalResponse, clearError]);
 
   // Expose the approval responder so the diff tab can resolve approvals.
   // We keep it in a ref-stable closure so identity is stable per render.
@@ -281,8 +119,11 @@ function Bridge({
   }, [status, approvalsPending, patch]);
 
   useEffect(() => {
-    if (approvalsPending > 0 && !useChatStore.getState().aiWindow.open) {
-      void openAiWindow();
+    if (
+      approvalsPending > 0 &&
+      !useAiPanelStore.getState().open
+    ) {
+      useAiPanelStore.getState().openPanel();
     }
   }, [approvalsPending]);
 

@@ -168,6 +168,12 @@ const GhosttyTerminalPane = memo(
             }}
             onContextMenuCapture={onContextMenu}
             onPointerDownCapture={(event) => {
+              // The terminal surface swallows pointer events, so Radix's
+              // outside-dismissal never sees them; close the block menu here.
+              if (contextOpen) {
+                setContextOpen(false);
+                setContextBlock(null);
+              }
               down.current =
                 event.button === 0 &&
                 event.detail === 1 &&
@@ -257,7 +263,6 @@ const GhosttyTerminalPane = memo(
         </ContextMenuTrigger>
         <BlockContextMenu
           block={contextBlock}
-          promptReady={ghosttyBlocks(leafId)?.getMode() === "prompt"}
           readOutput={(id) =>
             ghosttyBlocks(leafId)?.controller?.readById(id)?.output ?? null
           }

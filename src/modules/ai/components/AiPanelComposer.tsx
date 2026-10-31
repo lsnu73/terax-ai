@@ -8,7 +8,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import type { UIMessage } from "ai";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import type { AiWindowPrefill } from "../lib/aiWindowBridge";
+import type { AiPanelPrefill } from "../lib/aiPanelBridge";
 import {
   ACCEPTED_FILES,
   AiComposerProvider,
@@ -23,7 +23,7 @@ import { ApprovalModeToggle } from "./ApprovalModeToggle";
 import { ChipsRow } from "./ChipsRow";
 import { ModelPicker } from "./ModelPicker";
 
-export function AiWindowComposer({
+export function AiPanelComposer({
   prefill,
   onPrefillApplied,
   onSend,
@@ -31,11 +31,11 @@ export function AiWindowComposer({
   messages,
   onSelectModel,
 }: {
-  prefill: AiWindowPrefill | null;
+  prefill: AiPanelPrefill | null;
   onPrefillApplied: () => void;
   onSend: (submission: ComposerSubmission) => Promise<void>;
   onStop: () => void;
-  /** 会话消息，供上下文用量指示器展示；快照未就绪时为 null。 */
+  /** 会话消息，供上下文用量指示器展示；会话未就绪时为 null。 */
   messages: UIMessage[] | null;
   onSelectModel: (id: string) => void;
 }) {
@@ -76,7 +76,7 @@ function ComposerPrefill({
   prefill,
   onApplied,
 }: {
-  prefill: AiWindowPrefill | null;
+  prefill: AiPanelPrefill | null;
   onApplied: () => void;
 }) {
   const { t } = useTranslation();
@@ -198,7 +198,7 @@ function ComposerControls() {
           disabled={!composer.canSend}
           onClick={composer.submit}
         >
-          <HugeiconsIcon icon={ArrowUpIcon} size={13} strokeWidth={1.75} />
+          <HugeiconsIcon icon={ArrowUpIcon} size={13} strokeWidth={2} />
         </Button>
       )}
     </div>

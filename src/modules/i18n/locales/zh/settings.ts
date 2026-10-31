@@ -9,7 +9,7 @@ import { settingsShortcutsZh } from "./settings/shortcuts";
 import { settingsTabsZh } from "./settings/tabs";
 import { settingsThemesZh } from "./settings/themes";
 
-/** 设置窗口（settings.html 独立 webview）的全部文案。 */
+/** 设置页（主窗口 Settings tab）的全部文案。 */
 export const settingsZh: typeof settings = {
   tabs: settingsTabsZh,
   general: settingsGeneralZh,

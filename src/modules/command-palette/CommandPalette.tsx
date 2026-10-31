@@ -22,13 +22,11 @@ import {
   ArrowTurnBackwardIcon,
   CommandIcon,
   Tick02Icon,
-  TerminalIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { COMMAND_GROUPS } from "./commands";
-import { useCommandHistory } from "./hooks/useCommandHistory";
 import {
   CONTENT_SEARCH_MIN_QUERY,
   useContentSearch,
@@ -45,7 +43,6 @@ type Props = {
   commandItems: PaletteItem[];
   workspaceRoot: string | null;
   onOpenContentHit: (path: string, line: number) => void;
-  insertCommand: ((cmd: string) => void) | null;
 };
 
 const SHORTCUTS_BY_ID = new Map(SHORTCUTS.map((s) => [s.id, s]));
@@ -58,7 +55,6 @@ export function CommandPalette({
   commandItems,
   workspaceRoot,
   onOpenContentHit,
-  insertCommand,
 }: Props) {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
@@ -75,10 +71,6 @@ export function CommandPalette({
     workspaceRoot,
     parsed.term,
     open && !inThemes && parsed.mode === "content",
-  );
-  const history = useCommandHistory(
-    parsed.term,
-    open && !inThemes && parsed.mode === "history",
   );
 
   const mru = useMemo(() => (open ? mruSnapshot() : {}), [open]);
@@ -162,7 +154,6 @@ export function CommandPalette({
       if (item.disabledReasonKey) return;
       if (item.id === "theme.pick") return enterThemes();
       if (item.id === "search.content") return setQuery("#");
-      if (item.id === "history.open") return setQuery(">");
       recordUse(item.id);
       runAfterClose(item.run);
     },
@@ -174,14 +165,6 @@ export function CommandPalette({
       runAfterClose(() => onOpenContentHit(path, line));
     },
     [onOpenContentHit, runAfterClose],
-  );
-
-  const runHistory = useCallback(
-    (cmd: string) => {
-      if (!insertCommand) return;
-      runAfterClose(() => insertCommand(cmd));
-    },
-    [insertCommand, runAfterClose],
   );
 
   const commitTheme = useCallback(
@@ -208,9 +191,7 @@ export function CommandPalette({
     ? t("commands.palette.placeholderThemes")
     : parsed.mode === "content"
       ? t("commands.palette.placeholderContent")
-      : parsed.mode === "history"
-        ? t("commands.palette.placeholderHistory")
-        : t("commands.palette.placeholderCommands");
+      : t("commands.palette.placeholderCommands");
 
   return (
     <CommandDialog
@@ -329,41 +310,6 @@ export function CommandPalette({
                         </span>
                         <span className="ml-auto max-w-64 shrink-0 truncate text-[11px] font-normal text-muted-foreground">
                           {hit.rel}:{hit.line}
-                        </span>
-                      </CommandItem>
-                    ))}
-                  </AsyncBody>
-                )}
-              </CommandGroup>
-            ) : parsed.mode === "history" ? (
-              <CommandGroup heading={t("commands.palette.historyHeading")}>
-                {!insertCommand ? (
-                  <StatusItem
-                    label={t("commands.palette.openTerminalForHistory")}
-                  />
-                ) : (
-                  <AsyncBody
-                    loading={history.loading}
-                    error={history.error}
-                    empty={history.results.length === 0}
-                    emptyLabel={t("commands.palette.noHistory")}
-                    onRetry={history.retry}
-                  >
-                    {history.results.map((cmd) => (
-                      <CommandItem
-                        key={`hist:${cmd}`}
-                        value={`hist:${cmd}`}
-                        onSelect={() => runHistory(cmd)}
-                        className="text-[12.5px]"
-                      >
-                        <HugeiconsIcon
-                          icon={TerminalIcon}
-                          size={14}
-                          strokeWidth={1.75}
-                          className="text-muted-foreground"
-                        />
-                        <span className="min-w-0 flex-1 truncate font-mono text-[11.5px]">
-                          {cmd}
                         </span>
                       </CommandItem>
                     ))}

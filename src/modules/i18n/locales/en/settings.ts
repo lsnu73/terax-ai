@@ -8,7 +8,7 @@ import { settingsShortcuts } from "./settings/shortcuts";
 import { settingsTabs } from "./settings/tabs";
 import { settingsThemes } from "./settings/themes";
 
-/** 设置窗口（settings.html 独立 webview）的全部文案。 */
+/** Settings page (main-window Settings tab) copy. */
 export const settings = {
   tabs: settingsTabs,
   general: settingsGeneral,

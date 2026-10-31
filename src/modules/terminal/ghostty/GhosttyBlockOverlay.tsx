@@ -1,8 +1,7 @@
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback } from "react";
 import { BlockOverlay } from "@/modules/terminal/block/BlockOverlay";
 import { ensureGhosttyBlocks } from "@/modules/terminal/ghostty/ghosttyBlockSessions";
 import { ghosttyBlockCellHeight } from "@/modules/terminal/ghostty/useGhosttyTerminalSession";
-import { submitToLeaf } from "@/modules/terminal/lib/terminalSessionApi";
 
 type Props = {
   leafId: number;
@@ -16,7 +15,6 @@ export default function GhosttyBlockOverlay({
   onCloseSearch,
 }: Props) {
   const state = ensureGhosttyBlocks(leafId);
-  const mode = useSyncExternalStore(state.subscribeMode, state.getMode);
   const getVisible = useCallback(
     () =>
       state.controller?.visibleBlocks(ghosttyBlockCellHeight(leafId)) ?? {
@@ -42,8 +40,6 @@ export default function GhosttyBlockOverlay({
       clearSearch={() => state.controller?.clearSearch()}
       searchId={searchId}
       onCloseSearch={closeSearch}
-      promptReady={mode === "prompt"}
-      onRunAgain={(command) => submitToLeaf(leafId, command)}
     />
   );
 }

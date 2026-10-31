@@ -20,19 +20,19 @@ import {
 } from "@/modules/agents";
 import {
   AgentRunBridge,
-  AI_WINDOW_CLOSED_EVENT,
-  AI_WINDOW_READY_EVENT,
-  flushAiWindowPrefill,
   LocalAgentNotificationsBridge,
   SelectionAskAi,
-  openAiWindow,
-  prefillAiWindow,
-  toggleAiWindow,
   useAiBootstrap,
   useAiLiveBridge,
   useChatStore,
   useSelectionAskAi,
 } from "@/modules/ai";
+import {
+  openAiPanel,
+  prefillAiPanel,
+  toggleAiPanel,
+} from "@/modules/ai/lib/aiPanel";
+import { useAiPanelStore } from "@/modules/ai/store/aiPanelStore";
 import { native } from "@/modules/ai/lib/native";
 import { CommandPalette, createCommandItems } from "@/modules/command-palette";
 import { useControlBridge } from "@/modules/control";
@@ -52,7 +52,7 @@ import {
 import { t } from "@/modules/i18n";
 import { setLspNavigator } from "@/modules/lsp";
 import type { PreviewPaneHandle } from "@/modules/preview";
-import { openSettingsWindow } from "@/modules/settings/openSettingsWindow";
+import { openSettings, registerSettingsOpener } from "@/modules/settings/openSettings";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import { setShowHidden } from "@/modules/settings/store";
 import {
@@ -149,6 +149,26 @@ const BenchBridge = __TERAX_BENCH__
   ? lazy(() => import("@/bench/BenchBridge"))
   : null;
 
+// AI 面板依赖聊天引擎（@ai-sdk/react），与 AgentRunBridge 一样按需加载。
+const AiPanel = lazy(() =>
+  import("@/modules/ai/components/AiPanel").then((m) => ({
+    default: m.AiPanel,
+  })),
+);
+
+const AI_PANEL_WIDTH_KEY = "terax.ai-panel-width";
+
+function readAiPanelWidth(): number {
+  try {
+    const raw = localStorage.getItem(AI_PANEL_WIDTH_KEY);
+    const n = raw ? Number.parseInt(raw, 10) : Number.NaN;
+    if (Number.isFinite(n) && n >= 280 && n <= 1200) return n;
+  } catch {
+    /* ignore */
+  }
+  return 420;
+}
+
 export default function App() {
   const {
     tabs,
@@ -179,6 +199,8 @@ export default function App() {
     openGitDiffTab,
     openCommitHistoryTab,
     openCommitFileDiffTab,
+    openSettingsTab,
+    setSettingsSection,
     closeTab,
     closeTabs,
     updateTab,
@@ -367,6 +389,13 @@ export default function App() {
 
   const { hasComposer } = useAiBootstrap();
 
+  const aiPanelOpen = useAiPanelStore((s) => s.open);
+  const closeAiPanel = useCallback(
+    () => useAiPanelStore.getState().closePanel(),
+    [],
+  );
+  const aiPanelWidthRef = useRef(readAiPanelWidth());
+
   const activeTab = tabs.find((t) => t.id === activeId);
   const isTerminalTab = activeTab?.kind === "terminal";
   const isEditorTab = activeTab?.kind === "editor";
@@ -548,34 +577,29 @@ export default function App() {
 
   const openAi = useCallback(() => {
     if (!hasComposer) {
-      void openSettingsWindow("models");
+      openSettings("models");
       return;
     }
-    void openAiWindow();
+    openAiPanel();
   }, [hasComposer]);
 
   const toggleAi = useCallback(() => {
     if (!hasComposer) {
-      void openSettingsWindow("models");
+      openSettings("models");
       return;
     }
-    void toggleAiWindow();
+    toggleAiPanel();
   }, [hasComposer]);
 
+  // 设置页以主窗口 tab 形式打开；深层组件通过注册表调用。
   useEffect(() => {
-    const ready = listen(AI_WINDOW_READY_EVENT, flushAiWindowPrefill);
-    const closed = listen(AI_WINDOW_CLOSED_EVENT, () => {
-      useChatStore.getState().closeAiWindow();
-    });
-    return () => {
-      void ready.then((fn) => fn());
-      void closed.then((fn) => fn());
-    };
-  }, []);
+    registerSettingsOpener(openSettingsTab);
+    return () => registerSettingsOpener(null);
+  }, [openSettingsTab]);
 
   const handleAttachFileToAgent = useCallback(
     (path: string) => {
-      prefillAiWindow({ attachmentPaths: [path] });
+      prefillAiPanel({ attachmentPaths: [path] });
     },
     [],
   );
@@ -588,7 +612,7 @@ export default function App() {
     }
     const source: "terminal" | "editor" =
       activeTab?.kind === "editor" ? "editor" : "terminal";
-    prefillAiWindow({ selection: { text: selection.trim(), source } });
+    prefillAiPanel({ selection: { text: selection.trim(), source } });
   }, [activeTab, captureActiveSelection, openAi]);
 
   const { askPopup, setAskPopup, onAskFromSelection } = useSelectionAskAi({
@@ -933,7 +957,7 @@ export default function App() {
         const t = nextAttentionTarget();
         if (t) activateAgentTarget(t.tabId, t.leafId);
       },
-      "settings.open": () => void openSettingsWindow(),
+      "settings.open": () => void openSettings(),
       "sidebar.toggle": toggleSidebar,
       "explorer.focus": toggleExplorerFocus,
       "explorer.toggleHidden": toggleHiddenFiles,
@@ -1257,8 +1281,8 @@ export default function App() {
             toggleHiddenFiles,
             toggleAi,
             askAiSelection: askFromSelection,
-            openSettings: () => void openSettingsWindow(),
-            openKeyboardShortcuts: () => void openSettingsWindow("shortcuts"),
+            openSettings: () => void openSettings(),
+            openKeyboardShortcuts: () => void openSettings("shortcuts"),
             spaces: useSpaces.getState().spaces,
             activeSpaceId,
             openSpacesOverview: () => setSwitcherOpen(true),
@@ -1348,17 +1372,6 @@ export default function App() {
     return () => setLspNavigator(null);
   }, [openContentHit]);
 
-  const insertHistoryCommand = useMemo(
-    () =>
-      isTerminalTab && activeLeafId !== null
-        ? (cmd: string) => {
-            writeToSession(activeLeafId, cmd);
-            terminalRefs.current.get(activeLeafId)?.focus();
-          }
-        : null,
-    [isTerminalTab, activeLeafId],
-  );
-
   useAiLiveBridge({
     setLive,
     activeId,
@@ -1413,7 +1426,7 @@ export default function App() {
               onOpenCommandPalette={() => openCommandPalette("commands")}
               onActivateAgent={onActivateAgent}
               onActivateLocalAgent={onActivateLocalAgent}
-              onOpenSettings={() => void openSettingsWindow()}
+              onOpenSettings={() => void openSettings()}
               spaceSwitcher={spaceSwitcher}
               searchTarget={searchTarget}
               searchRef={searchInlineRef}
@@ -1501,7 +1514,11 @@ export default function App() {
                 </div>
               </ResizablePanel>
               <ResizableHandle className="w-1 rounded-full bg-transparent transition-colors duration-[var(--dur-fast)] after:w-4 hover:bg-border" />
-              <ResizablePanel id="workspace" defaultSize="78%" minSize="30%">
+              <ResizablePanel
+                id="workspace"
+                defaultSize="78%"
+                minSize="30%"
+              >
                 <div className="h-full min-h-0 pl-0.5 pr-2">
                   <div className="terax-pane flex h-full min-h-0 flex-col">
                     <div className="relative min-h-0 flex-1">
@@ -1525,11 +1542,47 @@ export default function App() {
                         onOpenCommitFile={openCommitFileDiffTab}
                         onGitHistorySearchHandle={setGitHistoryHandle}
                         onSetMarkdownView={setMarkdownView}
+                        onSettingsSectionChange={(section) => {
+                          const settings = tabs.find(
+                            (t) => t.kind === "settings",
+                          );
+                          if (settings) {
+                            setSettingsSection(settings.id, section);
+                          }
+                        }}
                       />
                     </div>
                   </div>
                 </div>
               </ResizablePanel>
+              {aiPanelOpen && hasComposer ? (
+                <>
+                  <ResizableHandle className="w-1 rounded-full bg-transparent transition-colors duration-[var(--dur-fast)] after:w-4 hover:bg-border" />
+                  <ResizablePanel
+                    id="ai-panel"
+                    defaultSize={`${aiPanelWidthRef.current}px`}
+                    minSize="280px"
+                    onResize={(size) => {
+                      try {
+                        localStorage.setItem(
+                          AI_PANEL_WIDTH_KEY,
+                          String(size.inPixels),
+                        );
+                      } catch {
+                        /* ignore */
+                      }
+                    }}
+                  >
+                    <div className="h-full min-h-0 pr-2">
+                      <div className="terax-pane h-full min-h-0 overflow-hidden">
+                        <Suspense fallback={null}>
+                          <AiPanel onClose={closeAiPanel} />
+                        </Suspense>
+                      </div>
+                    </div>
+                  </ResizablePanel>
+                </>
+              ) : null}
             </ResizablePanelGroup>
           </main>
 
@@ -1593,7 +1646,6 @@ export default function App() {
             commandItems={commandPaletteItems}
             workspaceRoot={explorerRoot}
             onOpenContentHit={openContentHit}
-            insertCommand={insertHistoryCommand}
           />
 
           <NewEditorDialog
