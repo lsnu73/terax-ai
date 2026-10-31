@@ -42,7 +42,7 @@ AiPanelComposer.submit
 | `src/modules/ai/components/AgentRunBridge.tsx` | 主窗口聊天桥 | 持有唯一 Chat、agentMeta、持久化、AI diff tab 管理；审批待决时自动开面板 |
 | `src/app/App.tsx` | 布局与快捷键接线 | 右侧 ResizablePanel、宽度持久化、`registerSettingsOpener` |
 
-已删除：`src/ai/`、`ai.html`、`src/modules/ai/lib/aiWindow.ts`、`aiWindowBridge.ts`、`src-tauri/src/modules/ai_window.rs` 及 `open_ai_window` / `close_ai_window` 命令。
+已删除（不再存在，仅作历史记录）：src/ai/、ai.html、src/modules/ai/lib/aiWindow.ts、aiWindowBridge.ts、src-tauri/src/modules/ai_window.rs，以及 open_ai_window / close_ai_window 命令。
 
 ## 4. 数据流与关键流程
 
@@ -72,3 +72,4 @@ AiPanelComposer.submit
 - 2026-10-30：以独立原生窗口形态建立，建立单聊天引擎跨 Webview 快照桥。
 - 2026-10-31：角色/模型/上下文切换移入元信息行并新增执行审批模式；窗口挂主窗口 parent。
 - 2026-10-31：窗口打开慢（WebView 冷启动为框架固有成本）→ 迁入主窗口右侧面板；删除原生窗口、ai.html 与跨窗口快照/命令桥，改为同 webview 直连 Chat。
+- 2026-10-31：修复三处 UI 缺陷：①审批模式下拉无法切换——`src/modules/settings/store.ts` 的 `onPreferencesChange` 映射表漏登记 `aiApprovalMode`，写入偏好后 `usePreferencesStore` 收不到变更（新增 `[KEY_AI_APPROVAL_MODE]` 映射）；②空态打开时输入框被撑到最大高度——挂载首帧面板宽度未定型导致 scrollHeight 虚高（`AiComposerInput` 空值时还原 CSS 单行高度，并以 ResizeObserver 在宽度变化后重测）；③长回答从输入框下方穿过且无法滚动——聊天区包装层非 flex 容器，`Conversation` 的 `flex-1` 失效（包装层改 `flex min-h-0 flex-1 flex-col`，`Conversation` 补 `min-h-0`）。

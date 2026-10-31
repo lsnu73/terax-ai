@@ -1,6 +1,6 @@
 import { Popover, PopoverAnchor } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import { useWorkspaceFiles } from "../hooks/useWorkspaceFiles";
 import { useComposer } from "../lib/composer";
@@ -83,9 +83,7 @@ export function AiComposerInput({
     return () => window.clearTimeout(t);
   }, [fileTrigger]);
 
-  useEffect(() => {
-    autoresize(c.textareaRef.current);
-  }, [c.value, c.textareaRef]);
+  useComposerAutoResize(c.textareaRef, c.value);
 
   const updateTrigger = () => {
     const el = c.textareaRef.current;
@@ -288,6 +286,36 @@ export function AiComposerInput({
 
 function autoresize(el: HTMLTextAreaElement | null) {
   if (!el) return;
+  // 空输入直接回到 CSS 单行高度，不测 scrollHeight：面板挂载首帧
+  // 宽度尚未定型（react-resizable-panels 异步布局），过窄宽度会让
+  // 占位符折行、scrollHeight 虚高，把空输入框一次性撑到最大高度。
+  if (el.value === "") {
+    el.style.height = "";
+    return;
+  }
   el.style.height = "auto";
-  el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+  el.style.height = `${Math.min(el.scrollHeight, COMPOSER_MAX_HEIGHT)}px`;
+}
+
+const COMPOSER_MAX_HEIGHT = 160;
+
+/**
+ * 面板宽度后续变化（拖拽、初次布局）时重测一次，纠正挂载首帧
+ * 在错误宽度下量出的高度。
+ */
+function useComposerAutoResize(
+  textareaRef: RefObject<HTMLTextAreaElement | null>,
+  value: string,
+) {
+  useEffect(() => {
+    autoresize(textareaRef.current);
+  }, [value, textareaRef]);
+  useEffect(() => {
+    const el = textareaRef.current;
+    const parent = el?.parentElement;
+    if (!el || !parent || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => autoresize(el));
+    observer.observe(parent);
+    return () => observer.disconnect();
+  }, [textareaRef]);
 }

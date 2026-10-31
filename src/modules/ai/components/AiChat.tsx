@@ -233,7 +233,7 @@ export function AiChatView({
   }
 
   return (
-    <Conversation>
+    <Conversation className="min-h-0">
       <ConversationContent className="gap-5 p-3">
         {messages.map((m, i) => (
           <RenderedMessage

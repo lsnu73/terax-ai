@@ -10,3 +10,4 @@
 - 2026-10-31：删除命令面板「> 搜索命令历史」模式（history.open 命令项、useCommandHistory hook、insertCommand 接线、history PaletteMode 与中英文案）；新增「命令面板」功能文档并更新 README 导航、功能覆盖度和文件反查表。
 - 2026-10-31：「独立 AI 窗口」重构为「AI 面板」（主窗口右侧，Ctrl+I 开关），设置页改为主窗口 tab——两者不再新建原生窗口；删除 ai.html、settings.html、ai_window.rs 与跨窗口快照/命令桥；新增 lore 决策并标注两条旧决策/坑的现状。
 - 2026-10-31：修订「终端命令与结果块」：修复 Ctrl+L 宿主清屏后与 ConPTY 发散（prompt 模式下宿主清屏后向 Shell 转发 `^L` 触发全屏重绘）；设置页 shell 名称改为「PowerShell 7」/「PowerShell」。更新功能文档。
+- 2026-10-31：修订「AI 面板」：修复执行审批模式无法切换（onPreferencesChange 映射表漏 aiApprovalMode，写入偏好后内存 store 不更新）；修复空态输入框被撑高（挂载首帧宽度未定型时 scrollHeight 虚高，改为空值还原 CSS 单行高度 + ResizeObserver 宽度变化重测）；修复长回答被输入框遮挡（聊天区包装层改为 flex 列，Conversation 获得 flex-1/min-h-0 约束后正常滚动）。更新功能文档。

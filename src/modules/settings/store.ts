@@ -909,6 +909,7 @@ export async function onPreferencesChange(
     [KEY_ZOOM_LEVEL]: "zoomLevel",
     [KEY_AGENT_NOTIFICATIONS]: "agentNotifications",
     [KEY_AGENT_NOTIFICATION_SOUND]: "agentNotificationSound",
+    [KEY_AI_APPROVAL_MODE]: "aiApprovalMode",
     [KEY_AGENT_LAUNCH_COMMANDS]: "agentLaunchCommands",
     [KEY_DEFAULT_WORKSPACE_ENV]: "defaultWorkspaceEnv",
     [KEY_SHORTCUTS]: "shortcuts",

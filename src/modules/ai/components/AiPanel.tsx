@@ -173,7 +173,9 @@ function AiPanelSession({
             </button>
           </div>
         ) : null}
-        <div className="min-h-0 flex-1">
+        {/* 必须是 flex 列：Conversation 的 flex-1 只在 flex 父级下生效，
+            否则消息列表高度随内容增长、从输入框下方穿过且无法滚动。 */}
+        <div className="flex min-h-0 flex-1 flex-col">
           {!chat ? (
             <div className="flex h-full items-center justify-center gap-2 text-xs text-muted-foreground">
               <Spinner className="size-3" />
