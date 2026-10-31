@@ -102,6 +102,7 @@ type GhosttyStartupTimings = {
 const sessions = new Map<number, GhosttySession>();
 const textEncoder = new TextEncoder();
 const oscClipboard = new LatestClipboardWrite(writeTerminalClipboard);
+const IS_WINDOWS = /Windows/.test(navigator.userAgent);
 
 type Options = {
   leafId: number;
@@ -323,8 +324,18 @@ export function submitToGhosttySession(leafId: number, text: string): boolean {
 export function clearGhosttySession(leafId: number): boolean {
   const session = sessions.get(leafId);
   if (!session?.model || session.disposed) return false;
-  ghosttyBlocks(leafId)?.controller?.clear();
+  const blocks = ghosttyBlocks(leafId);
+  const atPrompt = blocks?.controller?.mode === "prompt";
+  blocks?.controller?.clear();
   session.model.clear();
+  // ConPTY keeps its own screen buffer: after a host-side wipe it still
+  // renders the next keystrokes at its old absolute cursor row, so the
+  // command lands mid-screen with no prompt text. Forwarding ^L while the
+  // shell sits at a prompt makes PSReadLine's Clear-Host wipe ConPTY's
+  // buffer and emit a full repaint that both sides agree on.
+  if (atPrompt && IS_WINDOWS) {
+    session.writer.enqueue(textEncoder.encode("\x0c"));
+  }
   focusGhosttySession(leafId);
   return true;
 }
@@ -846,6 +857,12 @@ function createGhosttyInput(
   model: GhosttyTerminalModelApi,
   surface: GhosttySurface,
 ): GhosttyInputController {
+  // PSReadLine's Ctrl+L clear makes ConPTY follow up with a full-screen
+  // repaint in absolute coordinates that no longer matches this side's
+  // buffer, scattering command output across blank rows. Clear host-side
+  // instead while the shell sits at a prompt; clearGhosttySession then
+  // forwards ^L so ConPTY's buffer is wiped and repainted to match.
+  // Foreground programs still receive the keystroke untouched.
   return new GhosttyInputController({
     model,
     input: surface.inputElement(),
@@ -864,6 +881,21 @@ function createGhosttyInput(
       if (!text) return false;
       void writeTerminalClipboard(text).catch(() => {});
       return true;
+    },
+    onKeyDown: (event) => {
+      if (
+        IS_WINDOWS &&
+        event.ctrlKey &&
+        !event.shiftKey &&
+        !event.altKey &&
+        !event.metaKey &&
+        event.code === "KeyL" &&
+        ghosttyBlocks(session.leafId)?.getMode() === "prompt"
+      ) {
+        clearGhosttySession(session.leafId);
+        return true;
+      }
+      return false;
     },
   });
 }

@@ -830,11 +830,11 @@ mod windows {
 
         let mut out = Vec::new();
         if let Some(p) = super::which_in_path("pwsh.exe") {
-            add(&mut out, "PowerShell", p, true);
+            add(&mut out, "PowerShell 7", p, true);
         } else if let Some(pf) = std::env::var_os("ProgramFiles").map(PathBuf::from) {
             add(
                 &mut out,
-                "PowerShell",
+                "PowerShell 7",
                 pf.join("PowerShell").join("7").join("pwsh.exe"),
                 true,
             );
@@ -845,7 +845,7 @@ mod windows {
             .join("System32");
         add(
             &mut out,
-            "Windows PowerShell",
+            "PowerShell",
             system32
                 .join("WindowsPowerShell")
                 .join("v1.0")
