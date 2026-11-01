@@ -155,6 +155,11 @@ export type AiConfig = {
   providers: ProviderEntry[];
   /** 用户在设置页覆盖过的提示词文本；只在实际修改后才写入。 */
   prompts?: SystemPromptOverrides;
+  /**
+   * 用户在设置页覆盖的「AI 生成 Git 提交信息」系统提示词。
+   * 缺省使用内置文本；只在实际修改后才写入。
+   */
+  commitMessagePrompt?: string;
 };
 
 /** 已解析的 (Provider, Model) 组合，交给 UI 与请求链路使用。 */

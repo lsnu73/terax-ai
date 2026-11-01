@@ -21,6 +21,7 @@ import {
   agentDisplay,
 } from "@/modules/ai/components/AgentSwitcher";
 import {
+  BUILTIN_COMMIT_MESSAGE_PROMPT,
   type AiConfig,
   builtinSystemPrompt,
   type SystemPromptKind,
@@ -99,6 +100,8 @@ export function AgentsSection() {
       />
 
       <PromptsBlock />
+
+      <CommitPromptBlock />
 
       <section className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
@@ -792,6 +795,100 @@ function PromptsBlock() {
 
         <p className="text-[10.5px] text-muted-foreground">
           {t("settings.agents.prompts.layersPointer")}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 提交信息提示词管理：源代码管理面板「生成提交信息」按钮使用的系统提示词。
+ * 与 PromptsBlock 同一套交互：草稿在本地编辑，点「保存」写入配置文件的
+ * commitMessagePrompt 覆盖；「恢复默认提示词」删除覆盖回到内置文本。
+ */
+function CommitPromptBlock() {
+  const { t } = useTranslation();
+  const config = useAiConfigStore((s) => s.config);
+  const replace = useAiConfigStore((s) => s.replace);
+  const overrideText = config.commitMessagePrompt;
+  // 草稿绑定到当时的覆盖文本;外部重载/保存成功后基准变化,草稿自动失效
+  const [edit, setEdit] = useState<{
+    base: string | undefined;
+    text: string;
+  } | null>(null);
+
+  const draft = edit && edit.base === overrideText ? edit.text : null;
+  const shownText = draft ?? overrideText ?? BUILTIN_COMMIT_MESSAGE_PROMPT;
+  const overridden = !!overrideText?.trim();
+  const dirty =
+    draft !== null && draft !== (overrideText ?? BUILTIN_COMMIT_MESSAGE_PROMPT);
+
+  const writePrompt = async (value: string | undefined) => {
+    const next: AiConfig = { ...config };
+    if (value?.trim()) next.commitMessagePrompt = value;
+    else delete next.commitMessagePrompt;
+    await replace(next);
+  };
+
+  const save = async () => {
+    if (draft === null) return;
+    await writePrompt(draft);
+  };
+
+  const restore = async () => {
+    await writePrompt(undefined);
+    setEdit(null);
+  };
+
+  return (
+    <div className="flex flex-col gap-3">
+      <span className="flex items-center gap-1">
+        <Label>{t("settings.agents.commitPrompt.label")}</Label>
+        <InfoHint text={t("settings.agents.commitPrompt.info")} />
+      </span>
+      <div className="flex flex-col gap-2.5 rounded-lg border border-border/60 bg-card/60 px-3 py-2.5">
+        <div className="flex items-center justify-end gap-1.5">
+          {overridden ? (
+            <span className="mr-auto text-[9px] text-primary">
+              {t("settings.agents.prompts.edited")}
+            </span>
+          ) : null}
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!overridden}
+            onClick={() => void restore()}
+            className="h-7 gap-1.5 px-2.5 text-[11px]"
+          >
+            <HugeiconsIcon
+              icon={ArrowTurnBackwardIcon}
+              size={12}
+              strokeWidth={2}
+            />
+            {t("settings.agents.commitPrompt.restore")}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!dirty}
+            onClick={() => void save()}
+            className="h-7 px-2.5 text-[11px]"
+          >
+            {t("settings.agents.commitPrompt.save")}
+          </Button>
+        </div>
+
+        <Textarea
+          value={shownText}
+          onChange={(e) =>
+            setEdit({ base: overrideText, text: e.target.value })
+          }
+          spellCheck={false}
+          className="max-h-48 min-h-24 overflow-y-hidden font-mono text-[10.5px] leading-relaxed focus:overflow-y-auto"
+        />
+
+        <p className="text-[10.5px] text-muted-foreground">
+          {t("settings.agents.commitPrompt.pointer")}
         </p>
       </div>
     </div>

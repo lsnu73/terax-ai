@@ -9,7 +9,9 @@ import { useChatStore } from "@/modules/ai/store/chatStore";
 import {
   modelSupportsTemperature,
   providerNeedsKey,
+  selectCommitMessagePrompt,
   tryResolveModel,
+  useAiConfigStore,
 } from "@/modules/ai/config";
 import {
   invalidateDiff,
@@ -30,8 +32,6 @@ const COMMIT_MESSAGE_MAX_OUTPUT_TOKENS = 1024;
 const RECONCILE_DEBOUNCE_MS = 180;
 const CONVENTIONAL_PREFIX =
   /^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([^)]+\))?: .+/;
-const COMMIT_MESSAGE_SYSTEM_PROMPT =
-  "You write concise Conventional Commit subject lines in English. Return exactly one complete line, with no markdown, no quotes, no body, and no explanation.";
 
 type DiffSelection = {
   path: string;
@@ -861,9 +861,12 @@ export function useSourceControlPanel(
         chatState.apiKeys,
         { effortLevelId },
       );
+      const systemPrompt = selectCommitMessagePrompt(
+        useAiConfigStore.getState().config.commitMessagePrompt,
+      );
       const result = await generateText({
         model,
-        system: COMMIT_MESSAGE_SYSTEM_PROMPT,
+        system: systemPrompt,
         prompt: buildCommitMessagePrompt(stagedEntries, diffText, truncated),
         maxOutputTokens: COMMIT_MESSAGE_MAX_OUTPUT_TOKENS,
         ...(selectedModelSupportsTemperature ? { temperature: 0.2 } : {}),
@@ -872,7 +875,7 @@ export function useSourceControlPanel(
       if (!isValidCommitMessage(message)) {
         const repair = await generateText({
           model,
-          system: COMMIT_MESSAGE_SYSTEM_PROMPT,
+          system: systemPrompt,
           prompt: buildRepairCommitMessagePrompt(message, stagedEntries),
           maxOutputTokens: COMMIT_MESSAGE_MAX_OUTPUT_TOKENS,
           ...(selectedModelSupportsTemperature ? { temperature: 0 } : {}),

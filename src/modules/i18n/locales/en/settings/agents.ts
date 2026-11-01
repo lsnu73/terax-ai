@@ -26,6 +26,14 @@ export const settingsAgents = {
     layersPointer:
       'The "Custom instructions", "Roles" and "Snippets" on this page are appended after the base prompt and are not affected by what you replace here.',
   },
+  commitPrompt: {
+    label: "Commit message prompt",
+    info: 'The system prompt used by the "Generate commit message" button in the source control panel. View, edit and restore to the built-in default anytime; changes apply to the next generation after saving.',
+    save: "Save",
+    restore: "Restore default prompt",
+    pointer:
+      "This prompt only constrains the output to one Conventional Commit subject line; the staged files and diff are attached automatically at generation time.",
+  },
   customInstructions: {
     label: "Custom instructions",
     placeholder:

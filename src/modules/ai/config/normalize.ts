@@ -126,7 +126,8 @@ function normalizeEffort(
   legacy: unknown,
   warnings: string[],
 ): EffortConfig | null {
-  const config = normalizeEffortShape(raw) ?? migrateLegacyThinking(legacy, warnings);
+  const config =
+    normalizeEffortShape(raw) ?? migrateLegacyThinking(legacy, warnings);
   return config;
 }
 
@@ -146,7 +147,7 @@ function normalizeEffortShape(raw: unknown): EffortConfig | null {
     levels.push({
       id,
       label: str(item.label) || id,
-      value: value === undefined ? null : jsonValue(value) ?? null,
+      value: value === undefined ? null : (jsonValue(value) ?? null),
     });
   }
   if (levels.length === 0) return null;
@@ -203,10 +204,7 @@ function migrateLegacyThinking(
   };
 }
 
-function normalizeModel(
-  raw: unknown,
-  warnings: string[],
-): ModelEntry | null {
+function normalizeModel(raw: unknown, warnings: string[]): ModelEntry | null {
   if (!isRec(raw)) return null;
   const id = str(raw.id).trim();
   if (!id) return null;
@@ -400,6 +398,7 @@ export function normalizeAiConfig(raw: unknown): NormalizeResult {
       if (text.trim()) prompts[kind] = text;
     }
   }
+  const commitMessagePrompt = str(raw.commitMessagePrompt);
 
   return {
     config: {
@@ -410,6 +409,7 @@ export function normalizeAiConfig(raw: unknown): NormalizeResult {
       },
       providers,
       ...(Object.keys(prompts).length > 0 ? { prompts } : {}),
+      ...(commitMessagePrompt.trim() ? { commitMessagePrompt } : {}),
     },
     warnings,
     empty: providers.length === 0,

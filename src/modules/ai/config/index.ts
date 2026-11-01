@@ -21,8 +21,10 @@ export {
   writeAiConfig,
 } from "./persist";
 export {
+  BUILTIN_COMMIT_MESSAGE_PROMPT,
   builtinSystemPrompt,
   MAX_AGENT_STEPS,
+  selectCommitMessagePrompt,
   selectSystemPrompt,
   TOOL_PROTOCOL_TAIL,
 } from "./prompts";

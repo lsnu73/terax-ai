@@ -39,6 +39,10 @@
         }
       }
     },
+    "commitMessagePrompt": {
+      "type": "string",
+      "description": "User-edited system prompt for AI-generated Git commit messages (Settings > AI behavior). Absent uses the built-in text."
+    },
     "providers": {
       "type": "array",
       "items": { "$ref": "#/$defs/provider" }

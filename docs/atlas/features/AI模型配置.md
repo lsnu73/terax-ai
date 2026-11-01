@@ -62,7 +62,7 @@ chatRuntime.getEffortLevelId -> runAgentStream(effortLevelId)
 ## 5. 对外接口
 
 - 用户接口：设置 → 模型（Provider 卡片「高级」折叠区、模型行编辑器）、Ctrl+I 模型选择窗底部思考强度滑条。
-- 数据契约：`src/modules/ai/config/types.ts`（`AiConfig` / `ProviderEntry` / `ModelEntry` / `ParamDef` / `EffortConfig`）。
+- 数据契约：`src/modules/ai/config/types.ts`（`AiConfig` / `ProviderEntry` / `ModelEntry` / `ParamDef` / `EffortConfig`；`AiConfig.commitMessagePrompt` 为提交信息提示词覆盖，见 [AI提交信息生成](AI提交信息生成.md)）。
 - 偏好键：`effortLevelByModel`（存储键名为历史遗留的 `thinkingLevelByModel`）。
 
 ## 6. 已知限制与注意事项

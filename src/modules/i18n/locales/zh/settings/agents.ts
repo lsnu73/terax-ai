@@ -28,6 +28,14 @@ export const settingsAgentsZh: typeof settingsAgents = {
     layersPointer:
       "本页的“自定义指令”“角色”与“片段”会追加在基础提示词之后，不受这里的替换影响。",
   },
+  commitPrompt: {
+    label: "提交信息提示词",
+    info: "源代码管理面板「生成提交信息」按钮使用的系统提示词。可查看、修改并随时恢复内置默认；保存后对下一次生成生效。",
+    save: "保存",
+    restore: "恢复默认提示词",
+    pointer:
+      "该提示词只负责约束输出一行 Conventional Commit 主题行；生成时会自动附上已暂存文件与 diff。",
+  },
   customInstructions: {
     label: "自定义指令",
     placeholder:

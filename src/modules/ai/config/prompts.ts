@@ -101,3 +101,16 @@ export function selectSystemPrompt(
   const edited = overrides?.[kind]?.trim();
   return edited ? (overrides?.[kind] ?? "") : builtinSystemPrompt(kind);
 }
+
+/**
+ * AI 生成 Git 提交信息使用的系统提示词（源代码管理面板的「生成提交信息」）。
+ * 与上面的会话提示词相互独立：它只约束输出一行 Conventional Commit 主题行。
+ */
+export const BUILTIN_COMMIT_MESSAGE_PROMPT =
+  "You write concise Conventional Commit subject lines in English. Return exactly one complete line, with no markdown, no quotes, no body, and no explanation.";
+
+/** 解析提交信息提示词：优先取用户覆盖文本，否则用内置文本。 */
+export function selectCommitMessagePrompt(override?: string): string {
+  const edited = override?.trim();
+  return edited ? (override ?? "") : BUILTIN_COMMIT_MESSAGE_PROMPT;
+}

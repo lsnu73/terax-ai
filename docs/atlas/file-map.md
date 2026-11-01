@@ -77,6 +77,9 @@
 | `src/modules/terminal/path-history/PathHistoryDialog.tsx` | [终端路径历史](features/终端路径历史.md) | 无 | Ctrl+E 最近路径弹窗 |
 | `src/modules/command-palette/lib/mode.ts` | [终端路径历史](features/终端路径历史.md) | [命令面板](features/命令面板.md) | 面板 `>` 前缀路径模式解析 |
 | `src/modules/i18n/locales/zh/settings/models.ts` | [AI模型配置](features/AI模型配置.md) | 中文文案 | 与英文词典同构 |
+| `src/modules/source-control/useSourceControlPanel.ts` | [AI提交信息生成](features/AI提交信息生成.md) | 源代码管理 | 生成流程编排与 Conventional 校验/修复重试 |
+| `src/modules/ai/config/prompts.ts` | [AI提交信息生成](features/AI提交信息生成.md) | [AI模型配置](features/AI模型配置.md) | 内置提示词全文与取值（会话 full/lite + 提交信息） |
+| `src/settings/sections/AgentsSection.tsx` | [AI提交信息生成](features/AI提交信息生成.md) | 设置页（主窗口 tab） | AI 行为：系统提示词管理 + 提交信息提示词模块 |
 | `src/modules/settings/openSettings.ts` | 设置页（主窗口 tab） | [AI面板](features/AI面板.md) | 设置 tab 打开注册表，深层组件经此调用 |
 | `src/settings/sections/ShortcutsSection.tsx` | [撤销终端窗格拆分](features/撤销终端窗格拆分.md) | [终端命令与结果块](features/终端命令与结果块.md)、快捷键自定义 | 保存用户覆盖键位并警告 Ctrl+R 冲突 |
 | `src/modules/command-palette/CommandPalette.tsx` | [命令面板](features/命令面板.md) | 主题切换 | 面板 UI、查询模式分流与主题预览 |
