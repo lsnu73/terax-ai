@@ -35,6 +35,13 @@ export const terminal = {
       "Waiting for the terminal connection. Delivery will resume automatically.",
     retry: "Retry",
   },
+  psReadline: {
+    missingTitle: "PowerShell is missing PSReadLine",
+    missingDescription:
+      "This PowerShell cannot report where commands start, so command blocks (grouping, copy, rerun) stay off. Installing PSReadLine enables them.",
+    missingAction: "Copy install command",
+    installCommand: "Install-Module PSReadLine -Force -Scope CurrentUser",
+  },
   drop: {
     overlay: "Drop file path here",
   },

@@ -13,3 +13,4 @@
 - 2026-10-31：修订「AI 面板」：修复执行审批模式无法切换（onPreferencesChange 映射表漏 aiApprovalMode，写入偏好后内存 store 不更新）；修复空态输入框被撑高（挂载首帧宽度未定型时 scrollHeight 虚高，改为空值还原 CSS 单行高度 + ResizeObserver 宽度变化重测）；修复长回答被输入框遮挡（聊天区包装层改为 flex 列，Conversation 获得 flex-1/min-h-0 约束后正常滚动）。更新功能文档。
 - 2026-10-31：新增「AI 模型配置」功能文档（params 收敛为静态自定义请求体参数、thinking 更名 effort 并改为单参数名档位制），登记 11 个文件到 file-map；修复 9 处 STALE 引用（命令面板 fuzzy、终端块 shell_init、AI 面板已删除文件清单、architecture 失效链接等），architecture.md 的模型配置契约链接改指新功能文档。
 - 2026-10-31：新增「终端路径历史」功能文档并修订「终端链接打开」：终端文本检测扩展到绝对路径，Ctrl/Cmd+点击在第三方文件管理器打开（Explorer 垫底），Shift+点击向终端提交 cd；目录历史按浏览器浏览记录模型记录（默认 10 条，设置可改），Ctrl+E 弹窗与命令面板 `>` 模式均可搜索并跳转。
+- 2026-11-01：修订「终端命令与结果块」：Windows PowerShell 5.1 缺少 PSReadLine 时（会话完成命令周期却从无 OSC 133;C），弹一次性提示并附可复制的安装命令；侧边栏默认快捷键收敛为 Ctrl/Cmd+Shift+B，用户自定义裸 Ctrl+B 在终端聚焦时仍让路给 shell；修正 Ctrl+E 终端外无行为的过时注释。登记 blockAnchorProbe.ts 到 file-map。

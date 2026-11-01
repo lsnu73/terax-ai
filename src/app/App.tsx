@@ -1018,8 +1018,8 @@ export default function App() {
           : null;
       if (shouldDisablePaneSwapShortcut(id, terminalPaneCount)) return true;
       if (id === "pane.undoSplit") return activeTab?.kind !== "terminal";
-      // Ctrl/E: inside a terminal tab the history picker owns the key and the
-      // new-editor dialog steps aside; outside terminals the editor keeps it.
+      // Ctrl+E: inside a terminal tab the history picker owns the key; outside
+      // terminals the key does nothing (tab.newEditor lives on Mod+Alt+E).
       if (id === "terminal.pathHistory") return activeTab?.kind !== "terminal";
       if (id === "tab.newEditor") return activeTab?.kind === "terminal";
       if (
@@ -1047,14 +1047,13 @@ export default function App() {
         return !isTerminalSurfaceTarget(target);
       }
       if (id === "sidebar.toggle") {
-        // Ctrl+B is also Claude Code's "run in background" key. While a terminal
-        // is focused, let Ctrl+B reach the shell/Claude instead of toggling the
-        // sidebar. Ctrl+Shift+B (second binding) still toggles it from anywhere.
+        // Plain Ctrl+B is readline's backward-char and Claude Code's "run in
+        // background" key. It is no longer a default sidebar binding, but a
+        // user-assigned plain Ctrl+B still defers to the shell while a
+        // terminal is focused; Shift variants toggle from anywhere.
         const target =
           (e.target as HTMLElement | null) ?? document.activeElement;
         const inTerminal = isTerminalSurfaceTarget(target);
-        // Only defer the plain (no-shift) Ctrl/⌘+B binding; the Shift variant
-        // is the always-on toggle and is never claimed by the terminal.
         return inTerminal && !e.shiftKey;
       }
       return false;

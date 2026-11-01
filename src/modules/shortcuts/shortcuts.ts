@@ -210,9 +210,9 @@ export const SHORTCUTS: Shortcut[] = [
     id: "terminal.pathHistory",
     labelKey: "shortcuts.terminal.pathHistory",
     group: "Terminal",
-    // Ctrl/Cmd+E. Claimed from tab.newEditor while a terminal tab is active
-    // (see App's shortcutsDisabled): the history picker only makes sense with
-    // a terminal, and outside terminals Ctrl+E still opens a new editor tab.
+    // Ctrl/Cmd+E. Only fires while a terminal tab is active (see App's
+    // shortcutsDisabled); elsewhere the key does nothing. tab.newEditor moved
+    // to Mod+Alt+E when this action claimed Ctrl+E.
     defaultBindings: [{ [MOD_PROP]: true, key: "e" }],
   },
   {
@@ -298,13 +298,12 @@ export const SHORTCUTS: Shortcut[] = [
     id: "sidebar.toggle",
     labelKey: "shortcuts.sidebar.toggle",
     group: "View",
-    // Plain Mod+B toggles the sidebar everywhere EXCEPT a focused terminal,
-    // where it's handed to the shell / Claude Code (its "run in background"
-    // key). Mod+Shift+B always toggles, including from inside a terminal.
-    defaultBindings: [
-      { [MOD_PROP]: true, key: "b" },
-      { [MOD_PROP]: true, shift: true, key: "b" },
-    ],
+    // Mod+Shift+B toggles the sidebar everywhere, including a focused
+    // terminal. Plain Mod+B is deliberately not a default: it is readline's
+    // backward-char and Claude Code's "run in background" key, so the
+    // terminal keeps it (App's shortcutsDisabled also defers any
+    // user-assigned plain Mod+B binding while a terminal is focused).
+    defaultBindings: [{ [MOD_PROP]: true, shift: true, key: "b" }],
   },
   {
     id: "explorer.focus",

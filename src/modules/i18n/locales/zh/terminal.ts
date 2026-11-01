@@ -34,6 +34,13 @@ export const terminalZh: typeof terminal = {
     outputStalledDescription: "正在等待终端连接。输出将自动恢复传送。",
     retry: "重试",
   },
+  psReadline: {
+    missingTitle: "此 PowerShell 缺少 PSReadLine",
+    missingDescription:
+      "该 PowerShell 无法报告命令的开始位置，命令块（分组、复制、重新运行）因此不可用。安装 PSReadLine 后即可启用。",
+    missingAction: "复制安装命令",
+    installCommand: "Install-Module PSReadLine -Force -Scope CurrentUser",
+  },
   drop: {
     overlay: "将文件路径放到此处",
   },

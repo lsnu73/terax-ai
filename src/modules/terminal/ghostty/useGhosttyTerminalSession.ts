@@ -17,8 +17,11 @@ import { useTerminalFont } from "@/modules/terminal/lib/useTerminalFont";
 import { cdTerminalLeafTo } from "@/modules/terminal/lib/terminalCd";
 import type { TerminalSearchController } from "@/modules/terminal/search/TerminalSearchController";
 import { invoke } from "@tauri-apps/api/core";
+import { t } from "@/modules/i18n";
+import { toast } from "sonner";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { openPty, type PtySession } from "../lib/pty-bridge";
+import { BlockCommandAnchorProbe } from "../lib/blockAnchorProbe";
 import { writeTerminalClipboard } from "../lib/terminalClipboard";
 import { LatestClipboardWrite } from "@/modules/terminal/lib/LatestClipboardWrite";
 import { GhosttySemanticEventRouter } from "./core/GhosttySemanticEventRouter";
@@ -105,6 +108,9 @@ const sessions = new Map<number, GhosttySession>();
 const textEncoder = new TextEncoder();
 const oscClipboard = new LatestClipboardWrite(writeTerminalClipboard);
 const IS_WINDOWS = /Windows/.test(navigator.userAgent);
+// The missing-PSReadLine hint fires once per app run: another terminal tab
+// reproduces the same condition and must not nag again.
+let psReadlineWarningShown = false;
 
 type Options = {
   leafId: number;
@@ -649,6 +655,7 @@ async function initializeSessionGeneration(
   ]);
   if (!alive()) return;
 
+  const anchorProbe = new BlockCommandAnchorProbe();
   const semanticEvents = new GhosttySemanticEventRouter({
     onCwd: (cwd) => {
       if (session.lastCwd === cwd) return;
@@ -684,6 +691,18 @@ async function initializeSessionGeneration(
     onReply: (bytes) => session.writer.enqueue(bytes),
     onEvent: (event) => {
       semanticEvents.handle(event);
+      if (
+        event.type === "prompt-start" ||
+        event.type === "prompt-end" ||
+        event.type === "end-of-input" ||
+        event.type === "end-of-command"
+      ) {
+        anchorProbe.handle(event.type);
+        if (IS_WINDOWS && !psReadlineWarningShown && anchorProbe.commandAnchorMissing) {
+          psReadlineWarningShown = true;
+          void warnMissingPsReadline();
+        }
+      }
       ghosttyBlocks(session.leafId)?.controller?.handle(
         event,
         session.lastCwd ?? session.initialCwd ?? "",
@@ -920,6 +939,35 @@ function createGhosttyInput(
 
 export function focusGhosttySession(leafId: number): void {
   sessions.get(leafId)?.surface?.focus();
+}
+
+/**
+ * A Windows PowerShell session that completed a command cycle without a
+ * single command start marker is running without PSReadLine (the module that
+ * provides the hook Terax needs): tell the user how to restore block mode.
+ */
+async function warnMissingPsReadline(): Promise<void> {
+  try {
+    const override = usePreferencesStore.getState().terminalShell?.trim();
+    const shellName = override
+      ? (override.split(/[\\/]/).pop() ?? "").toLowerCase()
+      : (await invoke<string>("pty_shell_name")).toLowerCase();
+    if (shellName !== "powershell.exe" && shellName !== "powershell") return;
+    toast.warning(t("terminal.psReadline.missingTitle"), {
+      description: t("terminal.psReadline.missingDescription"),
+      duration: Number.POSITIVE_INFINITY,
+      action: {
+        label: t("terminal.psReadline.missingAction"),
+        onClick: () => {
+          void writeTerminalClipboard(
+            t("terminal.psReadline.installCommand"),
+          ).catch(() => {});
+        },
+      },
+    });
+  } catch {
+    // Diagnostics only: a failed shell-name probe must not surface.
+  }
 }
 
 /**
