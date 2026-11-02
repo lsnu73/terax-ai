@@ -25,6 +25,7 @@ Terax 是面向开发者的开源桌面开发工作区，以终端为中心，�
 | 调整撤销拆分的默认键位 | [features/撤销终端窗格拆分.md](features/撤销终端窗格拆分.md) | `src/modules/shortcuts/shortcuts.ts` |
 | 改主窗口开发者工具入口 | [features/开发者工具.md](features/开发者工具.md) | `src-tauri/src/lib.rs`, `src/app/App.tsx` |
 | 改终端 URL 的打开方式 | [features/终端链接打开.md](features/终端链接打开.md) | `src/modules/terminal/lib/terminalLinks.ts`, `src/modules/terminal/ghostty/useGhosttyTerminalSession.ts` |
+| 改输入法候选窗跟随终端光标的行为 | [features/终端输入法候选框定位.md](features/终端输入法候选框定位.md) | `src/modules/terminal/ghostty/gpu/WebGpuTerminalSurface.ts`, `src/modules/terminal/ghostty/webgl/WebGlTerminalSurface.ts` |
 | 改终端命令块、块右键菜单、块内查找或历史搜索 | [features/终端命令与结果块.md](features/终端命令与结果块.md) | `src/modules/terminal/TerminalPane.tsx`, `src/modules/header/SearchInline.tsx`, `src/modules/terminal/ghostty/search/GhosttyBlockSearchController.ts` |
 | 改标签栏、标签右键菜单或新建标签入口 | [features/标签页管理.md](features/标签页管理.md) | `src/modules/tabs/TabBar.tsx`, `src/modules/tabs/NewTabMenu.tsx`, `src/modules/tabs/lib/useTabs.ts` |
 | 改预览端口菜单或预设 | [features/预览端口管理.md](features/预览端口管理.md) | `src/modules/preview/PreviewAddressBar.tsx`, `src/modules/preview/lib/portPresets.ts` |
@@ -45,7 +46,7 @@ Terax 是面向开发者的开源桌面开发工作区，以终端为中心，�
 
 ## 当前覆盖范围
 
-首版采用种子功能法，之后按开发增量补齐。目前完整覆盖「撤销终端窗格拆分」「开发者工具」「终端链接打开」「终端路径历史」「终端命令与结果块」「标签页管理」「预览端口管理」「快捷键提示」「AI 面板」「AI 模型配置」「命令面板」「AI 提交信息生成」「设置-关于」「代理」「设置页」「通知中心」十六个功能。其他功能在 [features/_index.md](features/_index.md) 中登记为未覆盖，后续随开发补齐，不以目录名推测实现。
+首版采用种子功能法，之后按开发增量补齐。目前完整覆盖「撤销终端窗格拆分」「开发者工具」「终端链接打开」「终端输入法候选框定位」「终端路径历史」「终端命令与结果块」「标签页管理」「预览端口管理」「快捷键提示」「AI 面板」「AI 模型配置」「命令面板」「AI 提交信息生成」「设置-关于」「代理」「设置页」「通知中心」十七个功能。其他功能在 [features/_index.md](features/_index.md) 中登记为未覆盖，后续随开发补齐，不以目录名推测实现。
 
 ## 协作约定
 

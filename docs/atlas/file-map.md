@@ -41,8 +41,8 @@
 | `src/modules/terminal/lib/terminalLinks.ts` | [终端链接打开](features/终端链接打开.md) | 终端输入 | 定义链接修饰键与打开契约 |
 | `src/modules/terminal/ghostty/useGhosttyTerminalSession.ts` | [终端链接打开](features/终端链接打开.md) | [终端命令与结果块](features/终端命令与结果块.md)、终端会话与渲染 | 分流链接并为所有终端初始化块会话 |
 | `src/modules/terminal/lib/blockAnchorProbe.ts` | [终端命令与结果块](features/终端命令与结果块.md) | 终端会话与渲染 | 检测会话缺失 OSC 133;C 命令锚点（PS 5.1 无 PSReadLine 时提示安装） |
-| `src/modules/terminal/ghostty/gpu/WebGpuTerminalSurface.ts` | [终端链接打开](features/终端链接打开.md) | 终端渲染 | WebGPU 链接点击与修饰键透传 |
-| `src/modules/terminal/ghostty/webgl/WebGlTerminalSurface.ts` | [终端链接打开](features/终端链接打开.md) | 终端渲染回退 | WebGL 链接点击与修饰键透传 |
+| `src/modules/terminal/ghostty/gpu/WebGpuTerminalSurface.ts` | [终端链接打开](features/终端链接打开.md) | [终端输入法候选框定位](features/终端输入法候选框定位.md)、终端渲染 | WebGPU 链接点击、修饰键透传与输入法锚点同步 |
+| `src/modules/terminal/ghostty/webgl/WebGlTerminalSurface.ts` | [终端链接打开](features/终端链接打开.md) | [终端输入法候选框定位](features/终端输入法候选框定位.md)、终端渲染回退 | WebGL 链接点击、修饰键透传与输入法锚点同步 |
 | `src/modules/terminal/TerminalPane.tsx` | [终端命令与结果块](features/终端命令与结果块.md) | [终端链接打开](features/终端链接打开.md)、终端会话与渲染 | 选区优先、块右键命中，创建局部搜索控制器并打开共享弹窗 |
 | `src/modules/terminal/block/BlockContextMenu.tsx` | [终端命令与结果块](features/终端命令与结果块.md) | AI prefill 与剪贴板 | 六项块操作右键菜单 |
 | `src/modules/terminal/block/BlockOverlay.tsx` | [终端命令与结果块](features/终端命令与结果块.md) | 终端块展示 | 块尾分隔线、失败退出码；块清空时关闭共享搜索 |

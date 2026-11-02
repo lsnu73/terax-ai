@@ -392,6 +392,24 @@ export class WebGlTerminalSurface
     return 0;
   }
 
+  /**
+   * Moves the hidden input to the cursor cell so the IME composition window
+   * anchors at the caret instead of parking in the pane's top-left corner.
+   * `cursor` is viewport-relative, like the rect the renderer draws.
+   */
+  private syncInputCaret(
+    cursor: ReturnType<GhosttyTerminalModelApi["cursor"]>,
+  ): void {
+    const cell = this.cellSize();
+    if (cell.width <= 0 || cell.height <= 0) return;
+    const col = Math.min(Math.max(cursor.x, 0), this.options.model.cols - 1);
+    const row = Math.min(Math.max(cursor.y, 0), this.options.model.rows - 1);
+    const left = `${col * cell.width}px`;
+    const top = `${row * cell.height + this.gridShiftY()}px`;
+    if (this.input.style.left !== left) this.input.style.left = left;
+    if (this.input.style.top !== top) this.input.style.top = top;
+  }
+
   setCursorEnabled(enabled: boolean): void {
     if (this.cursorEnabled === enabled) return;
     this.cursorEnabled = enabled;
@@ -450,6 +468,7 @@ export class WebGlTerminalSurface
     this.search.refreshOverlay();
     this.updateScrollbar();
     const cursor = this.options.model.cursor();
+    this.syncInputCaret(cursor);
     this.nativeCursorVisible =
       cursor.visible &&
       cursor.x >= 0 &&
