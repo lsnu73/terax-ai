@@ -72,6 +72,7 @@ export function EditorSection() {
       <div className="flex flex-col gap-2">
         <Label>{t("settings.editor.appearance.label")}</Label>
         <SettingRow
+          searchId="editor.appearance.fontSize"
           title={t("settings.editor.appearance.fontSize.title")}
           description={t("settings.editor.appearance.fontSize.description")}
         >
@@ -100,6 +101,7 @@ export function EditorSection() {
       <div className="flex flex-col gap-2">
         <Label>{t("settings.editor.editing.label")}</Label>
         <SettingRow
+          searchId="editor.editing.vim"
           title={t("settings.editor.editing.vim.title")}
           description={t("settings.editor.editing.vim.description")}
         >
@@ -109,6 +111,7 @@ export function EditorSection() {
           />
         </SettingRow>
         <SettingRow
+          searchId="editor.editing.wordWrap"
           title={t("settings.editor.editing.wordWrap.title")}
           description={t("settings.editor.editing.wordWrap.description")}
         >
@@ -128,6 +131,7 @@ export function EditorSection() {
       <div className="flex flex-col gap-2">
         <Label>{t("settings.editor.saving.label")}</Label>
         <SettingRow
+          searchId="editor.saving.autoSave"
           title={t("settings.editor.saving.autoSave.title")}
           description={t("settings.editor.saving.autoSave.description")}
         >
@@ -143,6 +147,7 @@ export function EditorSection() {
           />
         )}
         <SettingRow
+          searchId="editor.saving.formatOnSave"
           title={t("settings.editor.saving.formatOnSave.title")}
           description={t("settings.editor.saving.formatOnSave.description")}
         >
@@ -154,6 +159,7 @@ export function EditorSection() {
         {editorFormatOnSave && (
           <>
             <SettingRow
+              searchId="editor.saving.formatter"
               title={t("settings.editor.saving.formatter.title")}
               description={t("settings.editor.saving.formatter.description")}
             >
@@ -222,6 +228,7 @@ function CustomFormatCommandInput() {
 
   return (
     <SettingRow
+      searchId="editor.saving.customCommand"
       title={t("settings.editor.saving.customCommand.title")}
       description={t("settings.editor.saving.customCommand.description")}
     >
@@ -253,6 +260,7 @@ function FormatterOverrides() {
   return (
     <>
       <SettingRow
+        searchId="editor.saving.overrides"
         title={t("settings.editor.saving.overrides.title")}
         description={t("settings.editor.saving.overrides.description")}
       >
@@ -353,6 +361,7 @@ function AutoSaveDelayInput({
 
   return (
     <SettingRow
+      searchId="editor.saving.autoSaveDelay"
       title={t("settings.editor.saving.autoSaveDelay.title")}
       description={t("settings.editor.saving.autoSaveDelay.description")}
     >
@@ -405,6 +414,7 @@ function WordWrapColumnInput({
 
   return (
     <SettingRow
+      searchId="editor.editing.wrapColumn"
       title={t("settings.editor.editing.wrapColumn.title")}
       description={t("settings.editor.editing.wrapColumn.description")}
     >

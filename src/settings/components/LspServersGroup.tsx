@@ -39,7 +39,7 @@ export function LspServersGroup() {
   const servers = allServers(customServers);
 
   return (
-    <div className="flex flex-col gap-2">
+    <div data-setting-id="editor.lsp" className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
         <Label>{t("settings.lsp.label")}</Label>
         <AddCustomServerDialog customServers={customServers} />

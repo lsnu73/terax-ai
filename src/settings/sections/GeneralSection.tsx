@@ -189,7 +189,7 @@ export function GeneralSection() {
 
       <div className="flex flex-col gap-2">
         <Label>{t("settings.general.appearance.label")}</Label>
-        <div className="grid grid-cols-3 gap-2">
+        <div data-setting-id="general.appearance" className="grid grid-cols-3 gap-2">
           {APPEARANCE.map((o) => (
             <button
               key={o.id}
@@ -208,6 +208,7 @@ export function GeneralSection() {
           ))}
         </div>
         <SettingRow
+          searchId="general.language"
           title={t("settings.general.language.title")}
           description={t("settings.general.language.description")}
         >
@@ -239,7 +240,7 @@ export function GeneralSection() {
         </p>
       </div>
 
-      <div className="flex flex-col gap-2">
+      <div data-setting-id="general.zoom" className="flex flex-col gap-2">
         <Label>{t("settings.general.zoom.label")}</Label>
         <div className="flex flex-col gap-3 rounded-lg border border-border/60 p-3">
           <div className="flex items-center justify-between gap-3">
@@ -263,6 +264,7 @@ export function GeneralSection() {
       <div className="flex flex-col gap-2">
         <Label>{t("settings.general.explorer.label")}</Label>
         <SettingRow
+          searchId="general.explorer.showHidden"
           title={t("settings.general.explorer.showHidden.title")}
           description={t("settings.general.explorer.showHidden.description")}
         >
@@ -272,6 +274,7 @@ export function GeneralSection() {
           />
         </SettingRow>
         <SettingRow
+          searchId="general.explorer.gitDecorations"
           title={t("settings.general.explorer.gitDecorations.title")}
           description={t(
             "settings.general.explorer.gitDecorations.description",
@@ -287,6 +290,7 @@ export function GeneralSection() {
       <div className="flex flex-col gap-2">
         <Label>{t("settings.general.terminal.label")}</Label>
         <SettingRow
+          searchId="general.terminal.renderer"
           title={t("settings.general.terminal.renderer.title")}
           description={t("settings.general.terminal.renderer.description")}
         >
@@ -308,6 +312,7 @@ export function GeneralSection() {
           </Select>
         </SettingRow>
         <SettingRow
+          searchId="general.terminal.screenReader"
           title={t("settings.general.terminal.screenReader.title")}
           description={t("settings.general.terminal.screenReader.description")}
         >
@@ -317,6 +322,7 @@ export function GeneralSection() {
           />
         </SettingRow>
         <SettingRow
+          searchId="general.terminal.cursorBlink"
           title={t("settings.general.terminal.cursorBlink.title")}
           description={t("settings.general.terminal.cursorBlink.description")}
         >
@@ -326,6 +332,7 @@ export function GeneralSection() {
           />
         </SettingRow>
         <SettingRow
+          searchId="general.terminal.cursorStyle"
           title={t("settings.general.terminal.cursorStyle.title")}
           description={t("settings.general.terminal.cursorStyle.description")}
         >
@@ -357,6 +364,7 @@ export function GeneralSection() {
           onCommit={(v) => void setTerminalFontFamily(v)}
         />
         <SettingRow
+          searchId="general.terminal.fontWeight"
           title={t("settings.general.terminal.fontWeight.title")}
           description={t("settings.general.terminal.fontWeight.description")}
         >
@@ -384,6 +392,7 @@ export function GeneralSection() {
           </Select>
         </SettingRow>
         <SettingRow
+          searchId="general.terminal.shell"
           title={t("settings.general.terminal.shell.title")}
           description={
             shells.find((s) => s.path === terminalShell)?.integrated === false
@@ -465,6 +474,7 @@ export function GeneralSection() {
           </SettingRow>
         )}
         <SettingRow
+          searchId="general.terminal.letterSpacing"
           title={t("settings.general.terminal.letterSpacing.title")}
           description={t(
             "settings.general.terminal.letterSpacing.description",
@@ -487,6 +497,7 @@ export function GeneralSection() {
           </Select>
         </SettingRow>
         <SettingRow
+          searchId="general.terminal.fontSize"
           title={t("settings.general.terminal.fontSize.title")}
           description={t("settings.general.terminal.fontSize.description")}
         >
@@ -511,6 +522,7 @@ export function GeneralSection() {
           </Select>
         </SettingRow>
         <SettingRow
+          searchId="general.terminal.scrollback"
           title={t("settings.general.terminal.scrollback.title")}
           description={t("settings.general.terminal.scrollback.description")}
         >
@@ -537,6 +549,7 @@ export function GeneralSection() {
           </Select>
         </SettingRow>
         <SettingRow
+          searchId="general.terminal.pathHistory"
           title={t("settings.general.terminal.pathHistory.title")}
           description={t("settings.general.terminal.pathHistory.description")}
         >
@@ -559,6 +572,7 @@ export function GeneralSection() {
           </Select>
         </SettingRow>
         <SettingRow
+          searchId="general.terminal.confirmClose"
           title={t("settings.general.terminal.confirmClose.title")}
           description={t("settings.general.terminal.confirmClose.description")}
         >
@@ -572,6 +586,7 @@ export function GeneralSection() {
       <div className="flex flex-col gap-2">
         <Label>{t("settings.general.agents.label")}</Label>
         <SettingRow
+          searchId="general.agents.notifications"
           title={t("settings.general.agents.notifications.title")}
           description={t(
             "settings.general.agents.notifications.description",
@@ -599,6 +614,7 @@ export function GeneralSection() {
           </div>
         </SettingRow>
         <SettingRow
+          searchId="general.agents.sound"
           title={t("settings.general.agents.sound.title")}
           description={t("settings.general.agents.sound.description")}
         >
@@ -614,6 +630,7 @@ export function GeneralSection() {
         <Label>{t("settings.general.startup.label")}</Label>
         <div className="flex flex-col gap-2">
           <SettingRow
+            searchId="general.startup.launchAtLogin"
             title={t("settings.general.startup.launchAtLogin.title")}
             description={t(
               "settings.general.startup.launchAtLogin.description",
@@ -625,6 +642,7 @@ export function GeneralSection() {
             />
           </SettingRow>
           <SettingRow
+            searchId="general.startup.restoreWindow"
             title={t("settings.general.startup.restoreWindow.title")}
             description={t(
               "settings.general.startup.restoreWindow.description",
@@ -713,6 +731,7 @@ function FontFamilyInput({
 
   return (
     <SettingRow
+      searchId="general.terminal.fontFamily"
       title={t("settings.general.terminal.fontFamily.title")}
       description={t("settings.general.terminal.fontFamily.description")}
     >

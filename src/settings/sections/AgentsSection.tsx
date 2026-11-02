@@ -103,7 +103,7 @@ export function AgentsSection() {
 
       <CommitPromptBlock />
 
-      <section className="flex flex-col gap-2">
+      <section data-setting-id="agents.roles" className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <Label>{t("settings.agents.agents.label")}</Label>
           <Button
@@ -141,7 +141,7 @@ export function AgentsSection() {
 
       <CustomInstructionsBlock value={customInstructions} />
 
-      <section className="flex flex-col gap-2">
+      <section data-setting-id="agents.snippets" className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <div className="flex flex-col">
             <Label>{t("settings.agents.snippets.label")}</Label>
@@ -581,7 +581,7 @@ function CustomInstructionsBlock({ value }: { value: string }) {
   }, [value]);
 
   return (
-    <div className="flex flex-col gap-2">
+    <div data-setting-id="agents.customInstructions" className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
         <Label>{t("settings.agents.customInstructions.label")}</Label>
         {/* {savedTick > 0 ? (
@@ -668,7 +668,7 @@ function PromptsBlock() {
   };
 
   return (
-    <div className="flex flex-col gap-3">
+    <div data-setting-id="agents.prompts" className="flex flex-col gap-3">
       <span className="flex items-center gap-1">
         <Label>{t("settings.agents.prompts.label")}</Label>
         <InfoHint text={t("settings.agents.prompts.info")} />
@@ -841,7 +841,7 @@ function CommitPromptBlock() {
   };
 
   return (
-    <div className="flex flex-col gap-3">
+    <div data-setting-id="agents.commitPrompt" className="flex flex-col gap-3">
       <span className="flex items-center gap-1">
         <Label>{t("settings.agents.commitPrompt.label")}</Label>
         <InfoHint text={t("settings.agents.commitPrompt.info")} />

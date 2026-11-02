@@ -338,7 +338,7 @@ export function ModelsSection() {
         description={t("settings.models.header.description")}
       />
 
-      <div className="flex flex-col gap-2 rounded-lg border border-border/60 bg-card/60 px-3 py-2.5">
+      <div data-setting-id="models.configFile" className="flex flex-col gap-2 rounded-lg border border-border/60 bg-card/60 px-3 py-2.5">
         <div className="flex items-center justify-between gap-2">
           <span className="flex items-center gap-2 text-[11px] font-medium tracking-tight text-muted-foreground">
             {t("settings.models.configFile.label")}
@@ -407,7 +407,7 @@ export function ModelsSection() {
         }}
       />
 
-      <div className="flex flex-col gap-3">
+      <div data-setting-id="models.providers" className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <Label>{t("settings.models.providers.label")}</Label>
           <DropdownMenu open={addOpen} onOpenChange={setAddOpen}>
@@ -1613,7 +1613,7 @@ function DefaultsBlock({
   return (
     <div className="flex flex-col gap-3">
       <Label>{t("settings.models.defaults.label")}</Label>
-      <div className="flex flex-col gap-2.5 rounded-lg border border-border/60 bg-card/60 px-3 py-2.5">
+      <div data-setting-id="models.defaults" className="flex flex-col gap-2.5 rounded-lg border border-border/60 bg-card/60 px-3 py-2.5">
         <FieldRow
           label={t("settings.models.defaults.chatModel.label")}
           info={t("settings.models.defaults.chatModel.info")}

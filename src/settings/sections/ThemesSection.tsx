@@ -188,6 +188,7 @@ export function ThemesSection() {
 
       <div
         role="presentation"
+        data-setting-id="themes.theme"
         className="flex flex-col gap-2"
         onDragOver={(e) => {
           e.preventDefault();
@@ -327,7 +328,7 @@ export function ThemesSection() {
         </div>
       </div>
 
-      <div className="flex flex-col gap-2">
+      <div data-setting-id="themes.editorTheme" className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 flex-col">
             <Label>{t("settings.themes.editorTheme.label")}</Label>
@@ -370,6 +371,7 @@ export function ThemesSection() {
 
       <div
         role="presentation"
+        data-setting-id="themes.background"
         className="flex flex-col gap-2"
         onDragOver={(e) => {
           e.preventDefault();
@@ -421,7 +423,10 @@ export function ThemesSection() {
           </div>
         ) : null}
         {backgroundKind === "image" && backgroundImageId ? (
-          <div className="flex flex-col gap-3 rounded-lg border border-border/60 p-3">
+          <div
+            data-setting-id="themes.background.effects"
+            className="flex flex-col gap-3 rounded-lg border border-border/60 p-3"
+          >
             <div className="flex items-center justify-between gap-3">
               <span className="text-[11.5px] text-muted-foreground">
                 {t("settings.themes.background.opacity")}

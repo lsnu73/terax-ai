@@ -2,14 +2,14 @@
 
 > 只收录有业务含义的源文件。自动生成文件、测试、构建脚本和纯配置不在此列。
 > 一个文件涉及多个功能时，第二列登记主归属，其余登记在第三列。
-> 最后校验：2026-10-31
+> 最后校验：2026-11-02
 
 | 文件 | 主归属功能 | 次要归属 | 说明 |
 |---|---|---|---|
 | `src/app/App.tsx` | [开发者工具](features/开发者工具.md) | [撤销终端窗格拆分](features/撤销终端窗格拆分.md)、[终端链接打开](features/终端链接打开.md) | 注册 DevTools 处理器，协调标签页与预览打开 |
-| `src/app/components/WorkspaceSurface.tsx` | [终端链接打开](features/终端链接打开.md) | 工作区渲染 | 将预览打开回调透传给终端栈 |
+| `src/app/components/WorkspaceSurface.tsx` | [终端链接打开](features/终端链接打开.md) | 工作区渲染、[设置页](features/设置页.md) | 将预览打开回调透传给终端栈，并在工作区层渲染设置页 |
 | `src-tauri/src/lib.rs` | [开发者工具](features/开发者工具.md) | 设置窗口、原生 IPC | 提供 `open_devtools` 命令 |
-| `src/modules/shortcuts/shortcuts.ts` | [快捷键提示](features/快捷键提示.md) | [撤销终端窗格拆分](features/撤销终端窗格拆分.md)、[开发者工具](features/开发者工具.md)、[终端命令与结果块](features/终端命令与结果块.md) | 快捷键 ID、默认绑定、显示令牌与 Ctrl+R 保留判定 |
+| `src/modules/shortcuts/shortcuts.ts` | [快捷键提示](features/快捷键提示.md) | [撤销终端窗格拆分](features/撤销终端窗格拆分.md)、[开发者工具](features/开发者工具.md)、[终端命令与结果块](features/终端命令与结果块.md)、[设置页](features/设置页.md) | 快捷键 ID、默认绑定、显示令牌、Ctrl+R 保留判定与设置搜索快捷键索引来源 |
 | `src/modules/shortcuts/lib/useGlobalShortcuts.ts` | [快捷键提示](features/快捷键提示.md) | [终端命令与结果块](features/终端命令与结果块.md) | 捕获键盘事件、派发处理器并跳过 Ctrl+R |
 | `src/modules/shortcuts/lib/useShortcutTokens.ts` | [快捷键提示](features/快捷键提示.md) | 全局快捷键分发 | 响应式读取用户覆盖并生成紧凑文本 |
 | `src/modules/shortcuts/components/ShortcutTooltip.tsx` | [快捷键提示](features/快捷键提示.md) | 无 | 统一 Tooltip 与菜单快捷键文本 |
@@ -58,15 +58,24 @@
 | `src/modules/i18n/locales/zh/preview.ts` | [预览端口管理](features/预览端口管理.md) | 中文文案 | 与英文词典同构 |
 | `src/modules/i18n/locales/en/shortcuts.ts` | [快捷键提示](features/快捷键提示.md) | 英文文案 | 快捷键名称 |
 | `src/modules/i18n/locales/zh/shortcuts.ts` | [快捷键提示](features/快捷键提示.md) | 中文文案 | 与英文词典同构 |
-| `src/settings/SettingsView.tsx` | 设置页（主窗口 tab） | 偏好同步 | 设置页内嵌视图：分区导航与各分区渲染 |
+| `src/settings/SettingsView.tsx` | [设置页](features/设置页.md) | 偏好同步 | 设置页分区导航、搜索工具栏、结果定位与高亮 |
+| `src/settings/components/SettingsSearch.tsx` | [设置页](features/设置页.md) | 无 | 跨分区查询、翻译后过滤与结果键盘交互 |
+| `src/settings/settingsSearch.ts` | [设置页](features/设置页.md) | 无 | 设置搜索静态索引、目标 ID、关键词与条件可见性 |
+| `src/settings/components/SettingRow.tsx` | [设置页](features/设置页.md) | 无 | 普通设置行布局与可选搜索锚点 |
+| `src/settings/sections/GeneralSection.tsx` | [设置页](features/设置页.md) | 通用偏好 | 通用设置 UI 与搜索锚点 |
+| `src/settings/sections/EditorSection.tsx` | [设置页](features/设置页.md) | 编辑器偏好 | 编辑器设置 UI、条件选项与搜索锚点 |
+| `src/settings/sections/ThemesSection.tsx` | [设置页](features/设置页.md) | 主题与窗口外观 | 主题、编辑器主题和背景设置锚点 |
+| `src/settings/components/LspServersGroup.tsx` | [设置页](features/设置页.md) | LSP 语言服务 | 语言服务器区域入口与搜索锚点 |
+| `src/modules/i18n/locales/en/settings/search.ts` | [设置页](features/设置页.md) | 英文文案 | 设置搜索 placeholder、无障碍名称与空结果 |
+| `src/modules/i18n/locales/zh/settings/search.ts` | [设置页](features/设置页.md) | 中文文案 | 与英文同构的设置搜索文案 |
 | `src/modules/ai/config/types.ts` | [AI模型配置](features/AI模型配置.md) | 无 | `ParamDef` / `EffortConfig` 等数据模型 |
 | `src/modules/ai/config/defaults.ts` | [AI模型配置](features/AI模型配置.md) | 无 | 内置厂商目录与思考强度档位 |
 | `src/modules/ai/config/normalize.ts` | [AI模型配置](features/AI模型配置.md) | 无 | 配置收敛与旧 thinking/ParamDef 迁移 |
 | `src/modules/ai/config/params.ts` | [AI模型配置](features/AI模型配置.md) | AI 对话与工具审批 | 请求参数引擎：params、effort 档位、extra 合并 |
 | `src/modules/ai/config/persist.ts` | [AI模型配置](features/AI模型配置.md) | 无 | terax-ai-models.json 读写 |
 | `src/modules/ai/lib/agent.ts` | [AI模型配置](features/AI模型配置.md) | AI 对话与工具审批 | withRequestParams 把解析后的参数合并进出站请求 |
-| `src/settings/sections/ModelsSection.tsx` | [AI模型配置](features/AI模型配置.md) | 设置页（主窗口 tab） | 模型/Provider 编辑器与校验 |
-| `src/settings/sections/models/StructuredFields.tsx` | [AI模型配置](features/AI模型配置.md) | 设置页（主窗口 tab） | ParamsForm / EffortForm 等结构化表单 |
+| `src/settings/sections/ModelsSection.tsx` | [AI模型配置](features/AI模型配置.md) | [设置页](features/设置页.md) | 模型/Provider 编辑器、校验与配置/默认项/Provider 搜索锚点 |
+| `src/settings/sections/models/StructuredFields.tsx` | [AI模型配置](features/AI模型配置.md) | [设置页](features/设置页.md) | ParamsForm / EffortForm 等结构化表单 |
 | `src/modules/ai/components/ModelPicker.tsx` | [AI模型配置](features/AI模型配置.md) | AI 面板 | 思考强度滑条与模型选择 |
 | `src/modules/i18n/locales/en/settings/models.ts` | [AI模型配置](features/AI模型配置.md) | 英文文案 | Params/Effort 字段与规则文案 |
 | `src/modules/terminal/ghostty/core/terminalLinks.ts` | [终端链接打开](features/终端链接打开.md) | 终端路径历史 | URL 与绝对路径文本检测 |
@@ -79,18 +88,18 @@
 | `src/modules/i18n/locales/zh/settings/models.ts` | [AI模型配置](features/AI模型配置.md) | 中文文案 | 与英文词典同构 |
 | `src/modules/source-control/useSourceControlPanel.ts` | [AI提交信息生成](features/AI提交信息生成.md) | 源代码管理 | 生成流程编排与 Conventional 校验/修复重试 |
 | `src/modules/ai/config/prompts.ts` | [AI提交信息生成](features/AI提交信息生成.md) | [AI模型配置](features/AI模型配置.md) | 内置提示词全文与取值（会话 full/lite + 提交信息） |
-| `src/settings/sections/AgentsSection.tsx` | [AI提交信息生成](features/AI提交信息生成.md) | 设置页（主窗口 tab） | AI 行为：系统提示词管理 + 提交信息提示词模块 |
-| `src/modules/settings/openSettings.ts` | 设置页（主窗口 tab） | [AI面板](features/AI面板.md) | 设置 tab 打开注册表，深层组件经此调用 |
-| `src/settings/sections/ShortcutsSection.tsx` | [撤销终端窗格拆分](features/撤销终端窗格拆分.md) | [终端命令与结果块](features/终端命令与结果块.md)、快捷键自定义 | 保存用户覆盖键位并警告 Ctrl+R 冲突 |
+| `src/settings/sections/AgentsSection.tsx` | [AI提交信息生成](features/AI提交信息生成.md) | [设置页](features/设置页.md) | AI 行为设置、提示词模块与各区域搜索锚点 |
+| `src/modules/settings/openSettings.ts` | [设置页](features/设置页.md) | [AI面板](features/AI面板.md) | 设置 tab 打开注册表，深层组件经此调用 |
+| `src/settings/sections/ShortcutsSection.tsx` | [撤销终端窗格拆分](features/撤销终端窗格拆分.md) | [终端命令与结果块](features/终端命令与结果块.md)、快捷键自定义、[设置页](features/设置页.md) | 保存用户覆盖键位、警告 Ctrl+R 冲突并提供逐行搜索锚点 |
 | `src/modules/command-palette/CommandPalette.tsx` | [命令面板](features/命令面板.md) | 主题切换 | 面板 UI、查询模式分流与主题预览 |
 | `src/modules/command-palette/commands.ts` | [命令面板](features/命令面板.md) | 无 | 命令清单注册与禁用态 |
 | `src/modules/command-palette/lib/mode.ts` | [命令面板](features/命令面板.md) | 无 | `#`/`?` 前缀查询分流 |
 | `src/modules/command-palette/lib/fuzzy.ts` | [命令面板](features/命令面板.md) | 无 | 命令模糊匹配打分 |
 | `src/modules/command-palette/lib/mru.ts` | [命令面板](features/命令面板.md) | 无 | 会话内最近使用排序 |
 | `src/modules/command-palette/hooks/useContentSearch.ts` | [命令面板](features/命令面板.md) | 无 | `#` 内容搜索异步查询 |
-| `src/settings/sections/AboutSection.tsx` | [设置-关于](features/设置-关于.md) | 无 | 关于分区 UI 与仓库链接 |
+| `src/settings/sections/AboutSection.tsx` | [设置-关于](features/设置-关于.md) | [设置页](features/设置页.md) | 关于分区 UI、仓库链接与更新/源码搜索锚点 |
 | `src/modules/updater/useUpdater.ts` | [设置-关于](features/设置-关于.md) | 应用更新、[代理](features/代理.md) | 更新状态机与手动检查，检查/下载遵循更新场景代理 |
-| `src/settings/sections/ProxySection.tsx` | [代理](features/代理.md) | 无 | 代理设置分区 UI |
+| `src/settings/sections/ProxySection.tsx` | [代理](features/代理.md) | [设置页](features/设置页.md) | 代理设置分区 UI 与搜索锚点 |
 | `src/modules/proxy/components/ProxyStatusButton.tsx` | [代理](features/代理.md) | 状态栏 | 状态栏三场景代理开关 |
 | `src/modules/proxy/lib/proxy.ts` | [代理](features/代理.md) | 无 | 代理 URL 解析与场景判定 |
 | `src/modules/proxy/lib/autoLaunch.ts` | [代理](features/代理.md) | 无 | 代理软件自动启动触发 |

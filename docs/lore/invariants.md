@@ -68,3 +68,9 @@
   - 强制点：`src/modules/shortcuts/lib/useGlobalShortcuts.ts` 在匹配前排除 `isTerminalHistoryBinding`；`src/settings/sections/ShortcutsSection.tsx` 拒绝保存并显示冲突警告；按键到达 Shell 后由 PSReadLine 或 readline 自行处理。
   - 注意：此条暂无自动化测试强制，靠跨模块代码评审把关。
   - 代码索引：见 [atlas/features/终端命令与结果块.md](../atlas/features/终端命令与结果块.md)。
+
+- **INV-015** 需要在设置页全局搜索中命中的选项，必须同时在 `SETTING_SEARCH_ITEMS` 登记并在目标分区提供相同的稳定 `data-setting-id`；禁止使用显示文本或 DOM 序号定位。
+  - 违反代价：选项无法被搜索到，或选择结果后只能回到分区顶部；按文本/序号定位会在语言切换和条件渲染后跳到错误位置。
+  - 强制点：`src/settings/components/SettingsSearch.tsx` 只过滤索引；`src/settings/SettingsView.tsx` 只按目标 ID 查询锚点；普通行通过 `src/settings/components/SettingRow.tsx` 的 `searchId` 输出锚点。
+  - ⚠️ 索引与锚点的一致性暂无代码强制，属口头约定，靠新增设置项时的评审把关。
+  - 代码索引：见 [atlas/features/设置页.md](../atlas/features/设置页.md)。

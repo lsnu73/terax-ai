@@ -105,7 +105,7 @@ export function AboutSection() {
         <dt className="text-muted-foreground">
           {t("settings.about.sourceCode")}
         </dt>
-        <dd>
+        <dd data-setting-id="about.source">
           <button
             type="button"
             onClick={() => void openUrl(REPO_URL)}
@@ -117,7 +117,7 @@ export function AboutSection() {
         </dd>
       </dl>
 
-      <div className="flex flex-col gap-1.5">
+      <div data-setting-id="about.update" className="flex flex-col gap-1.5">
         <div className="flex gap-2">
           <Button
             size="sm"

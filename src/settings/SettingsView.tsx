@@ -23,6 +23,7 @@ import { ModelsSection } from "./sections/ModelsSection";
 import { ProxySection } from "./sections/ProxySection";
 import { ShortcutsSection } from "./sections/ShortcutsSection";
 import { ThemesSection } from "./sections/ThemesSection";
+import type { SettingSearchItem } from "./settingsSearch";
 
 const TABS: {
   id: SettingsTab;
@@ -93,6 +94,12 @@ export function SettingsView({
 }) {
   const { t } = useTranslation();
   const [active, setActive] = useState<SettingsTab>(section);
+  const [pendingTarget, setPendingTarget] = useState<{
+    id: string;
+    request: number;
+  } | null>(null);
+  const mainRef = useRef<HTMLElement>(null);
+  const targetRequest = useRef(0);
   const init = usePreferencesStore((s) => s.init);
   const ActiveSection = TABS.find((t) => t.id === active)?.component;
 
@@ -103,6 +110,54 @@ export function SettingsView({
   useEffect(() => {
     setActive(section);
   }, [section]);
+
+  useLayoutEffect(() => {
+    if (!pendingTarget) return;
+    const main = mainRef.current;
+    if (!main) return;
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    let observer: MutationObserver | undefined;
+    const scrollToTarget = () => {
+      const target = main.querySelector<HTMLElement>(
+        `[data-setting-id="${pendingTarget.id}"]`,
+      );
+      if (!target) return false;
+      observer?.disconnect();
+      target.scrollIntoView({
+        block: "center",
+        behavior: reduceMotion ? "auto" : "smooth",
+      });
+      if (!reduceMotion) {
+        target.animate(
+          [
+            { boxShadow: "0 0 0 0 transparent" },
+            { boxShadow: "0 0 0 2px var(--primary)", offset: 0.2 },
+            { boxShadow: "0 0 0 0 transparent" },
+          ],
+          { duration: 1600, easing: "ease-out" },
+        );
+      }
+      return true;
+    };
+    if (scrollToTarget()) return;
+    main.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
+    observer = new MutationObserver(scrollToTarget);
+    observer.observe(main, { childList: true, subtree: true });
+    const timeout = window.setTimeout(() => observer?.disconnect(), 2000);
+    return () => {
+      observer?.disconnect();
+      window.clearTimeout(timeout);
+    };
+  }, [pendingTarget]);
+
+  const onSearchSelect = (item: SettingSearchItem) => {
+    targetRequest.current += 1;
+    setPendingTarget({ id: item.targetId, request: targetRequest.current });
+    setActive(item.section);
+    onSectionChange?.(item.section);
+  };
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background text-foreground select-none">
@@ -132,7 +187,16 @@ export function SettingsView({
         </Tabs>
       </header>
 
-      <main className="min-h-0 flex-1 overflow-y-auto px-8 pt-6 pb-7 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="relative z-20 shrink-0 border-b border-border/60 bg-card/60 px-8 py-2">
+        <div className="mx-auto w-full max-w-2xl">
+          <SettingsSearch onSelect={onSearchSelect} />
+        </div>
+      </div>
+
+      <main
+        ref={mainRef}
+        className="min-h-0 flex-1 overflow-y-auto px-8 pt-6 pb-7 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
         <div className="mx-auto w-full">
           {ActiveSection && <ActiveSection />}
         </div>

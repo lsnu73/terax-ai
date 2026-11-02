@@ -89,7 +89,7 @@ export function ShortcutsSection() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
+      <div data-setting-id="shortcuts.resetAll" className="flex items-center justify-between">
         <SectionHeader
           title={t("settings.shortcuts.header.title")}
           description={t("settings.shortcuts.header.description")}
@@ -215,7 +215,10 @@ function ShortcutRow({
   const hasBindings = bindings && bindings.length > 0;
 
   return (
-    <div className="group flex items-center justify-between px-3 py-2.5 transition-colors hover:bg-muted/30">
+    <div
+      data-setting-id={`shortcut.${shortcut.id}`}
+      className="group flex items-center justify-between px-3 py-2.5 transition-colors hover:bg-muted/30"
+    >
       <div className="flex flex-col gap-0.5">
         <span className="text-[12.5px] font-medium">
           {t(shortcut.labelKey)}

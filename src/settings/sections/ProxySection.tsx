@@ -66,7 +66,7 @@ export function ProxySection() {
         description={t("settings.proxy.header.description")}
       />
 
-      <div className="flex flex-col gap-2">
+      <div data-setting-id="proxy.server" className="flex flex-col gap-2">
         <Label>{t("settings.proxy.server.label")}</Label>
         <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-card/60 px-3 py-2.5">
           <DraftInput
@@ -110,6 +110,7 @@ export function ProxySection() {
           </div>
         </div>
         <SettingRow
+          searchId="proxy.scenarios.terminal"
           title={t("settings.proxy.scenarios.terminal")}
           description={t("settings.proxy.scenarios.terminalDescription")}
         >
@@ -119,12 +120,14 @@ export function ProxySection() {
           />
         </SettingRow>
         <SettingRow
+          searchId="proxy.scenarios.ai"
           title={t("settings.proxy.scenarios.ai")}
           description={t("settings.proxy.scenarios.aiDescription")}
         >
           <Switch checked={proxy.ai} onCheckedChange={(ai) => update({ ai })} />
         </SettingRow>
         <SettingRow
+          searchId="proxy.scenarios.updater"
           title={t("settings.proxy.scenarios.updater")}
           description={t("settings.proxy.scenarios.updaterDescription")}
         >
@@ -137,7 +140,10 @@ export function ProxySection() {
 
       <div className="flex flex-col gap-2">
         <Label>{t("settings.proxy.software.label")}</Label>
-        <SettingRow title={t("settings.proxy.software.path")}>
+        <SettingRow
+          searchId="proxy.software.path"
+          title={t("settings.proxy.software.path")}
+        >
           <DraftInput
             value={proxy.appPath}
             onCommit={(appPath) => update({ appPath })}
@@ -147,6 +153,7 @@ export function ProxySection() {
           />
         </SettingRow>
         <SettingRow
+          searchId="proxy.software.autoLaunch"
           title={t("settings.proxy.software.autoLaunch")}
           description={t("settings.proxy.software.autoLaunchDescription")}
         >
