@@ -28,13 +28,13 @@ export const agents = {
     days: "{{count}}d ago",
   },
   bell: {
-    title: "Agent notifications",
+    title: "Notifications",
     header: "Notifications",
     activeCount_one: "{{count}} active",
     activeCount_other: "{{count}} active",
     clear: "Clear",
-    emptyLine1: "No agent activity yet.",
-    emptyLine2: "Run the Terax agent or a coding agent to track it here.",
+    emptyLine1: "No notifications yet.",
+    emptyLine2: "Agent activity and app messages will appear here.",
     waiting: "waiting",
     working: "working",
     kindLabel: {

@@ -13,7 +13,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
+import { runtimeToast as toast } from "@/modules/agents/lib/runtimeNotifications";
 import type { PositionedBlock } from "./lib/blockTypes";
 import { capAttachOutput } from "./lib/outputCap";
 
@@ -83,7 +83,10 @@ export function BlockContextMenu({
         icon={Copy01Icon}
         label={t("terminal.block.copyCommandAndOutput")}
         onClick={() => {
-          copy(`$ ${block.command}\n${output()}`, t("terminal.block.blockCopied"));
+          copy(
+            `$ ${block.command}\n${output()}`,
+            t("terminal.block.blockCopied"),
+          );
         }}
       />
       <MenuItem

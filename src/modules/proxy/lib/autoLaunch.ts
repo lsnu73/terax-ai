@@ -1,3 +1,5 @@
+import { runtimeToast } from "@/modules/agents/lib/runtimeNotifications";
+import { t } from "@/modules/i18n";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import { onPreferencesChange } from "@/modules/settings/store";
 import { invoke } from "@tauri-apps/api/core";
@@ -22,6 +24,10 @@ export async function ensureProxySoftwareRunning(): Promise<void> {
     await invoke("proxy_ensure_running", { path });
   } catch (error) {
     console.warn("[terax] proxy auto-launch failed:", error);
+    runtimeToast.error(t("settings.proxy.software.autoLaunchFailed"), {
+      id: "proxy-auto-launch",
+      description: String(error),
+    });
   } finally {
     inflight = false;
   }

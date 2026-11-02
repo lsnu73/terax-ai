@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { toast } from "sonner";
+import { runtimeToast as toast } from "@/modules/agents/lib/runtimeNotifications";
 import { t } from "@/modules/i18n";
 import {
   currentWorkspaceEnv,

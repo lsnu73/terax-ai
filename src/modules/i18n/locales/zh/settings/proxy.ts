@@ -33,5 +33,6 @@ export const settingsProxyZh: typeof settingsProxy = {
     autoLaunch: "自动启动",
     autoLaunchDescription:
       "已设置代理且任一场景启用时，若代理软件未运行则自动打开它。",
+    autoLaunchFailed: "代理软件自动启动失败",
   },
 };

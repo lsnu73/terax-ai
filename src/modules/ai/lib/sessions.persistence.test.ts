@@ -68,7 +68,9 @@ const toasts = vi.hoisted(() => ({
 }));
 vi.mock("@tauri-apps/plugin-store", () => ({ LazyStore: storage.LazyStore }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke: storage.invoke }));
-vi.mock("sonner", () => ({ toast: toasts }));
+vi.mock("@/modules/agents/lib/runtimeNotifications", () => ({
+  runtimeToast: toasts,
+}));
 async function reload() {
   vi.resetModules();
   return import("@/modules/ai/lib/sessions");

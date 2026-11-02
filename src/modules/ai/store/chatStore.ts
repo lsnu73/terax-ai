@@ -1,5 +1,5 @@
 import type { Chat, UIMessage } from "@ai-sdk/react";
-import { toast } from "sonner";
+import { runtimeToast as toast } from "@/modules/agents/lib/runtimeNotifications";
 import { create } from "zustand";
 import { t } from "@/modules/i18n";
 import { getDefaultModelId, tryResolveModel, type ProviderId } from "../config";

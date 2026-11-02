@@ -19,7 +19,9 @@ const sessions = vi.hoisted(() => ({
   newSessionId: vi.fn(() => "s-new"),
 }));
 vi.mock("@/modules/ai/lib/sessions", () => sessions);
-vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
+vi.mock("@/modules/agents/lib/runtimeNotifications", () => ({
+  runtimeToast: { error: vi.fn() },
+}));
 
 const messages = (n: number) =>
   [{ id: `m${n}`, role: "assistant", parts: [] }] as UIMessage[];

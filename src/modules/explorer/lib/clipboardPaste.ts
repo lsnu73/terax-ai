@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { toast } from "sonner";
+import { runtimeToast as toast } from "@/modules/agents/lib/runtimeNotifications";
 import { t } from "@/modules/i18n";
 import type { WorkspaceEnv } from "@/modules/workspace";
 

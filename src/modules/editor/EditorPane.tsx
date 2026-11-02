@@ -31,7 +31,7 @@ import {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
+import { runtimeToast as toast } from "@/modules/agents/lib/runtimeNotifications";
 import {
   inlineCompletion,
   triggerInlineCompletion,

@@ -14,7 +14,12 @@
 | `src/modules/shortcuts/lib/useShortcutTokens.ts` | [快捷键提示](features/快捷键提示.md) | 全局快捷键分发 | 响应式读取用户覆盖并生成紧凑文本 |
 | `src/modules/shortcuts/components/ShortcutTooltip.tsx` | [快捷键提示](features/快捷键提示.md) | 无 | 统一 Tooltip 与菜单快捷键文本 |
 | `src/modules/shortcuts/index.ts` | [快捷键提示](features/快捷键提示.md) | 无 | 快捷键模块公共导出 |
-| `src/modules/header/Header.tsx` | [快捷键提示](features/快捷键提示.md) | 顶栏布局 | 设置、侧栏、命令面板按钮提示 |
+| `src/modules/header/Header.tsx` | [快捷键提示](features/快捷键提示.md) | 顶栏布局、[通知中心](features/通知中心.md) | 设置、侧栏、命令面板按钮提示与通知铃铛入口 |
+| `src/modules/agents/components/NotificationBell.tsx` | [通知中心](features/通知中心.md) | 外部编码代理管理 | 未读角标、通知历史、详情、Agent 跳转与运行时动作 |
+| `src/modules/agents/lib/runtimeNotifications.ts` | [通知中心](features/通知中心.md) | 无 | 软件消息统一入口与 Sonner/历史生命周期协调 |
+| `src/modules/agents/lib/types.ts` | [通知中心](features/通知中心.md) | 外部编码代理管理 | Agent/运行时通知联合类型 |
+| `src/modules/agents/store/agentStore.ts` | [通知中心](features/通知中心.md) | 外部编码代理管理 | 活跃 Agent、50 条通知历史、已读与稳定 ID 更新 |
+| `src/modules/agents/lib/route.ts` | [通知中心](features/通知中心.md) | 外部编码代理管理 | Agent 通知送达、正文入队和应用内显示方式 |
 | `src/modules/header/SearchInline.tsx` | [快捷键提示](features/快捷键提示.md) | 标签内搜索、[终端命令与结果块](features/终端命令与结果块.md) | Ctrl+F 与命令块查找共用的弹窗，按 target 切换全文或局部控制器 |
 | `src/modules/tabs/NewTabMenu.tsx` | [标签页管理](features/标签页管理.md) | [快捷键提示](features/快捷键提示.md) | 新建标签类型与编码代理启动入口，菜单显示快捷键 |
 | `src/modules/tabs/TabBar.tsx` | [标签页管理](features/标签页管理.md) | [快捷键提示](features/快捷键提示.md) | 标签栏、受控右键菜单与捕获阶段外部点击关闭 |
@@ -55,7 +60,7 @@
 | `src/modules/preview/PreviewPane.tsx` | [预览端口管理](features/预览端口管理.md) | 网页预览 | 空态「端口」按钮调用地址栏 handle |
 | `src/modules/preview/PortPresetDialog.tsx` | [预览端口管理](features/预览端口管理.md) | 网页预览 | 新增与编辑端口表单 |
 | `src/modules/preview/lib/portPresets.ts` | [预览端口管理](features/预览端口管理.md) | 无 | 默认端口、归一化、合并与重复校验 |
-| `src/modules/settings/store.ts` | [预览端口管理](features/预览端口管理.md) | 设置窗口与偏好同步 | 端口列表持久化与跨窗口广播 |
+| `src/modules/settings/store.ts` | [预览端口管理](features/预览端口管理.md) | 设置窗口与偏好同步、[通知中心](features/通知中心.md) | 端口列表、通知显示方式持久化与跨窗口广播 |
 | `src/modules/i18n/locales/en/preview.ts` | [预览端口管理](features/预览端口管理.md) | 英文文案 | 端口菜单与表单文案 |
 | `src/modules/i18n/locales/zh/preview.ts` | [预览端口管理](features/预览端口管理.md) | 中文文案 | 与英文词典同构 |
 | `src/modules/i18n/locales/en/shortcuts.ts` | [快捷键提示](features/快捷键提示.md) | 英文文案 | 快捷键名称 |
@@ -104,6 +109,6 @@
 | `src/settings/sections/ProxySection.tsx` | [代理](features/代理.md) | [设置页](features/设置页.md) | 代理设置分区 UI 与搜索锚点 |
 | `src/modules/proxy/components/ProxyStatusButton.tsx` | [代理](features/代理.md) | 状态栏 | 状态栏三场景代理开关 |
 | `src/modules/proxy/lib/proxy.ts` | [代理](features/代理.md) | 无 | 代理 URL 解析与场景判定 |
-| `src/modules/proxy/lib/autoLaunch.ts` | [代理](features/代理.md) | 无 | 代理软件自动启动触发 |
+| `src/modules/proxy/lib/autoLaunch.ts` | [代理](features/代理.md) | [通知中心](features/通知中心.md) | 代理软件自动启动触发与失败通知 |
 | `src-tauri/src/modules/proxy.rs` | [代理](features/代理.md) | 无 | 代理软件进程检测与启动 |
 | `src-tauri/src/modules/net/clients.rs` | [代理](features/代理.md) | AI 会话 | reqwest 客户端缓存，代理地址纳入缓存键 |

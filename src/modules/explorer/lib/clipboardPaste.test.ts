@@ -10,7 +10,9 @@ const { invoke, toast } = vi.hoisted(() => ({
   toast: { message: vi.fn(), error: vi.fn() },
 }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke }));
-vi.mock("sonner", () => ({ toast }));
+vi.mock("@/modules/agents/lib/runtimeNotifications", () => ({
+  runtimeToast: toast,
+}));
 // i18next is not initialized in tests; t() resolves to the key name.
 vi.mock("@/modules/i18n", () => ({
   t: (key: string) => key,

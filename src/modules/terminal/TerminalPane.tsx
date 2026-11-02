@@ -1,13 +1,10 @@
-import {
-  ContextMenu,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu";
+import { ContextMenu, ContextMenuTrigger } from "@/components/ui/context-menu";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import { BlockContextMenu } from "@/modules/terminal/block/BlockContextMenu";
 import type { PositionedBlock } from "@/modules/terminal/block/lib/blockTypes";
 import type { TerminalSearchController } from "@/modules/terminal/search/TerminalSearchController";
 import { GhosttyBlockSearchController } from "@/modules/terminal/ghostty/search/GhosttyBlockSearchController";
-import { toast } from "sonner";
+import { runtimeToast as toast } from "@/modules/agents/lib/runtimeNotifications";
 import { submitToLeaf } from "@/modules/terminal/lib/terminalSessionApi";
 import { useTheme } from "@/modules/theme";
 import {

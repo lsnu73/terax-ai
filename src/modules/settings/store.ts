@@ -28,6 +28,13 @@ export const DEFAULT_THEME_ID = "terax-default";
 export type BackgroundKind = "none" | "image";
 
 export type TerminalCursorStyle = "bar" | "block" | "underline";
+export type NotificationDisplayMode = "toast" | "badge";
+
+export function coerceNotificationDisplayMode(
+  value: unknown,
+): NotificationDisplayMode {
+  return value === "badge" ? "badge" : "toast";
+}
 
 /** AI 工具调用（命令/文件编辑等）的审批模式。 */
 export type AiApprovalMode = "review" | "auto";
@@ -169,6 +176,7 @@ export type Preferences = {
   zoomLevel: number;
   agentNotifications: boolean;
   agentNotificationSound: boolean;
+  notificationDisplayMode: NotificationDisplayMode;
   /** AI 工具调用审批模式："review" 逐次确认；"auto" 直接执行。 */
   aiApprovalMode: AiApprovalMode;
   agentLaunchCommands: AgentLaunchCommands;
@@ -299,6 +307,7 @@ const KEY_LAST_WSL_DISTRO = "lastWslDistro";
 const KEY_ZOOM_LEVEL = "zoomLevel";
 const KEY_AGENT_NOTIFICATIONS = "agentNotifications";
 const KEY_AGENT_NOTIFICATION_SOUND = "agentNotificationSound";
+const KEY_NOTIFICATION_DISPLAY_MODE = "notificationDisplayMode";
 const KEY_AI_APPROVAL_MODE = "aiApprovalMode";
 const KEY_AGENT_LAUNCH_COMMANDS = "agentLaunchCommands";
 const KEY_DEFAULT_WORKSPACE_ENV = "defaultWorkspaceEnv";
@@ -385,6 +394,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   zoomLevel: 1.0,
   agentNotifications: true,
   agentNotificationSound: true,
+  notificationDisplayMode: "toast",
   aiApprovalMode: "review",
   agentLaunchCommands: DEFAULT_AGENT_LAUNCH_COMMANDS,
   defaultWorkspaceEnv: "local",
@@ -542,9 +552,10 @@ export async function loadPreferences(): Promise<Preferences> {
     agentNotificationSound:
       get<boolean>(KEY_AGENT_NOTIFICATION_SOUND) ??
       DEFAULT_PREFERENCES.agentNotificationSound,
-    aiApprovalMode: coerceAiApprovalMode(
-      get<unknown>(KEY_AI_APPROVAL_MODE),
+    notificationDisplayMode: coerceNotificationDisplayMode(
+      get<unknown>(KEY_NOTIFICATION_DISPLAY_MODE),
     ),
+    aiApprovalMode: coerceAiApprovalMode(get<unknown>(KEY_AI_APPROVAL_MODE)),
     agentLaunchCommands: normalizeAgentLaunchCommands(
       get<unknown>(KEY_AGENT_LAUNCH_COMMANDS),
     ),
@@ -716,10 +727,9 @@ export async function setEffortLevel(
   modelId: string,
   levelId: string | null,
 ): Promise<void> {
-  const current =
-    (await store.get(KEY_EFFORT_LEVELS).catch(() => null)) as
-      | Record<string, string>
-      | null;
+  const current = (await store
+    .get(KEY_EFFORT_LEVELS)
+    .catch(() => null)) as Record<string, string> | null;
   const next = { ...(current ?? {}) };
   if (levelId) next[modelId] = levelId;
   else delete next[modelId];
@@ -916,6 +926,12 @@ export async function setAgentNotificationSound(value: boolean): Promise<void> {
   await writePref(KEY_AGENT_NOTIFICATION_SOUND, value);
 }
 
+export async function setNotificationDisplayMode(
+  value: NotificationDisplayMode,
+): Promise<void> {
+  await writePref(KEY_NOTIFICATION_DISPLAY_MODE, value);
+}
+
 export async function setAgentLaunchCommands(
   value: AgentLaunchCommands,
 ): Promise<void> {
@@ -994,6 +1010,7 @@ export async function onPreferencesChange(
     [KEY_ZOOM_LEVEL]: "zoomLevel",
     [KEY_AGENT_NOTIFICATIONS]: "agentNotifications",
     [KEY_AGENT_NOTIFICATION_SOUND]: "agentNotificationSound",
+    [KEY_NOTIFICATION_DISPLAY_MODE]: "notificationDisplayMode",
     [KEY_AI_APPROVAL_MODE]: "aiApprovalMode",
     [KEY_AGENT_LAUNCH_COMMANDS]: "agentLaunchCommands",
     [KEY_DEFAULT_WORKSPACE_ENV]: "defaultWorkspaceEnv",

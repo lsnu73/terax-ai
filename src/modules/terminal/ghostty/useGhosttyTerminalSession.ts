@@ -19,7 +19,7 @@ import { cdTerminalLeafTo } from "@/modules/terminal/lib/terminalCd";
 import type { TerminalSearchController } from "@/modules/terminal/search/TerminalSearchController";
 import { invoke } from "@tauri-apps/api/core";
 import { t } from "@/modules/i18n";
-import { toast } from "sonner";
+import { runtimeToast as toast } from "@/modules/agents/lib/runtimeNotifications";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { openPty, type PtySession } from "../lib/pty-bridge";
 import { BlockCommandAnchorProbe } from "../lib/blockAnchorProbe";
@@ -188,8 +188,7 @@ export function useGhosttyTerminalSession({
       onSearchReady: (search) => callbackRef.current.onSearchReady?.(search),
       onExit: (code) => callbackRef.current.onExit?.(code),
       onCwd: (cwd) => callbackRef.current.onCwd?.(cwd),
-      onOpenPreviewUrl: (url) =>
-        callbackRef.current.onOpenPreviewUrl?.(url),
+      onOpenPreviewUrl: (url) => callbackRef.current.onOpenPreviewUrl?.(url),
     };
     setError(sessionFailure(session));
     if (session.surface) {
@@ -699,7 +698,11 @@ async function initializeSessionGeneration(
         event.type === "end-of-command"
       ) {
         anchorProbe.handle(event.type);
-        if (IS_WINDOWS && !psReadlineWarningShown && anchorProbe.commandAnchorMissing) {
+        if (
+          IS_WINDOWS &&
+          !psReadlineWarningShown &&
+          anchorProbe.commandAnchorMissing
+        ) {
           psReadlineWarningShown = true;
           void warnMissingPsReadline();
         }

@@ -1,6 +1,6 @@
 ﻿import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { nextAttentionTarget, useAgentStore } from "./agentStore";
-import type { AgentNotification } from "../lib/types";
+import type { NewAgentNotification } from "../lib/types";
 
 describe("agent session store", () => {
   beforeEach(() => {
@@ -19,7 +19,12 @@ describe("agent session store", () => {
     useAgentStore.getState().start(7, 3, "claude");
     const s = useAgentStore.getState().sessions[7];
 
-    expect(s).toMatchObject({ leafId: 7, tabId: 3, agent: "claude", status: "working" });
+    expect(s).toMatchObject({
+      leafId: 7,
+      tabId: 3,
+      agent: "claude",
+      status: "working",
+    });
     expect(s.attentionSince).toBeNull();
   });
 
@@ -54,9 +59,7 @@ describe("agent session store", () => {
     useAgentStore.getState().setLocalAgent({ agent: "pi", status: "working" });
     const before = useAgentStore.getState().localAgent;
 
-    useAgentStore
-      .getState()
-      .setLocalAgent({ agent: "pi", status: "working" });
+    useAgentStore.getState().setLocalAgent({ agent: "pi", status: "working" });
 
     expect(useAgentStore.getState().localAgent).toBe(before);
 
@@ -74,8 +77,8 @@ describe("agent session store", () => {
     const notifications = useAgentStore.getState().notifications;
 
     expect(notifications).toHaveLength(50);
-    expect(notifications[0].leafId).toBe(54);
-    expect(notifications[49].leafId).toBe(5);
+    expect(notifications[0]).toMatchObject({ leafId: 54 });
+    expect(notifications[49]).toMatchObject({ leafId: 5 });
     expect(notifications.every((n) => n.read === false)).toBe(true);
     expect(notifications[0].id).not.toBe(notifications[1].id);
   });
@@ -88,7 +91,52 @@ describe("agent session store", () => {
     useAgentStore.getState().markAllRead();
 
     expect(useAgentStore.getState().notifications).toBe(afterFirst);
-    expect(useAgentStore.getState().notifications.every((n) => n.read)).toBe(true);
+    expect(useAgentStore.getState().notifications.every((n) => n.read)).toBe(
+      true,
+    );
+  });
+
+  it("updates a stable runtime notification instead of stacking duplicates", () => {
+    const first: NewAgentNotification = {
+      source: "runtime",
+      runtimeId: "proxy-auto-launch",
+      kind: "error",
+      title: "Proxy launch failed",
+      body: "os error 740",
+    };
+    useAgentStore.getState().pushNotification(first);
+    const id = useAgentStore.getState().notifications[0].id;
+    useAgentStore.getState().markAllRead();
+
+    useAgentStore.getState().pushNotification({
+      ...first,
+      body: "operation cancelled",
+    });
+
+    const notifications = useAgentStore.getState().notifications;
+    expect(notifications).toHaveLength(1);
+    expect(notifications[0]).toMatchObject({
+      id,
+      body: "operation cancelled",
+      read: false,
+    });
+  });
+
+  it("dismisses a runtime notification and runs its callback once", () => {
+    const onDismiss = vi.fn();
+    useAgentStore.getState().pushNotification({
+      source: "runtime",
+      runtimeId: "save-conflict",
+      kind: "warning",
+      title: "Save conflict",
+      onDismiss,
+    });
+
+    useAgentStore.getState().dismissNotification("save-conflict");
+    useAgentStore.getState().dismissNotification("save-conflict");
+
+    expect(useAgentStore.getState().notifications).toHaveLength(0);
+    expect(onDismiss).toHaveBeenCalledOnce();
   });
 
   it("nextAttentionTarget returns the most recently waiting agent", () => {
@@ -108,14 +156,14 @@ describe("agent session store", () => {
 
     expect(nextAttentionTarget()).toEqual({ tabId: 10, leafId: 1 });
   });
-
 });
 
 function push(partial: { leafId: number; tabId: number }): void {
-  const n: Omit<AgentNotification, "id" | "at" | "read"> = {
+  const n: NewAgentNotification = {
     source: "terminal",
     agent: "claude",
     kind: "finished",
+    title: "Claude finished",
     ...partial,
   };
   useAgentStore.getState().pushNotification(n);

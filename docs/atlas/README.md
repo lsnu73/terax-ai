@@ -33,6 +33,7 @@ Terax 是面向开发者的开源桌面开发工作区，以终端为中心，�
 | 改 AI 面板、对话或 Composer | [features/AI面板.md](features/AI面板.md) | `src/modules/ai/components/AiPanel.tsx`, `src/modules/ai/components/AiChat.tsx`, `src/modules/ai/store/aiPanelStore.ts` |
 | 改 AI 生成提交信息或其提示词 | [features/AI提交信息生成.md](features/AI提交信息生成.md) | `src/modules/source-control/useSourceControlPanel.ts`, `src/modules/ai/config/prompts.ts` |
 | 改模型请求参数或思考强度档位 | [features/AI模型配置.md](features/AI模型配置.md) | `src/modules/ai/config/params.ts`, `src/settings/sections/models/StructuredFields.tsx` |
+| 改通知铃铛、软件运行消息或通知显示方式 | [features/通知中心.md](features/通知中心.md) | `src/modules/agents/components/NotificationBell.tsx`, `src/modules/agents/lib/runtimeNotifications.ts`, `src/modules/agents/store/agentStore.ts` |
 | 改设置分区导航、选项搜索或结果定位 | [features/设置页.md](features/设置页.md) | `src/settings/SettingsView.tsx`, `src/settings/components/SettingsSearch.tsx`, `src/settings/settingsSearch.ts` |
 | 改关于页链接或检查更新入口 | [features/设置-关于.md](features/设置-关于.md) | `src/settings/sections/AboutSection.tsx`, `src/modules/updater/useUpdater.ts` |
 | 改代理设置或三场景代理生效 | [features/代理.md](features/代理.md) | `src/settings/sections/ProxySection.tsx`, `src/modules/proxy/lib/proxy.ts` |
@@ -44,7 +45,7 @@ Terax 是面向开发者的开源桌面开发工作区，以终端为中心，�
 
 ## 当前覆盖范围
 
-首版采用种子功能法，之后按开发增量补齐。目前完整覆盖「撤销终端窗格拆分」「开发者工具」「终端链接打开」「终端路径历史」「终端命令与结果块」「标签页管理」「预览端口管理」「快捷键提示」「AI 面板」「AI 模型配置」「命令面板」「AI 提交信息生成」「设置-关于」「代理」「设置页」十五个功能。其他功能在 [features/_index.md](features/_index.md) 中登记为未覆盖，后续随开发补齐，不以目录名推测实现。
+首版采用种子功能法，之后按开发增量补齐。目前完整覆盖「撤销终端窗格拆分」「开发者工具」「终端链接打开」「终端路径历史」「终端命令与结果块」「标签页管理」「预览端口管理」「快捷键提示」「AI 面板」「AI 模型配置」「命令面板」「AI 提交信息生成」「设置-关于」「代理」「设置页」「通知中心」十六个功能。其他功能在 [features/_index.md](features/_index.md) 中登记为未覆盖，后续随开发补齐，不以目录名推测实现。
 
 ## 协作约定
 

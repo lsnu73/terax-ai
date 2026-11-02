@@ -122,6 +122,12 @@ export const settingsGeneralZh: typeof settingsGeneral = {
   },
   agents: {
     label: "代理",
+    displayMode: {
+      title: "应用内通知显示方式",
+      description: "直接显示消息，或只增加未读标记，打开通知后再查看消息。",
+      toast: "直接显示消息",
+      badge: "仅显示未读标记",
+    },
     notifications: {
       title: "编码代理通知",
       description:

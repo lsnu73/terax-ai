@@ -1,7 +1,7 @@
 import { native } from "@/modules/ai/lib/native";
 import { t } from "@/modules/i18n";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
+import { runtimeToast as toast } from "@/modules/agents/lib/runtimeNotifications";
 import {
   clearRepositoryTargetForSpace,
   repositoryTargetForSpace,

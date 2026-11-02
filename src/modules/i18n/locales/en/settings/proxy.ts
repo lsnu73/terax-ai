@@ -32,5 +32,6 @@ export const settingsProxy = {
     autoLaunch: "Launch automatically",
     autoLaunchDescription:
       "When a proxy is configured and enabled for any scenario, start the software if it is not running.",
+    autoLaunchFailed: "Could not launch proxy software",
   },
 };

@@ -20,7 +20,7 @@ import { tokenBytes } from "@/modules/terminal/lib/ptyWire";
 import { t } from "@/modules/i18n";
 import { currentWorkspaceEnv } from "@/modules/workspace";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
-import { toast } from "sonner";
+import { runtimeToast as toast } from "@/modules/agents/lib/runtimeNotifications";
 
 const textEncoder = new TextEncoder();
 const receivers = new Map<number, PtyOutputReceiver>();

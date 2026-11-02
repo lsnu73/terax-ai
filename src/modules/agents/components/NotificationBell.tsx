@@ -20,7 +20,13 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AgentIcon } from "../lib/agentIcon";
 import { displayAgent } from "../lib/format";
-import type { AgentNotification, AgentStatus } from "../lib/types";
+import { runtimeToast } from "../lib/runtimeNotifications";
+import type {
+  AgentNotification,
+  AgentStatus,
+  NotificationAction,
+  RuntimeNotification,
+} from "../lib/types";
 import { useAgentStore } from "../store/agentStore";
 
 type Props = {
@@ -75,12 +81,6 @@ function StatusRow({
     </button>
   );
 }
-
-const NOTIF_LABEL_KEY: Record<AgentNotification["kind"], string> = {
-  attention: "agents.bell.kindLabel.attention",
-  finished: "agents.bell.kindLabel.finished",
-  error: "agents.bell.kindLabel.error",
-};
 
 const HOOK_AGENTS = ["claude", "codex", "gemini", "pi"] as const;
 
@@ -142,19 +142,16 @@ function HookAgentRow({
 function NotificationRow({
   n,
   onClick,
+  onAction,
 }: {
   n: AgentNotification;
   onClick: () => void;
+  onAction: (n: RuntimeNotification, action: NotificationAction) => void;
 }) {
-  const { t } = useTranslation();
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left transition-colors hover:bg-accent"
-    >
-      <span className="flex w-4 shrink-0 items-center justify-center">
-        {n.kind === "finished" ? (
+  const content = (
+    <>
+      <span className="flex w-4 shrink-0 items-center justify-center pt-1">
+        {n.kind === "finished" || n.kind === "success" ? (
           <HugeiconsIcon
             icon={CheckmarkCircle02Icon}
             size={15}
@@ -165,20 +162,76 @@ function NotificationRow({
           <span
             className={cn(
               "size-1.5 rounded-full",
-              n.kind === "error" ? "bg-destructive" : "bg-primary",
+              n.kind === "error"
+                ? "bg-destructive"
+                : n.kind === "warning"
+                  ? "bg-yellow-500"
+                  : n.kind === "message" || n.kind === "info"
+                    ? "bg-muted-foreground"
+                    : "bg-primary",
             )}
           />
         )}
       </span>
-      <span className="min-w-0 flex-1 truncate text-sm text-foreground">
-        {displayAgent(n.agent)}{" "}
-        <span className="text-muted-foreground">
-          {t(NOTIF_LABEL_KEY[n.kind])}
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm text-foreground">
+          {n.title}
         </span>
+        {n.body ? (
+          <span className="mt-0.5 block whitespace-pre-wrap break-words text-xs leading-relaxed text-muted-foreground">
+            {n.body}
+          </span>
+        ) : null}
       </span>
-      <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
+      <span className="shrink-0 pt-0.5 text-[10px] tabular-nums text-muted-foreground">
         {relativeTime(n.at)}
       </span>
+    </>
+  );
+
+  if (n.source === "runtime") {
+    return (
+      <div className="rounded-lg px-2 py-2 transition-colors hover:bg-accent/60">
+        <div className="flex items-start gap-2.5">{content}</div>
+        {n.action || n.cancel ? (
+          <div className="mt-2 flex justify-end gap-1.5">
+            {n.cancel ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="xs"
+                onClick={() => {
+                  if (n.cancel) onAction(n, n.cancel);
+                }}
+              >
+                {n.cancel.label}
+              </Button>
+            ) : null}
+            {n.action ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="xs"
+                onClick={() => {
+                  if (n.action) onAction(n, n.action);
+                }}
+              >
+                {n.action.label}
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-start gap-2.5 rounded-lg px-2 py-2 text-left transition-colors hover:bg-accent"
+    >
+      {content}
     </button>
   );
 }
@@ -247,8 +300,25 @@ export function NotificationBell({ onActivate, onActivateLocal }: Props) {
   };
 
   const activateNotification = (n: AgentNotification) => {
+    if (n.source === "runtime") return;
     if (n.source === "local") activateLocal();
     else activate(n.tabId, n.leafId);
+  };
+
+  const runNotificationAction = (
+    n: RuntimeNotification,
+    action: NotificationAction,
+  ) => {
+    action.onClick();
+    runtimeToast.dismiss(n.runtimeId);
+    setOpen(false);
+  };
+
+  const clearAllNotifications = () => {
+    for (const n of notifications) {
+      if (n.source === "runtime") runtimeToast.dismiss(n.runtimeId);
+    }
+    clearNotifications();
   };
 
   const empty = activeCount === 0 && notifications.length === 0;
@@ -292,7 +362,7 @@ export function NotificationBell({ onActivate, onActivateLocal }: Props) {
             {notifications.length > 0 ? (
               <button
                 type="button"
-                onClick={clearNotifications}
+                onClick={clearAllNotifications}
                 className="rounded-md px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               >
                 {t("agents.bell.clear")}
@@ -332,6 +402,7 @@ export function NotificationBell({ onActivate, onActivateLocal }: Props) {
                 key={n.id}
                 n={n}
                 onClick={() => activateNotification(n)}
+                onAction={runNotificationAction}
               />
             ))}
           </div>

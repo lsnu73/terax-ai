@@ -1,4 +1,4 @@
-import { toast } from "sonner";
+import { runtimeToast as toast } from "@/modules/agents/lib/runtimeNotifications";
 import { flushPersist } from "@/modules/ai/store/chatStore";
 import {
   type FlushResult,

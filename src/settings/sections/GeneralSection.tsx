@@ -15,7 +15,11 @@ import {
 } from "@/modules/agents/lib/notify";
 import { currentLocale } from "@/modules/i18n";
 import { usePreferencesStore } from "@/modules/settings/preferences";
-import type { LanguagePref, ThemePref } from "@/modules/settings/store";
+import type {
+  LanguagePref,
+  NotificationDisplayMode,
+  ThemePref,
+} from "@/modules/settings/store";
 import {
   setAgentNotificationSound,
   setAgentNotifications,
@@ -24,6 +28,7 @@ import {
   setDefaultWorkspaceEnv,
   setExplorerGitDecorations,
   setLanguage,
+  setNotificationDisplayMode,
   setRestoreWindowState,
   setShowHidden,
   setTerminalCursorBlink,
@@ -61,9 +66,21 @@ const APPEARANCE: {
   labelKey: string;
   icon: typeof ComputerIcon;
 }[] = [
-  { id: "system", labelKey: "settings.general.appearance.system", icon: ComputerIcon },
-  { id: "light", labelKey: "settings.general.appearance.light", icon: Sun03Icon },
-  { id: "dark", labelKey: "settings.general.appearance.dark", icon: Moon02Icon },
+  {
+    id: "system",
+    labelKey: "settings.general.appearance.system",
+    icon: ComputerIcon,
+  },
+  {
+    id: "light",
+    labelKey: "settings.general.appearance.light",
+    icon: Sun03Icon,
+  },
+  {
+    id: "dark",
+    labelKey: "settings.general.appearance.dark",
+    icon: Moon02Icon,
+  },
 ];
 
 const TERMINAL_FONT_WEIGHTS = [
@@ -132,6 +149,9 @@ export function GeneralSection() {
   const agentNotificationSound = usePreferencesStore(
     (s) => s.agentNotificationSound,
   );
+  const notificationDisplayMode = usePreferencesStore(
+    (s) => s.notificationDisplayMode,
+  );
   const [notificationTest, setNotificationTest] =
     useState<NotificationTestState>("idle");
   const notificationTestPending =
@@ -189,7 +209,10 @@ export function GeneralSection() {
 
       <div className="flex flex-col gap-2">
         <Label>{t("settings.general.appearance.label")}</Label>
-        <div data-setting-id="general.appearance" className="grid grid-cols-3 gap-2">
+        <div
+          data-setting-id="general.appearance"
+          className="grid grid-cols-3 gap-2"
+        >
           {APPEARANCE.map((o) => (
             <button
               key={o.id}
@@ -476,9 +499,7 @@ export function GeneralSection() {
         <SettingRow
           searchId="general.terminal.letterSpacing"
           title={t("settings.general.terminal.letterSpacing.title")}
-          description={t(
-            "settings.general.terminal.letterSpacing.description",
-          )}
+          description={t("settings.general.terminal.letterSpacing.description")}
         >
           <Select
             value={String(terminalLetterSpacing)}
@@ -586,11 +607,33 @@ export function GeneralSection() {
       <div className="flex flex-col gap-2">
         <Label>{t("settings.general.agents.label")}</Label>
         <SettingRow
+          searchId="general.agents.displayMode"
+          title={t("settings.general.agents.displayMode.title")}
+          description={t("settings.general.agents.displayMode.description")}
+        >
+          <Select
+            value={notificationDisplayMode}
+            onValueChange={(value) =>
+              void setNotificationDisplayMode(value as NotificationDisplayMode)
+            }
+          >
+            <SelectTrigger className="h-8 w-40 text-[12px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="toast" className="text-[12px]">
+                {t("settings.general.agents.displayMode.toast")}
+              </SelectItem>
+              <SelectItem value="badge" className="text-[12px]">
+                {t("settings.general.agents.displayMode.badge")}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </SettingRow>
+        <SettingRow
           searchId="general.agents.notifications"
           title={t("settings.general.agents.notifications.title")}
-          description={t(
-            "settings.general.agents.notifications.description",
-          )}
+          description={t("settings.general.agents.notifications.description")}
         >
           <div className="flex items-center gap-2">
             <Button

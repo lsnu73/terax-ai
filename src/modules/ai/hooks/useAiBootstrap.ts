@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import { runtimeToast as toast } from "@/modules/agents/lib/runtimeNotifications";
 import { t } from "@/modules/i18n";
 import {
   getDefaultModelId,
@@ -32,7 +32,8 @@ export function useAiBootstrap({ mirror = false }: { mirror?: boolean } = {}): {
   const hydrateSessions = useChatStore((s) => s.hydrateSessions);
 
   useEffect(() => {
-    if (!mirror && activeSessionId) firePendingReviewForSession(activeSessionId);
+    if (!mirror && activeSessionId)
+      firePendingReviewForSession(activeSessionId);
   }, [activeSessionId, mirror]);
 
   const configHydrated = useAiConfigStore((s) => s.hydrated);

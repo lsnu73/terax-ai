@@ -29,13 +29,13 @@ export const agentsZh: typeof agents = {
     days: "{{count}} 天前",
   },
   bell: {
-    title: "代理通知",
+    title: "通知",
     header: "通知",
     activeCount_one: "{{count}} 个活跃",
     activeCount_other: "{{count}} 个活跃",
     clear: "清空",
-    emptyLine1: "还没有代理活动。",
-    emptyLine2: "运行 Terax 代理或编码代理后即可在这里跟踪。",
+    emptyLine1: "还没有通知。",
+    emptyLine2: "代理活动和软件运行消息会显示在这里。",
     waiting: "等待中",
     working: "工作中",
     kindLabel: {

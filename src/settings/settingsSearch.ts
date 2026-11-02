@@ -155,6 +155,14 @@ export const SETTING_SEARCH_ITEMS: readonly SettingSearchItem[] = [
     groupKey: "settings.general.terminal.label",
   },
   {
+    id: "general.agents.displayMode",
+    section: "general",
+    targetId: "general.agents.displayMode",
+    titleKey: "settings.general.agents.displayMode.title",
+    descriptionKey: "settings.general.agents.displayMode.description",
+    groupKey: "settings.general.agents.label",
+  },
+  {
     id: "general.agents.notifications",
     section: "general",
     targetId: "general.agents.notifications",

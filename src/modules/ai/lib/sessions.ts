@@ -1,7 +1,7 @@
 import type { UIMessage } from "@ai-sdk/react";
 import { invoke } from "@tauri-apps/api/core";
 import { LazyStore } from "@tauri-apps/plugin-store";
-import { toast } from "sonner";
+import { runtimeToast as toast } from "@/modules/agents/lib/runtimeNotifications";
 import { t } from "@/modules/i18n";
 
 export type SessionMeta = {

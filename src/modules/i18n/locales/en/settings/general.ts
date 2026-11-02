@@ -122,6 +122,13 @@ export const settingsGeneral = {
   },
   agents: {
     label: "Agents",
+    displayMode: {
+      title: "In-app notification display",
+      description:
+        "Show messages immediately, or only add an unread badge until you open Notifications.",
+      toast: "Show messages",
+      badge: "Unread badge only",
+    },
     notifications: {
       title: "Coding agent notifications",
       description:
