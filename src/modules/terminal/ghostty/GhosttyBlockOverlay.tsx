@@ -5,13 +5,11 @@ import { ghosttyBlockCellHeight } from "@/modules/terminal/ghostty/useGhosttyTer
 
 type Props = {
   leafId: number;
-  searchId: string | null;
   onCloseSearch: () => void;
 };
 
 export default function GhosttyBlockOverlay({
   leafId,
-  searchId,
   onCloseSearch,
 }: Props) {
   const state = ensureGhosttyBlocks(leafId);
@@ -32,13 +30,6 @@ export default function GhosttyBlockOverlay({
     <BlockOverlay
       subscribe={state.subscribeViewport}
       getVisible={getVisible}
-      searchBlock={(id, query, signal) =>
-        state.controller?.searchBlock(id, query, signal) ??
-        Promise.resolve([])
-      }
-      revealMatch={(match) => state.controller?.revealMatch(match)}
-      clearSearch={() => state.controller?.clearSearch()}
-      searchId={searchId}
       onCloseSearch={closeSearch}
     />
   );

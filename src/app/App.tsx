@@ -237,6 +237,10 @@ export default function App() {
   const searchAddons = useRef<Map<number, TerminalSearchController>>(new Map());
   const [activeSearchAddon, setActiveSearchAddon] =
     useState<TerminalSearchController | null>(null);
+  const [blockSearch, setBlockSearch] = useState<{
+    leafId: number;
+    addon: TerminalSearchController;
+  } | null>(null);
   const searchInlineRef = useRef<SearchInlineHandle | null>(null);
   const terminalRefs = useRef<Map<number, TerminalPaneHandle>>(new Map());
   const editorRefs = useRef<Map<number, EditorPaneHandle>>(new Map());
@@ -261,6 +265,7 @@ export default function App() {
     editorRefs.current.clear();
     previewRefs.current.clear();
     setActiveSearchAddon(null);
+    setBlockSearch(null);
     setActiveEditorHandle(null);
   }, []);
 
@@ -450,6 +455,26 @@ export default function App() {
     },
     [activeLeafId],
   );
+
+  const handleBlockSearch = useCallback(
+    (leafId: number, addon: TerminalSearchController) => {
+      setBlockSearch({ leafId, addon });
+    },
+    [],
+  );
+  const handleBlockSearchClose = useCallback((leafId: number) => {
+    setBlockSearch((current) =>
+      current?.leafId === leafId ? null : current,
+    );
+  }, []);
+  useEffect(() => {
+    if (blockSearch) searchInlineRef.current?.focus();
+  }, [blockSearch]);
+  useEffect(() => {
+    setBlockSearch((current) =>
+      current && current.leafId !== activeLeafId ? null : current,
+    );
+  }, [activeLeafId]);
 
   const disposeTab = useCallback(
     (id: number) => {
@@ -1196,6 +1221,18 @@ export default function App() {
   );
 
   const searchTarget = useMemo<SearchTarget>(() => {
+    if (
+      blockSearch &&
+      isTerminalTab &&
+      activeLeafId === blockSearch.leafId
+    )
+      return {
+        kind: "terminal",
+        addon: blockSearch.addon,
+        focus: () => terminalRefs.current.get(blockSearch.leafId)?.focus(),
+        placeholder: t("terminal.block.findInBlock"),
+        onClose: () => handleBlockSearchClose(blockSearch.leafId),
+      };
     if (isTerminalTab && activeLeafId !== null && activeSearchAddon)
       return {
         kind: "terminal",
@@ -1221,6 +1258,8 @@ export default function App() {
     isGitHistoryTab,
     activeLeafId,
     activeSearchAddon,
+    blockSearch,
+    handleBlockSearchClose,
     activeEditorHandle,
     gitHistoryHandle,
   ]);
@@ -1579,6 +1618,8 @@ export default function App() {
                         activeTab={activeTab}
                         registerTerminalHandle={registerTerminalHandle}
                         onSearchReady={handleSearchReady}
+                        onBlockSearch={handleBlockSearch}
+                        onBlockSearchClose={handleBlockSearchClose}
                         onCwd={handleTerminalCwd}
                         onExit={handleLeafExit}
                         onOpenPreviewUrl={openPreviewTab}

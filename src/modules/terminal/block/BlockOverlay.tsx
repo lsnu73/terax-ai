@@ -1,35 +1,16 @@
 import "@/modules/terminal/block/block.css";
 
 import { cn } from "@/lib/utils";
-import {
-  ArrowDown01Icon,
-  ArrowUp01Icon,
-  Cancel01Icon,
-  CommandLineIcon,
-  Search01Icon,
-} from "@hugeicons/core-free-icons";
+import { CommandLineIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
-import type {
-  BlockMatch,
-  PositionedBlock,
-  VisibleBlocks,
-} from "./lib/blockTypes";
+import type { PositionedBlock, VisibleBlocks } from "./lib/blockTypes";
 
 type Props = {
   subscribe: (cb: () => void) => () => void;
   getVisible: () => VisibleBlocks;
-  searchBlock: (
-    id: string,
-    query: string,
-    signal: AbortSignal,
-  ) => Promise<BlockMatch[]>;
-  revealMatch: (m: BlockMatch) => void;
-  clearSearch: () => void;
-  searchId: string | null;
   onCloseSearch: () => void;
 };
 
@@ -96,31 +77,16 @@ export function BlockOverlay(props: Props) {
   return (
     <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
       {vis.blocks.map((block) => (
-        <BlockChrome key={block.id} block={block} all={props} />
+        <BlockChrome key={block.id} block={block} />
       ))}
-      {vis.sticky && <StickyHeader block={vis.sticky} all={props} />}
-      {props.searchId && (
-        <SearchBar
-          key={props.searchId}
-          clearSearch={props.clearSearch}
-          blockId={props.searchId}
-          searchBlock={props.searchBlock}
-          revealMatch={props.revealMatch}
-          onClose={onCloseSearch}
-        />
-      )}
+      {vis.sticky && <StickyHeader block={vis.sticky} />}
     </div>
   );
 }
 
-type ChromeProps = {
-  block: PositionedBlock;
-  all: Props;
-};
-
 // No chrome while the command runs; only the divider lands with the bar once
 // the block is finished (the bar itself only carries the failed exit code).
-function BlockChrome({ block }: ChromeProps) {
+function BlockChrome({ block }: { block: PositionedBlock }) {
   if (block.running) return null;
   const failed = !block.ok && block.exitCode !== null;
   return (
@@ -148,7 +114,7 @@ function ExitCode({ block }: { block: PositionedBlock }) {
   );
 }
 
-function StickyHeader({ block }: ChromeProps) {
+function StickyHeader({ block }: { block: PositionedBlock }) {
   const { t } = useTranslation();
   return (
     <div className="bt-sticky">
@@ -162,125 +128,5 @@ function StickyHeader({ block }: ChromeProps) {
         {block.command || t("terminal.block.commandFallback")}
       </span>
     </div>
-  );
-}
-
-// One fixed search bar pinned to the top of the terminal so it stays put while
-// navigating matches (the grid scrolls underneath).
-function SearchBar({
-  clearSearch,
-  blockId,
-  searchBlock,
-  revealMatch,
-  onClose,
-}: {
-  clearSearch: () => void;
-  blockId: string;
-  searchBlock: (
-    id: string,
-    query: string,
-    signal: AbortSignal,
-  ) => Promise<BlockMatch[]>;
-  revealMatch: (m: BlockMatch) => void;
-  onClose: () => void;
-}) {
-  const { t } = useTranslation();
-  const [matches, setMatches] = useState<BlockMatch[]>([]);
-  const [idx, setIdx] = useState(0);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
-
-  const searchRef = useRef<AbortController | null>(null);
-  const [pending, setPending] = useState(false);
-  useEffect(() => () => searchRef.current?.abort(), []);
-  const run = (query: string) => {
-    searchRef.current?.abort();
-    clearSearch();
-    const controller = new AbortController();
-    searchRef.current = controller;
-    setMatches([]);
-    setIdx(0);
-    setPending(!!query);
-    void searchBlock(blockId, query, controller.signal).then(
-      (m) => {
-        if (controller.signal.aborted) return;
-        setPending(false);
-        setMatches(m);
-        if (m.length) revealMatch(m[0]);
-      },
-      () => {
-        if (controller.signal.aborted) return;
-        setPending(false);
-        toast.error(t("terminal.block.searchFailed"));
-      },
-    );
-  };
-  const nav = (dir: number) => {
-    if (!matches.length) return;
-    const next = (idx + dir + matches.length) % matches.length;
-    setIdx(next);
-    revealMatch(matches[next]);
-  };
-
-  return (
-    <div className="bt-search pointer-events-auto">
-      <HugeiconsIcon icon={Search01Icon} size={12} strokeWidth={1.75} />
-      <input
-        ref={inputRef}
-        className="bt-search-input"
-        placeholder={t("terminal.block.findInBlock")}
-        onChange={(e) => run(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            nav(e.shiftKey ? -1 : 1);
-          } else if (e.key === "Escape") {
-            e.preventDefault();
-            onClose();
-          }
-        }}
-      />
-      <span className="bt-search-count">
-        {pending
-          ? t("terminal.block.searching")
-          : matches.length
-            ? `${idx + 1}/${matches.length}`
-            : "0"}
-      </span>
-      <SearchBtn
-        title={t("terminal.block.previous")}
-        icon={ArrowUp01Icon}
-        onClick={() => nav(-1)}
-      />
-      <SearchBtn
-        title={t("terminal.block.next")}
-        icon={ArrowDown01Icon}
-        onClick={() => nav(1)}
-      />
-      <SearchBtn
-        title={t("terminal.block.close")}
-        icon={Cancel01Icon}
-        onClick={onClose}
-      />
-    </div>
-  );
-}
-
-function SearchBtn({
-  title,
-  icon,
-  onClick,
-}: {
-  title: string;
-  icon: typeof Cancel01Icon;
-  onClick: () => void;
-}) {
-  return (
-    <button type="button" title={title} onClick={onClick} className="bt-btn">
-      <HugeiconsIcon icon={icon} size={13} strokeWidth={1.75} />
-    </button>
   );
 }

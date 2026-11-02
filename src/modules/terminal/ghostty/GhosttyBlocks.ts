@@ -346,6 +346,7 @@ export class GhosttyBlocks {
     id: string,
     query: string,
     signal?: AbortSignal,
+    options?: { regex?: boolean },
   ): Promise<BlockMatch[]> {
     const entry = this.entries.find((entry) => entry.id === id);
     const range = entry && this.range(entry);
@@ -360,6 +361,14 @@ export class GhosttyBlocks {
       return [];
     const generation = this.clearGeneration;
     const cols = this.model.cols;
+    let expression: RegExp | null = null;
+    if (options?.regex) {
+      try {
+        expression = new RegExp(query, "gi");
+      } catch {
+        return [];
+      }
+    }
     const matches: BlockMatch[] = [];
     let sliceStart = performance.now();
     for (
@@ -394,7 +403,11 @@ export class GhosttyBlocks {
         )
           return [];
       }
-      for (const match of matchCellText(this.model.readCellLine(line), query)) {
+      const cells = this.model.readCellLine(line);
+      const lineMatches = expression
+        ? matchCellRegex(cells, expression)
+        : matchCellText(cells, query);
+      for (const match of lineMatches) {
         if (line === range.start && match.col < range.startCol) continue;
         if (line === range.end && match.col + match.len > range.endCol + 1)
           continue;
@@ -459,6 +472,33 @@ export function matchCellText(
     if (end < cells.length && cells[end] === "") end++;
     result.push({ col, len: end - col });
     from = index + needle.length;
+  }
+  return result;
+}
+
+function matchCellRegex(
+  cells: readonly string[],
+  expression: RegExp,
+): { col: number; len: number }[] {
+  let text = "";
+  const columns: number[] = [];
+  for (let col = 0; col < cells.length; col++) {
+    for (let i = 0; i < cells[col].length; i++) columns.push(col);
+    text += cells[col];
+  }
+  const result: { col: number; len: number }[] = [];
+  expression.lastIndex = 0;
+  while (result.length < 500) {
+    const match = expression.exec(text);
+    if (match === null) break;
+    if (!match[0].length) {
+      expression.lastIndex++;
+      continue;
+    }
+    const col = columns[match.index];
+    let end = columns[match.index + match[0].length - 1] + 1;
+    if (end < cells.length && cells[end] === "") end++;
+    result.push({ col, len: end - col });
   }
   return result;
 }

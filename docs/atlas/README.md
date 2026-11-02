@@ -25,7 +25,7 @@ Terax 是面向开发者的开源桌面开发工作区，以终端为中心，�
 | 调整撤销拆分的默认键位 | [features/撤销终端窗格拆分.md](features/撤销终端窗格拆分.md) | `src/modules/shortcuts/shortcuts.ts` |
 | 改主窗口开发者工具入口 | [features/开发者工具.md](features/开发者工具.md) | `src-tauri/src/lib.rs`, `src/app/App.tsx` |
 | 改终端 URL 的打开方式 | [features/终端链接打开.md](features/终端链接打开.md) | `src/modules/terminal/lib/terminalLinks.ts`, `src/modules/terminal/ghostty/useGhosttyTerminalSession.ts` |
-| 改终端命令块、块右键菜单或历史搜索 | [features/终端命令与结果块.md](features/终端命令与结果块.md) | `src/modules/terminal/TerminalPane.tsx`, `src/modules/terminal/ghostty/GhosttyBlocks.ts` |
+| 改终端命令块、块右键菜单、块内查找或历史搜索 | [features/终端命令与结果块.md](features/终端命令与结果块.md) | `src/modules/terminal/TerminalPane.tsx`, `src/modules/header/SearchInline.tsx`, `src/modules/terminal/ghostty/search/GhosttyBlockSearchController.ts` |
 | 改预览端口菜单或预设 | [features/预览端口管理.md](features/预览端口管理.md) | `src/modules/preview/PreviewAddressBar.tsx`, `src/modules/preview/lib/portPresets.ts` |
 | 改命令面板命令或搜索模式 | [features/命令面板.md](features/命令面板.md) | `src/modules/command-palette/CommandPalette.tsx`, `src/modules/command-palette/commands.ts` |
 | 改按钮悬浮提示的快捷键格式 | [features/快捷键提示.md](features/快捷键提示.md) | `src/modules/shortcuts/components/ShortcutTooltip.tsx` |

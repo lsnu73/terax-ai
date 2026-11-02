@@ -38,7 +38,13 @@ const POPUP_WIDTH = 320;
 const TITLEBAR_HEIGHT = 40;
 
 export type SearchTarget =
-  | { kind: "terminal"; addon: TerminalSearchController; focus: () => void }
+  | {
+      kind: "terminal";
+      addon: TerminalSearchController;
+      focus: () => void;
+      placeholder?: string;
+      onClose?: () => void;
+    }
   | { kind: "editor"; handle: EditorPaneHandle; focus: () => void }
   | {
       kind: "git-history";
@@ -80,7 +86,9 @@ export const SearchInline = forwardRef<SearchInlineHandle, Props>(
     const baseLabel =
       target?.kind === "git-history"
         ? t("header.gitSearch")
-        : t("header.search");
+        : target?.kind === "terminal" && target.placeholder
+          ? target.placeholder
+          : t("header.search");
     const tooltipTitle = shortcutHintLabel(baseLabel, shortcutText);
 
     const regexValid = useMemo(() => {
@@ -118,7 +126,8 @@ export const SearchInline = forwardRef<SearchInlineHandle, Props>(
       setQ("");
       setOpen(false);
       restoreTargetFocus();
-    }, [clearTarget, restoreTargetFocus]);
+      if (target?.kind === "terminal") target.onClose?.();
+    }, [clearTarget, restoreTargetFocus, target]);
 
     const focus = useCallback(() => {
       if (open) {

@@ -6,8 +6,8 @@
 
 | 文件 | 主归属功能 | 次要归属 | 说明 |
 |---|---|---|---|
-| `src/app/App.tsx` | [开发者工具](features/开发者工具.md) | [撤销终端窗格拆分](features/撤销终端窗格拆分.md)、[终端链接打开](features/终端链接打开.md) | 注册 DevTools 处理器，协调标签页与预览打开 |
-| `src/app/components/WorkspaceSurface.tsx` | [终端链接打开](features/终端链接打开.md) | 工作区渲染、[设置页](features/设置页.md) | 将预览打开回调透传给终端栈，并在工作区层渲染设置页 |
+| `src/app/App.tsx` | [开发者工具](features/开发者工具.md) | [撤销终端窗格拆分](features/撤销终端窗格拆分.md)、[终端链接打开](features/终端链接打开.md)、[终端命令与结果块](features/终端命令与结果块.md) | 注册 DevTools 处理器，协调标签页、预览与共享搜索目标 |
+| `src/app/components/WorkspaceSurface.tsx` | [终端链接打开](features/终端链接打开.md) | 工作区渲染、[设置页](features/设置页.md)、[终端命令与结果块](features/终端命令与结果块.md) | 透传预览与块搜索回调，并在工作区层渲染设置页 |
 | `src-tauri/src/lib.rs` | [开发者工具](features/开发者工具.md) | 设置窗口、原生 IPC | 提供 `open_devtools` 命令 |
 | `src/modules/shortcuts/shortcuts.ts` | [快捷键提示](features/快捷键提示.md) | [撤销终端窗格拆分](features/撤销终端窗格拆分.md)、[开发者工具](features/开发者工具.md)、[终端命令与结果块](features/终端命令与结果块.md)、[设置页](features/设置页.md) | 快捷键 ID、默认绑定、显示令牌、Ctrl+R 保留判定与设置搜索快捷键索引来源 |
 | `src/modules/shortcuts/lib/useGlobalShortcuts.ts` | [快捷键提示](features/快捷键提示.md) | [终端命令与结果块](features/终端命令与结果块.md) | 捕获键盘事件、派发处理器并跳过 Ctrl+R |
@@ -15,7 +15,7 @@
 | `src/modules/shortcuts/components/ShortcutTooltip.tsx` | [快捷键提示](features/快捷键提示.md) | 无 | 统一 Tooltip 与菜单快捷键文本 |
 | `src/modules/shortcuts/index.ts` | [快捷键提示](features/快捷键提示.md) | 无 | 快捷键模块公共导出 |
 | `src/modules/header/Header.tsx` | [快捷键提示](features/快捷键提示.md) | 顶栏布局 | 设置、侧栏、命令面板按钮提示 |
-| `src/modules/header/SearchInline.tsx` | [快捷键提示](features/快捷键提示.md) | 标签内搜索 | placeholder 与标题动态显示快捷键 |
+| `src/modules/header/SearchInline.tsx` | [快捷键提示](features/快捷键提示.md) | 标签内搜索、[终端命令与结果块](features/终端命令与结果块.md) | Ctrl+F 与命令块查找共用的弹窗，按 target 切换全文或局部控制器 |
 | `src/modules/tabs/NewTabMenu.tsx` | [快捷键提示](features/快捷键提示.md) | 标签页管理 | 新建标签菜单动态显示快捷键 |
 | `src/modules/tabs/TabBar.tsx` | [快捷键提示](features/快捷键提示.md) | 标签页管理 | 标签关闭按钮动态标题 |
 | `src/modules/ai/components/AiOpenButton.tsx` | [快捷键提示](features/快捷键提示.md) | [独立AI窗口](features/独立AI窗口.md) | 状态栏 AI 开关与动态快捷键提示 |
@@ -37,17 +37,18 @@
 | `src/modules/terminal/lib/blockAnchorProbe.ts` | [终端命令与结果块](features/终端命令与结果块.md) | 终端会话与渲染 | 检测会话缺失 OSC 133;C 命令锚点（PS 5.1 无 PSReadLine 时提示安装） |
 | `src/modules/terminal/ghostty/gpu/WebGpuTerminalSurface.ts` | [终端链接打开](features/终端链接打开.md) | 终端渲染 | WebGPU 链接点击与修饰键透传 |
 | `src/modules/terminal/ghostty/webgl/WebGlTerminalSurface.ts` | [终端链接打开](features/终端链接打开.md) | 终端渲染回退 | WebGL 链接点击与修饰键透传 |
-| `src/modules/terminal/TerminalPane.tsx` | [终端命令与结果块](features/终端命令与结果块.md) | [终端链接打开](features/终端链接打开.md)、终端会话与渲染 | 选区优先、块右键命中与受控块搜索 |
+| `src/modules/terminal/TerminalPane.tsx` | [终端命令与结果块](features/终端命令与结果块.md) | [终端链接打开](features/终端链接打开.md)、终端会话与渲染 | 选区优先、块右键命中，创建局部搜索控制器并打开共享弹窗 |
 | `src/modules/terminal/block/BlockContextMenu.tsx` | [终端命令与结果块](features/终端命令与结果块.md) | AI prefill 与剪贴板 | 六项块操作右键菜单 |
-| `src/modules/terminal/block/BlockOverlay.tsx` | [终端命令与结果块](features/终端命令与结果块.md) | 终端块展示 | 块尾分隔线、失败退出码与受控搜索 |
-| `src/modules/terminal/ghostty/GhosttyBlocks.ts` | [终端命令与结果块](features/终端命令与结果块.md) | Ghostty model 适配 | OSC 133 块边界、读取、搜索与右键命中 |
-| `src/modules/terminal/ghostty/GhosttyBlockOverlay.tsx` | [终端命令与结果块](features/终端命令与结果块.md) | 会话桥接 | 连接块控制器、覆盖层与受控搜索 |
+| `src/modules/terminal/block/BlockOverlay.tsx` | [终端命令与结果块](features/终端命令与结果块.md) | 终端块展示 | 块尾分隔线、失败退出码；块清空时关闭共享搜索 |
+| `src/modules/terminal/ghostty/GhosttyBlocks.ts` | [终端命令与结果块](features/终端命令与结果块.md) | Ghostty model 适配 | OSC 133 块边界、读取、局部文本/正则搜索与右键命中 |
+| `src/modules/terminal/ghostty/search/GhosttyBlockSearchController.ts` | [终端命令与结果块](features/终端命令与结果块.md) | 标签内搜索 | 把异步块扫描、取消和匹配导航适配为 TerminalSearchController |
+| `src/modules/terminal/ghostty/GhosttyBlockOverlay.tsx` | [终端命令与结果块](features/终端命令与结果块.md) | 会话桥接 | 连接块控制器与覆盖层，清块时关闭共享搜索 |
 | `src-tauri/src/modules/pty/scripts/profile.ps1` | [终端命令与结果块](features/终端命令与结果块.md) | PowerShell 集成 | OSC 133 标记、命令行上报与块头间隔空行 |
 | `src-tauri/src/modules/pty/scripts/zshrc.zsh` | [终端命令与结果块](features/终端命令与结果块.md) | zsh 集成 | OSC 133 标记、命令行上报与块头间隔空行 |
 | `src-tauri/src/modules/pty/scripts/bashrc.bash` | [终端命令与结果块](features/终端命令与结果块.md) | bash 集成 | OSC 133 标记、PS0 预执行与块头间隔空行 |
 | `src-tauri/src/modules/pty/scripts/init.fish` | [终端命令与结果块](features/终端命令与结果块.md) | fish 集成 | OSC 133 标记、命令行上报与块头间隔空行 |
-| `src/modules/terminal/PaneTreeView.tsx` | [终端链接打开](features/终端链接打开.md) | 终端分屏 | 分屏叶节点回调透传 |
-| `src/modules/terminal/TerminalStack.tsx` | [终端链接打开](features/终端链接打开.md) | 标签页管理 | 标签级回调与最新引用 |
+| `src/modules/terminal/PaneTreeView.tsx` | [终端链接打开](features/终端链接打开.md) | 终端分屏、[终端命令与结果块](features/终端命令与结果块.md) | 分屏叶节点与块搜索回调透传 |
+| `src/modules/terminal/TerminalStack.tsx` | [终端链接打开](features/终端链接打开.md) | 标签页管理、[终端命令与结果块](features/终端命令与结果块.md) | 标签级回调与块搜索回调最新引用 |
 | `src/lib/external-link.ts` | [终端链接打开](features/终端链接打开.md) | 外部链接 | Ctrl 或 Cmd 分支调用系统浏览器 |
 | `src/modules/preview/PreviewAddressBar.tsx` | [预览端口管理](features/预览端口管理.md) | 网页预览 | 端口菜单、添加与编辑入口 |
 | `src/modules/preview/PreviewPane.tsx` | [预览端口管理](features/预览端口管理.md) | 网页预览 | 空态「端口」按钮调用地址栏 handle |
@@ -105,4 +106,3 @@
 | `src/modules/proxy/lib/autoLaunch.ts` | [代理](features/代理.md) | 无 | 代理软件自动启动触发 |
 | `src-tauri/src/modules/proxy.rs` | [代理](features/代理.md) | 无 | 代理软件进程检测与启动 |
 | `src-tauri/src/modules/net/clients.rs` | [代理](features/代理.md) | AI 会话 | reqwest 客户端缓存，代理地址纳入缓存键 |
-| `src/modules/header/SearchInline.tsx` | 搜索弹窗（未单独成篇） | 无 | 弹窗式搜索，支持终端/编辑器/Git 历史与正则开关 |

@@ -74,3 +74,9 @@
   - 强制点：`src/settings/components/SettingsSearch.tsx` 只过滤索引；`src/settings/SettingsView.tsx` 只按目标 ID 查询锚点；普通行通过 `src/settings/components/SettingRow.tsx` 的 `searchId` 输出锚点。
   - ⚠️ 索引与锚点的一致性暂无代码强制，属口头约定，靠新增设置项时的评审把关。
   - 代码索引：见 [atlas/features/设置页.md](../atlas/features/设置页.md)。
+
+- **INV-016** 终端全文查找与命令块局部查找必须复用 `SearchInline` 的同一套搜索弹窗，只允许替换 `TerminalSearchController` 和搜索范围；禁止在块覆盖层或菜单中另建搜索输入框。
+  - 违反代价：入口的焦点生命周期、键盘导航和正则能力再次分叉；右键菜单的终端焦点恢复会覆盖独立输入框焦点，使用户输入直接进入 Shell。
+  - 强制点：`src/app/App.tsx` 的 `searchTarget` 统一选择全文或局部控制器；`src/modules/terminal/ghostty/search/GhosttyBlockSearchController.ts` 适配既有终端搜索契约；`src/modules/terminal/block/BlockOverlay.tsx` 不再包含 SearchBar。
+  - ⚠️ 此条暂无自动化测试强制，靠交互代码评审把关。
+  - 代码索引：见 [atlas/features/终端命令与结果块.md](../atlas/features/终端命令与结果块.md)；焦点坑见 [pitfalls/2026-11-02-命令块查找焦点被终端抢回.md](pitfalls/2026-11-02-命令块查找焦点被终端抢回.md)。

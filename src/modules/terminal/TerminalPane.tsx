@@ -6,6 +6,8 @@ import { usePreferencesStore } from "@/modules/settings/preferences";
 import { BlockContextMenu } from "@/modules/terminal/block/BlockContextMenu";
 import type { PositionedBlock } from "@/modules/terminal/block/lib/blockTypes";
 import type { TerminalSearchController } from "@/modules/terminal/search/TerminalSearchController";
+import { GhosttyBlockSearchController } from "@/modules/terminal/ghostty/search/GhosttyBlockSearchController";
+import { toast } from "sonner";
 import { submitToLeaf } from "@/modules/terminal/lib/terminalSessionApi";
 import { useTheme } from "@/modules/theme";
 import {
@@ -45,6 +47,8 @@ export type TerminalPaneProps = {
   focused?: boolean;
   initialCwd?: string;
   onSearchReady?: (leafId: number, addon: TerminalSearchController) => void;
+  onBlockSearch?: (leafId: number, addon: TerminalSearchController) => void;
+  onBlockSearchClose?: (leafId: number) => void;
   onExit?: (leafId: number, code: number) => void;
   onCwd?: (leafId: number, cwd: string) => void;
   onOpenPreviewUrl?: (url: string) => void;
@@ -68,6 +72,8 @@ const GhosttyTerminalPane = memo(
       focused = true,
       initialCwd,
       onSearchReady,
+      onBlockSearch,
+      onBlockSearchClose,
       onExit,
       onCwd,
       onOpenPreviewUrl,
@@ -85,7 +91,6 @@ const GhosttyTerminalPane = memo(
       null,
     );
     const [contextOpen, setContextOpen] = useState(false);
-    const [blockSearchId, setBlockSearchId] = useState<string | null>(null);
     const { resolvedMode, activeTheme } = useTheme();
     const session = useGhosttyTerminalSession({
       leafId,
@@ -118,7 +123,10 @@ const GhosttyTerminalPane = memo(
       [session],
     );
 
-    const closeBlockSearch = useCallback(() => setBlockSearchId(null), []);
+    const closeBlockSearch = useCallback(
+      () => onBlockSearchClose?.(leafId),
+      [leafId, onBlockSearchClose],
+    );
 
     const onContextMenu = (event: MouseEvent<HTMLDivElement>) => {
       const state = ghosttyBlocks(leafId);
@@ -226,7 +234,6 @@ const GhosttyTerminalPane = memo(
             <Suspense fallback={null}>
               <GhosttyBlockOverlay
                 leafId={leafId}
-                searchId={blockSearchId}
                 onCloseSearch={closeBlockSearch}
               />
             </Suspense>
@@ -268,8 +275,15 @@ const GhosttyTerminalPane = memo(
           }
           onRunAgain={(command) => submitToLeaf(leafId, command)}
           onSearch={(id) => {
-            ghosttyBlocks(leafId)?.controller?.clearSearch();
-            setBlockSearchId(id);
+            const blocks = ghosttyBlocks(leafId)?.controller;
+            if (!blocks) return;
+            blocks.clearSearch();
+            onBlockSearch?.(
+              leafId,
+              new GhosttyBlockSearchController(blocks, id, () =>
+                toast.error(t("terminal.block.searchFailed")),
+              ),
+            );
           }}
           onRestoreFocus={session.focus}
         />

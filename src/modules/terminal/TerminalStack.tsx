@@ -12,6 +12,8 @@ type Props = {
   /** Register/unregister handle by leaf id (not tab id). */
   registerHandle: (leafId: number, handle: TerminalPaneHandle | null) => void;
   onSearchReady: (leafId: number, addon: TerminalSearchController) => void;
+  onBlockSearch: (leafId: number, addon: TerminalSearchController) => void;
+  onBlockSearchClose: (leafId: number) => void;
   onCwd: (leafId: number, cwd: string) => void;
   onExit: (leafId: number, code: number) => void;
   onOpenPreviewUrl: (url: string) => void;
@@ -21,6 +23,8 @@ type Props = {
 type Bundle = {
   setRef: (h: TerminalPaneHandle | null) => void;
   onSearchReady: (leafId: number, addon: TerminalSearchController) => void;
+  onBlockSearch: (leafId: number, addon: TerminalSearchController) => void;
+  onBlockSearchClose: (leafId: number) => void;
   onCwd: (leafId: number, cwd: string) => void;
   onExit: (leafId: number, code: number) => void;
   onOpenPreviewUrl: (url: string) => void;
@@ -31,6 +35,8 @@ export function TerminalStack({
   activeId,
   registerHandle,
   onSearchReady,
+  onBlockSearch,
+  onBlockSearchClose,
   onCwd,
   onExit,
   onOpenPreviewUrl,
@@ -40,6 +46,8 @@ export function TerminalStack({
 
   const registerRef = useRef(registerHandle);
   const searchReadyRef = useRef(onSearchReady);
+  const blockSearchRef = useRef(onBlockSearch);
+  const blockSearchCloseRef = useRef(onBlockSearchClose);
   const cwdRef = useRef(onCwd);
   const exitRef = useRef(onExit);
   const openPreviewRef = useRef(onOpenPreviewUrl);
@@ -52,6 +60,10 @@ export function TerminalStack({
   useEffect(() => {
     searchReadyRef.current = onSearchReady;
   }, [onSearchReady]);
+  useEffect(() => {
+    blockSearchRef.current = onBlockSearch;
+    blockSearchCloseRef.current = onBlockSearchClose;
+  }, [onBlockSearch, onBlockSearchClose]);
   useEffect(() => {
     cwdRef.current = onCwd;
   }, [onCwd]);
@@ -66,6 +78,8 @@ export function TerminalStack({
       b = {
         setRef: (h) => registerRef.current(leafId, h),
         onSearchReady: (id, addon) => searchReadyRef.current(id, addon),
+        onBlockSearch: (id, addon) => blockSearchRef.current(id, addon),
+        onBlockSearchClose: (id) => blockSearchCloseRef.current(id),
         onCwd: (id, cwd) => cwdRef.current(id, cwd),
         onExit: (id, code) => exitRef.current(id, code),
         onOpenPreviewUrl: (url) => openPreviewRef.current(url),

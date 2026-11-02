@@ -46,8 +46,7 @@
   color: var(--destructive, #e5706b);
 }
 
-.bt-tools,
-.bt-search {
+.bt-tools {
   display: flex;
   align-items: center;
   gap: 1px;
@@ -58,57 +57,6 @@
   background: color-mix(in srgb, var(--popover, #1b1b1d) 96%, transparent);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
   color: var(--muted-foreground, rgba(170, 170, 170, 0.85));
-}
-
-.bt-search {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  padding: 2px 4px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-}
-
-.bt-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 18px;
-  border-radius: 5px;
-  color: inherit;
-  transition:
-    background var(--dur-fast) var(--ease-soft),
-    color var(--dur-fast) var(--ease-soft);
-}
-
-.bt-btn:hover {
-  background: var(--accent, rgba(127, 127, 127, 0.22));
-  color: var(--foreground, #fff);
-}
-
-.bt-btn:disabled {
-  pointer-events: none;
-}
-
-.bt-search-input {
-  width: 9rem;
-  background: transparent;
-  border: none;
-  outline: none;
-  font-size: 11px;
-  color: var(--foreground, #e6e6e6);
-  padding: 0 4px;
-}
-
-.bt-search-input::placeholder {
-  color: var(--muted-foreground, rgba(150, 150, 150, 0.6));
-}
-
-.bt-search-count {
-  font-size: 10px;
-  font-variant-numeric: tabular-nums;
-  opacity: 0.7;
-  padding: 0 4px;
 }
 
 .bt-sticky {

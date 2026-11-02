@@ -21,6 +21,8 @@ type Props = {
   activeTab: Tab | undefined;
   registerTerminalHandle: TerminalStackProps["registerHandle"];
   onSearchReady: TerminalStackProps["onSearchReady"];
+  onBlockSearch: TerminalStackProps["onBlockSearch"];
+  onBlockSearchClose: TerminalStackProps["onBlockSearchClose"];
   onCwd: TerminalStackProps["onCwd"];
   onExit: TerminalStackProps["onExit"];
   onOpenPreviewUrl: TerminalStackProps["onOpenPreviewUrl"];
@@ -54,6 +56,8 @@ export function WorkspaceSurface({
   activeTab,
   registerTerminalHandle,
   onSearchReady,
+  onBlockSearch,
+  onBlockSearchClose,
   onCwd,
   onExit,
   onOpenPreviewUrl,
@@ -96,6 +100,8 @@ export function WorkspaceSurface({
           activeId={activeId}
           registerHandle={registerTerminalHandle}
           onSearchReady={onSearchReady}
+          onBlockSearch={onBlockSearch}
+          onBlockSearchClose={onBlockSearchClose}
           onCwd={onCwd}
           onExit={onExit}
           onOpenPreviewUrl={onOpenPreviewUrl}

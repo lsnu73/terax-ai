@@ -17,6 +17,8 @@ import { TerminalPane, type TerminalPaneHandle } from "./TerminalPane";
 type LeafBundle = {
   setRef: (h: TerminalPaneHandle | null) => void;
   onSearchReady: (leafId: number, addon: TerminalSearchController) => void;
+  onBlockSearch: (leafId: number, addon: TerminalSearchController) => void;
+  onBlockSearchClose: (leafId: number) => void;
   onCwd: (leafId: number, cwd: string) => void;
   onExit: (leafId: number, code: number) => void;
   onOpenPreviewUrl: (url: string) => void;
@@ -56,6 +58,8 @@ export function PaneTreeView(props: Props) {
           initialCwd={node.cwd}
           ref={b.setRef}
           onSearchReady={b.onSearchReady}
+          onBlockSearch={b.onBlockSearch}
+          onBlockSearchClose={b.onBlockSearchClose}
           onCwd={b.onCwd}
           onExit={b.onExit}
           onOpenPreviewUrl={b.onOpenPreviewUrl}
