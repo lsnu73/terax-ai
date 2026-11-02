@@ -43,6 +43,7 @@ import {
   IncognitoIcon,
   Message02Icon,
   PencilEdit02Icon,
+  RefreshIcon,
   Settings01Icon,
   Tick02Icon,
 } from "@hugeicons/core-free-icons";
@@ -81,6 +82,8 @@ type Props = {
   onPin: (id: number) => void;
   /** Set a terminal tab's custom label; empty string resets to default. */
   onRename: (id: number, title: string) => void;
+  /** Restart a terminal tab's shells so new settings take effect. */
+  onRefresh: (id: number) => void;
   /** Move a dragged tab to a new position (insertion gap index 0..tabs.length). */
   onReorder: (fromId: number, toGapIndex: number) => void;
   onOverrideLanguage?: (id: number, lang: string | null) => void;
@@ -102,6 +105,7 @@ export function TabBar({
   onCloseOtherTabs,
   onPin,
   onRename,
+  onRefresh,
   onReorder,
   onOverrideLanguage,
   compact,
@@ -526,6 +530,17 @@ export function TabBar({
                   >
                     {tab.kind === "terminal" && (
                       <>
+                        <ContextMenuItem
+                          className="gap-2 rounded-xl px-2.5 py-1.5 text-[13px]"
+                          onSelect={() => onRefresh(tab.id)}
+                        >
+                          <HugeiconsIcon
+                            icon={RefreshIcon}
+                            size={13}
+                            strokeWidth={1.75}
+                          />
+                          <span className="flex-1">{t("tabbar.refresh")}</span>
+                        </ContextMenuItem>
                         <ContextMenuItem
                           className="gap-2 rounded-xl px-2.5 py-1.5 text-[13px]"
                           onSelect={() => setEditingId(tab.id)}

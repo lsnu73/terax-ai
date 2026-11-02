@@ -7,6 +7,8 @@ export const header = {
   gitSearch: "Git search",
   clearSearch: "Clear search",
   regexSearch: "Regular expression search",
+  caseSensitive: "Case sensitive",
+  wholeWord: "Whole word",
   nextMatch: "Next match",
   previousMatch: "Previous match",
   closeSearch: "Close search",

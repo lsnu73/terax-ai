@@ -17,9 +17,10 @@ export const settingsProxyZh: typeof settingsProxy = {
     label: "代理生效场景",
     terminal: "终端",
     terminalDescription:
-      "为新建终端注入 HTTP(S)_PROXY 环境变量，已运行的 Shell 不受影响。",
+      "新建终端自动生效；已打开的终端右键标签页选「刷新」。AI 问答执行的命令也走此代理，下一条命令即生效，无需刷新会话（已运行的后台进程需重启）。",
     ai: "AI 会话",
-    aiDescription: "模型请求与流式响应经过代理。",
+    aiDescription:
+      "仅模型请求与流式响应经过代理；AI 执行的命令跟随「终端代理」设置。",
     updater: "更新",
     updaterDescription: "更新检查与下载经过代理。",
     enableAll: "全部开启",
@@ -28,7 +29,7 @@ export const settingsProxyZh: typeof settingsProxy = {
   software: {
     label: "代理软件",
     path: "软件路径",
-    pathPlaceholder: "例如 C:\\Tools\\Clash\\clash-verge.exe",
+    pathPlaceholder: "代理软件启动路径",
     autoLaunch: "自动启动",
     autoLaunchDescription:
       "已设置代理且任一场景启用时，若代理软件未运行则自动打开它。",

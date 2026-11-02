@@ -1,4 +1,5 @@
 import { getKey } from "@/modules/ai/lib/keyring";
+import type { SearchOptions } from "@/lib/searchOptions";
 import { t as tModule } from "@/modules/i18n";
 import { lspFormatDocument, useLspExtension } from "@/modules/lsp";
 import { usePreferencesStore } from "@/modules/settings/preferences";
@@ -65,7 +66,9 @@ import { MediaPreview } from "./MediaPreview";
 initVimGlobals();
 
 export type EditorPaneHandle = {
-  setQuery: (q: string, options?: { regex?: boolean }) => void;
+  setQuery: (q: string, options?: SearchOptions) => void;
+  /** 当前查询的匹配数量；无查询或表达式无效时为 0。 */
+  matchCount: () => number;
   findNext: () => void;
   findPrevious: () => void;
   clearQuery: () => void;
@@ -447,22 +450,39 @@ export const EditorPane = memo(
       };
     }, [path, doc.status, overrideLanguage]);
 
+    const searchQueryRef = useRef<SearchQuery | null>(null);
     useImperativeHandle(
       ref,
       () => ({
-        setQuery: (q: string, options?: { regex?: boolean }) => {
+        setQuery: (q: string, options?: SearchOptions) => {
           const view = cmRef.current?.view;
           if (!view) return;
+          const query = new SearchQuery({
+            search: q,
+            caseSensitive: options?.caseSensitive === true,
+            regexp: options?.regex === true,
+            wholeWord: options?.wholeWord === true,
+          });
+          searchQueryRef.current = query;
           view.dispatch({
-            effects: setSearchQuery.of(
-              new SearchQuery({
-                search: q,
-                caseSensitive: false,
-                regexp: options?.regex === true,
-              }),
-            ),
+            effects: setSearchQuery.of(query),
           });
           if (q) findNext(view);
+        },
+        matchCount: () => {
+          const view = cmRef.current?.view;
+          const query = searchQueryRef.current;
+          if (!view || !query || !query.search) return 0;
+          try {
+            let count = 0;
+            const cursor = query.getCursor(view.state.doc);
+            for (let next = cursor.next(); !next.done; next = cursor.next()) {
+              count += 1;
+            }
+            return count;
+          } catch {
+            return 0;
+          }
         },
         findNext: () => {
           const view = cmRef.current?.view;
@@ -473,6 +493,7 @@ export const EditorPane = memo(
           if (view) findPrevious(view);
         },
         clearQuery: () => {
+          searchQueryRef.current = null;
           const view = cmRef.current?.view;
           if (!view) return;
           view.dispatch({

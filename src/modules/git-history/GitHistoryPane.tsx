@@ -7,6 +7,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { buildSearchRegExp, type SearchOptions } from "@/lib/searchOptions";
 import { currentLocale, t as tModule } from "@/modules/i18n";
 import {
   native,
@@ -68,8 +69,9 @@ type CommitFileDiffOpenInput = {
 };
 
 export type GitHistorySearchHandle = {
-  setQuery: (query: string, options?: { regex?: boolean }) => void;
+  setQuery: (query: string, options?: SearchOptions) => void;
   clearQuery: () => void;
+  matchCount: () => number;
 };
 
 type Props = {
@@ -202,20 +204,22 @@ export function GitHistoryPane({
   const [error, setError] = useState<string | null>(null);
   const [endReached, setEndReached] = useState(false);
   const [searchInput, setSearchInput] = useState("");
-  const [searchRegex, setSearchRegex] = useState(false);
+  const [searchOptions, setSearchOptions] = useState<SearchOptions>({});
   const deferredSearch = useDeferredValue(searchInput.trim());
-  const deferredRegex = useDeferredValue(searchRegex);
+  const deferredOptions = useDeferredValue(searchOptions);
   // Require at least 2 characters before filtering to avoid noisy single-char
   // matches and pointless full-list scans on every keystroke.
   const activeSearch = deferredSearch.length >= 2 ? deferredSearch : "";
+  const filteredCountRef = useRef(0);
 
   useEffect(() => {
     onSearchHandle?.({
-      setQuery: (query: string, options?: { regex?: boolean }) => {
+      setQuery: (query: string, options?: SearchOptions) => {
         setSearchInput(query);
-        if (options) setSearchRegex(options.regex === true);
+        if (options) setSearchOptions(options);
       },
       clearQuery: () => setSearchInput(""),
+      matchCount: () => filteredCountRef.current,
     });
     return () => onSearchHandle?.(null);
   }, [onSearchHandle]);
@@ -300,34 +304,18 @@ export function GitHistoryPane({
 
   const filtered = useMemo(() => {
     if (!activeSearch) return commits;
-    if (deferredRegex) {
-      let re: RegExp;
-      try {
-        re = new RegExp(activeSearch, "i");
-      } catch {
-        return commits;
-      }
-      return commits.filter(
-        (c) =>
-          re.test(c.subject) ||
-          re.test(c.author) ||
-          re.test(c.authorEmail) ||
-          re.test(c.shortSha),
-      );
-    }
-    const q = activeSearch.toLowerCase();
-    return commits.filter((c) => {
-      const subject = c.subject.toLowerCase();
-      const author = c.author.toLowerCase();
-      const email = c.authorEmail.toLowerCase();
-      return (
-        subject.includes(q) ||
-        author.includes(q) ||
-        email.includes(q) ||
-        c.shortSha.includes(q)
-      );
-    });
-  }, [commits, activeSearch, deferredRegex]);
+    const re = buildSearchRegExp(activeSearch, deferredOptions);
+    // 无效表达式按无匹配处理，与终端/编辑器搜索行为一致。
+    if (!re) return [];
+    return commits.filter(
+      (c) =>
+        re.test(c.subject) ||
+        re.test(c.author) ||
+        re.test(c.authorEmail) ||
+        re.test(c.shortSha),
+    );
+  }, [commits, activeSearch, deferredOptions]);
+  filteredCountRef.current = activeSearch ? filtered.length : 0;
 
   const virtualizer = useVirtualizer({
     count: filtered.length,

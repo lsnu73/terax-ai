@@ -16,9 +16,10 @@ export const settingsProxy = {
     label: "Use proxy for",
     terminal: "Terminal",
     terminalDescription:
-      "Sets HTTP(S)_PROXY for newly opened terminals; running shells are unaffected.",
+      "Applies to new terminals; for open ones, right-click the tab and choose Refresh. Commands run by AI also use this proxy and pick up changes on the next command—no session refresh needed (restart running background processes).",
     ai: "AI conversations",
-    aiDescription: "Model requests and streaming responses go through the proxy.",
+    aiDescription:
+      "Only model requests and streaming responses use this proxy; commands run by AI follow the Terminal proxy.",
     updater: "Updates",
     updaterDescription: "Update checks and downloads go through the proxy.",
     enableAll: "Enable all",
@@ -27,7 +28,7 @@ export const settingsProxy = {
   software: {
     label: "Proxy software",
     path: "Executable path",
-    pathPlaceholder: "e.g. C:\\Tools\\Clash\\clash-verge.exe",
+    pathPlaceholder: "Proxy software launch path",
     autoLaunch: "Launch automatically",
     autoLaunchDescription:
       "When a proxy is configured and enabled for any scenario, start the software if it is not running.",

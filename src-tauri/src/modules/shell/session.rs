@@ -68,6 +68,7 @@ impl ShellSession {
         cwd_hint: Option<String>,
         workspace_hint: Option<WorkspaceEnv>,
         timeout: Duration,
+        proxy: Option<String>,
     ) -> Result<SessionRunOutput, String> {
         let trimmed = command.trim().to_string();
         if trimmed.is_empty() {
@@ -86,7 +87,7 @@ impl ShellSession {
         let effective_workspace = workspace_hint.unwrap_or_else(|| self.workspace.clone());
         let wrapped = wrap_with_sentinel(&trimmed, &effective_workspace, &self.sentinel);
 
-        let raw = run_blocking_inner(wrapped, Some(cwd.clone()), effective_workspace, timeout)?;
+        let raw = run_blocking_inner(wrapped, Some(cwd.clone()), effective_workspace, timeout, proxy)?;
         self.pristine.store(false, Ordering::Release);
 
         let (stdout_clean, cwd_after) = strip_cwd_sentinel(&raw.stdout, &cwd, &self.sentinel);

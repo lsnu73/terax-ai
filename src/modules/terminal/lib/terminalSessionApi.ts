@@ -8,6 +8,7 @@ import {
   ghosttyPtyIdForLeaf,
   hasGhosttySession,
   pasteIntoGhosttySession,
+  respawnGhosttySession,
   submitToGhosttySession,
   whenGhosttySessionReady,
   writeToGhosttySession,
@@ -70,6 +71,11 @@ export function disposeSession(leafId: number): void {
   disposeGhosttySession(leafId);
   disposeGhosttyBlocks(leafId);
   forgetLeafPresentation(leafId);
+}
+
+/** 关闭并重新创建该窗格的 shell（保留窗格布局与 cwd），用于让新设置生效。 */
+export async function restartSession(leafId: number): Promise<boolean> {
+  return respawnGhosttySession(leafId);
 }
 
 function delay(milliseconds: number): Promise<void> {

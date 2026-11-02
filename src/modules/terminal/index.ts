@@ -15,6 +15,7 @@ export {
   leafHasForegroundProcess,
   leafIdForPty,
   ptyIdForLeaf,
+  restartSession,
   whenSessionReady,
   writeToSession,
 } from "./lib/terminalSessionApi";

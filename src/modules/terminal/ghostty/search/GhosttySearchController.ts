@@ -15,6 +15,8 @@ export type GhosttySearchSnapshot = {
   readonly query: string;
   readonly pendingDirection: Direction | null;
   readonly regex?: boolean;
+  readonly caseSensitive?: boolean;
+  readonly wholeWord?: boolean;
 };
 
 type Scheduler = {
@@ -39,9 +41,13 @@ export class GhosttySearchController implements TerminalSearchController {
   private scheduledStep: number | null = null;
   private disposed = false;
   private suspended = false;
-  // 正则模式：原生搜索只支持纯文本，正则在 TS 侧基于缓冲区文本实现，
-  // 复用同一套 viewport 高亮 mask。matches 以行号/单元格列定位。
+  // 自定义搜索引擎（正则/区分大小写/全字匹配）：原生搜索只支持忽略大小写的
+  // 纯文本，这些模式在 TS 侧基于缓冲区文本实现，复用同一套 viewport 高亮
+  // mask。this.regex 表示是否走自定义引擎，matches 以行号/单元格列定位。
   private regex = false;
+  private regexSyntax = false;
+  private caseSensitive = false;
+  private wholeWord = false;
   private regexMatches: RegexMatch[] = [];
   private regexSelected = -1;
   private regexDirty = false;
@@ -53,18 +59,27 @@ export class GhosttySearchController implements TerminalSearchController {
   ) {}
 
   findNext(query: string, options?: TerminalSearchOptions): boolean {
-    return this.find(query, "next", options?.regex === true);
+    return this.find(query, "next", options);
   }
 
   findPrevious(query: string, options?: TerminalSearchOptions): boolean {
-    return this.find(query, "previous", options?.regex === true);
+    return this.find(query, "previous", options);
+  }
+
+  matchStats(): { total: number; selected: number } {
+    return {
+      total: this.status.totalMatches,
+      selected: this.status.selectedIndex,
+    };
   }
 
   snapshot(): GhosttySearchSnapshot {
     return {
       query: this.query,
       pendingDirection: this.pendingDirection,
-      regex: this.regex,
+      regex: this.regexSyntax,
+      caseSensitive: this.caseSensitive,
+      wholeWord: this.wholeWord,
     };
   }
 
@@ -73,7 +88,10 @@ export class GhosttySearchController implements TerminalSearchController {
     this.cancelStep();
     this.query = snapshot.query;
     this.pendingDirection = snapshot.pendingDirection;
-    this.regex = snapshot.regex === true;
+    this.regexSyntax = snapshot.regex === true;
+    this.caseSensitive = snapshot.caseSensitive === true;
+    this.wholeWord = snapshot.wholeWord === true;
+    this.regex = this.regexSyntax || this.caseSensitive || this.wholeWord;
     this.regexDirty = true;
     this.refresh();
   }
@@ -95,6 +113,9 @@ export class GhosttySearchController implements TerminalSearchController {
     this.query = "";
     this.pendingDirection = null;
     this.regex = false;
+    this.regexSyntax = false;
+    this.caseSensitive = false;
+    this.wholeWord = false;
     this.regexMatches = [];
     this.regexSelected = -1;
     this.regexDirty = false;
@@ -163,16 +184,33 @@ export class GhosttySearchController implements TerminalSearchController {
     this.maskRevisionValue += 1;
   }
 
-  private find(query: string, direction: Direction, regex: boolean): boolean {
+  private find(
+    query: string,
+    direction: Direction,
+    options?: TerminalSearchOptions,
+  ): boolean {
     if (this.disposed || this.suspended || query.length === 0) return false;
-    if (query !== this.query || regex !== this.regex) {
+    const regexSyntax = options?.regex === true;
+    const caseSensitive = options?.caseSensitive === true;
+    const wholeWord = options?.wholeWord === true;
+    const custom = regexSyntax || caseSensitive || wholeWord;
+    if (
+      query !== this.query ||
+      custom !== this.regex ||
+      regexSyntax !== this.regexSyntax ||
+      caseSensitive !== this.caseSensitive ||
+      wholeWord !== this.wholeWord
+    ) {
       this.cancelStep();
       this.query = query;
-      this.regex = regex;
+      this.regex = custom;
+      this.regexSyntax = regexSyntax;
+      this.caseSensitive = caseSensitive;
+      this.wholeWord = wholeWord;
       this.regexMatches = [];
       this.regexSelected = -1;
-      if (regex) {
-        // 切到正则前清掉原生搜索状态，避免两套高亮叠加。
+      if (custom) {
+        // 切到自定义引擎前清掉原生搜索状态，避免两套高亮叠加。
         this.model.clearSearch();
         this.status = emptyStatus();
         this.regexDirty = true;
@@ -226,7 +264,9 @@ export class GhosttySearchController implements TerminalSearchController {
     this.regexMatches = [];
     let expression: RegExp;
     try {
-      expression = new RegExp(this.query, "gi");
+      const source = this.regexSyntax ? this.query : escapeRegExp(this.query);
+      const pattern = this.wholeWord ? `\\b(?:${source})\\b` : source;
+      expression = new RegExp(pattern, this.caseSensitive ? "g" : "gi");
     } catch {
       this.status = { ...emptyStatus(), active: true };
       this.regexSelected = -1;
@@ -245,7 +285,7 @@ export class GhosttySearchController implements TerminalSearchController {
       const text = cells.join("");
       if (!text.trim()) continue;
       // 字符串索引 → 单元格列的前缀和（宽字符占多列时仍然准确）。
-      const offsets = new Array<number>(cells.length + 1);
+      const offsets = new Array<number>(cells.length + 1).fill(0);
       for (let i = 0; i < cells.length; i += 1) {
         offsets[i + 1] = offsets[i] + cells[i].length;
       }
@@ -410,6 +450,10 @@ function emptyStatus(): GhosttySearchStatus {
     totalMatches: 0,
     selectedIndex: -1,
   };
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function browserScheduler(): Scheduler {

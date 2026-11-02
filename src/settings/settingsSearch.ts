@@ -475,20 +475,13 @@ export const SETTING_SEARCH_ITEMS: readonly SettingSearchItem[] = [
     groupKey: "settings.proxy.scenarios.label",
   },
   {
-    id: "proxy.software.path",
-    section: "proxy",
-    targetId: "proxy.software.path",
-    titleKey: "settings.proxy.software.path",
-    groupKey: "settings.proxy.software.label",
-    keywords: ["clash", "executable"],
-  },
-  {
     id: "proxy.software.autoLaunch",
     section: "proxy",
     targetId: "proxy.software.autoLaunch",
     titleKey: "settings.proxy.software.autoLaunch",
     descriptionKey: "settings.proxy.software.autoLaunchDescription",
     groupKey: "settings.proxy.software.label",
+    keywords: ["clash", "executable", "path"],
   },
   {
     id: "about.update",

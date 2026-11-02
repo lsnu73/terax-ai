@@ -4,6 +4,7 @@ import type { tabbar } from "../en/tabbar";
 export const tabbarZh: typeof tabbar = {
   closeTab: "关闭标签页",
   renameTab: "重命名标签页",
+  refresh: "刷新",
   unsavedChanges: "未保存的更改",
   closeTabsToRight: "关闭右侧标签页",
   closeOtherTabs: "关闭其他标签页",

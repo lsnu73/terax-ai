@@ -19,12 +19,14 @@ function DraftInput({
   placeholder,
   className,
   ariaLabel,
+  disabled,
 }: {
   value: string;
   onCommit: (next: string) => void;
   placeholder?: string;
   className?: string;
   ariaLabel: string;
+  disabled?: boolean;
 }) {
   const [draft, setDraft] = useState<string | null>(null);
   return (
@@ -33,6 +35,7 @@ function DraftInput({
       placeholder={placeholder}
       aria-label={ariaLabel}
       className={className}
+      disabled={disabled}
       onChange={(e) => setDraft(e.target.value)}
       onBlur={() => {
         if (draft !== null && draft !== value) onCommit(draft);
@@ -93,19 +96,19 @@ export function ProxySection() {
           <div className="flex gap-2">
             <Button
               size="sm"
-              variant="outline"
-              onClick={() => update({ terminal: true, ai: true, updater: true })}
-            >
-              {t("settings.proxy.scenarios.enableAll")}
-            </Button>
-            <Button
-              size="sm"
               variant="ghost"
               onClick={() =>
                 update({ terminal: false, ai: false, updater: false })
               }
             >
               {t("settings.proxy.scenarios.disableAll")}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => update({ terminal: true, ai: true, updater: true })}
+            >
+              {t("settings.proxy.scenarios.enableAll")}
             </Button>
           </div>
         </div>
@@ -141,26 +144,24 @@ export function ProxySection() {
       <div className="flex flex-col gap-2">
         <Label>{t("settings.proxy.software.label")}</Label>
         <SettingRow
-          searchId="proxy.software.path"
-          title={t("settings.proxy.software.path")}
-        >
-          <DraftInput
-            value={proxy.appPath}
-            onCommit={(appPath) => update({ appPath })}
-            placeholder={t("settings.proxy.software.pathPlaceholder")}
-            ariaLabel={t("settings.proxy.software.path")}
-            className="h-8 w-80 font-mono text-[12px]"
-          />
-        </SettingRow>
-        <SettingRow
           searchId="proxy.software.autoLaunch"
           title={t("settings.proxy.software.autoLaunch")}
           description={t("settings.proxy.software.autoLaunchDescription")}
         >
-          <Switch
-            checked={proxy.autoLaunch}
-            onCheckedChange={(autoLaunch) => update({ autoLaunch })}
-          />
+          <div className="flex items-center gap-2">
+            <Switch
+              checked={proxy.autoLaunch}
+              onCheckedChange={(autoLaunch) => update({ autoLaunch })}
+            />
+            <DraftInput
+              value={proxy.appPath}
+              onCommit={(appPath) => update({ appPath })}
+              placeholder={t("settings.proxy.software.pathPlaceholder")}
+              ariaLabel={t("settings.proxy.software.path")}
+              disabled={!proxy.autoLaunch}
+              className="h-8 w-72 font-mono text-[12px]"
+            />
+          </div>
         </SettingRow>
       </div>
     </div>

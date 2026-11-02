@@ -215,6 +215,7 @@ export const native = {
     command: string,
     cwd?: string | null,
     timeoutSecs?: number,
+    proxy?: string | null,
   ) =>
     invoke<{
       stdout: string;
@@ -229,14 +230,16 @@ export const native = {
       cwd: cwd ?? null,
       timeoutSecs: timeoutSecs ?? null,
       workspace: currentWorkspaceEnv(),
+      proxy: proxy ?? null,
     }),
   shellSessionClose: (id: number) =>
     invoke<void>("shell_session_close", { id }),
-  shellBgSpawn: (command: string, cwd?: string | null) =>
+  shellBgSpawn: (command: string, cwd?: string | null, proxy?: string | null) =>
     invoke<number>("shell_bg_spawn", {
       command,
       cwd: cwd ?? null,
       workspace: currentWorkspaceEnv(),
+      proxy: proxy ?? null,
     }),
   shellBgLogs: (handle: number, sinceOffset?: number) =>
     invoke<{

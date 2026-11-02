@@ -2,6 +2,7 @@
 export const tabbar = {
   closeTab: "Close tab",
   renameTab: "Rename tab",
+  refresh: "Refresh",
   unsavedChanges: "Unsaved changes",
   closeTabsToRight: "Close tabs to the right",
   closeOtherTabs: "Close other tabs",

@@ -5,9 +5,10 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
+import { openSettings } from "@/modules/settings/openSettings";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import { setProxySettings } from "@/modules/settings/store";
-import { Globe02Icon } from "@hugeicons/core-free-icons";
+import { Globe02Icon, Settings01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useTranslation } from "react-i18next";
 import { resolveProxyUrl } from "../lib/proxy";
@@ -61,37 +62,48 @@ export function ProxyStatusButton() {
               />
             </div>
           ))}
-          <div className="mt-1 flex justify-end gap-1.5 border-t border-border/60 pt-1.5">
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-6 px-2 text-[11px]"
-              onClick={() =>
-                void setProxySettings({
-                  ...proxy,
-                  terminal: true,
-                  ai: true,
-                  updater: true,
-                })
-              }
+          <div className="mt-1 flex items-center justify-between border-t border-border/60 pt-1.5">
+            <button
+              type="button"
+              title={t("settings.tabs.proxy")}
+              aria-label={t("settings.tabs.proxy")}
+              onClick={() => openSettings("proxy")}
+              className="flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
             >
-              {t("settings.proxy.scenarios.enableAll")}
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-6 px-2 text-[11px]"
-              onClick={() =>
-                void setProxySettings({
-                  ...proxy,
-                  terminal: false,
-                  ai: false,
-                  updater: false,
-                })
-              }
-            >
-              {t("settings.proxy.scenarios.disableAll")}
-            </Button>
+              <HugeiconsIcon icon={Settings01Icon} size={13} strokeWidth={1.75} />
+            </button>
+            <div className="flex gap-1.5">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 px-2 text-[11px]"
+                onClick={() =>
+                  void setProxySettings({
+                    ...proxy,
+                    terminal: false,
+                    ai: false,
+                    updater: false,
+                  })
+                }
+              >
+                {t("settings.proxy.scenarios.disableAll")}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-6 px-2 text-[11px]"
+                onClick={() =>
+                  void setProxySettings({
+                    ...proxy,
+                    terminal: true,
+                    ai: true,
+                    updater: true,
+                  })
+                }
+              >
+                {t("settings.proxy.scenarios.enableAll")}
+              </Button>
+            </div>
           </div>
         </div>
       </PopoverContent>

@@ -104,6 +104,7 @@ import {
   leafIds,
   type PaneBounds,
   ptyIdForLeaf,
+  restartSession,
   type TerminalPaneHandle,
   useAgentActivityStore,
   useTerminalFileDrop,
@@ -422,6 +423,14 @@ export default function App() {
   }, [aiPanelVisible]);
 
   useProxyAutoLaunch();
+
+  const handleRefreshTab = useCallback(async (id: number) => {
+    const tab = tabsRef.current.find((t) => t.id === id);
+    if (tab?.kind !== "terminal") return;
+    for (const leafId of leafIds(tab.paneTree)) {
+      await restartSession(leafId);
+    }
+  }, []);
 
   const activeTab = tabs.find((t) => t.id === activeId);
   const isTerminalTab = activeTab?.kind === "terminal";
@@ -1511,6 +1520,7 @@ export default function App() {
               onCloseOtherTabs={handleCloseOtherTabs}
               onPin={pinTab}
               onRename={handleRenameTab}
+              onRefresh={(id) => void handleRefreshTab(id)}
               onReorder={reorderTabByGap}
               onToggleSidebar={toggleSidebar}
               onOpenCommandPalette={() => openCommandPalette("commands")}
