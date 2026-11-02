@@ -19,7 +19,8 @@
 | `src/modules/tabs/NewTabMenu.tsx` | [标签页管理](features/标签页管理.md) | [快捷键提示](features/快捷键提示.md) | 新建标签类型与编码代理启动入口，菜单显示快捷键 |
 | `src/modules/tabs/TabBar.tsx` | [标签页管理](features/标签页管理.md) | [快捷键提示](features/快捷键提示.md) | 标签栏、受控右键菜单与捕获阶段外部点击关闭 |
 | `src/modules/ai/components/AiOpenButton.tsx` | [快捷键提示](features/快捷键提示.md) | [独立AI窗口](features/独立AI窗口.md) | 状态栏 AI 开关与动态快捷键提示 |
-| `src/modules/ai/components/AiPanel.tsx` | [AI面板](features/AI面板.md) | AI 对话 | 右侧面板页面：聊天、会话、计划横幅与空态 |
+| `src/modules/ai/components/AiPanel.tsx` | [AI面板](features/AI面板.md) | AI 对话 | 右侧面板页面：聊天、会话、计划横幅与空态；接入失败回合重试 |
+| `src/modules/ai/components/AiChat.tsx` | [AI面板](features/AI面板.md) | AI 对话 | 消息渲染、请求失败展示、重试与关闭操作 |
 | `src/modules/ai/components/AiPanelComposer.tsx` | [AI面板](features/AI面板.md) | AI 对话 | 完整 Composer 与 prefill；元信息行组装 |
 | `src/modules/ai/components/ApprovalModeToggle.tsx` | [AI面板](features/AI面板.md) | AI 对话与工具审批 | 执行审批模式切换（review/auto） |
 | `src/modules/ai/lib/approvalMode.ts` | [AI面板](features/AI面板.md) | AI 对话与工具审批 | 工具 needsApproval 按偏好动态判定 |

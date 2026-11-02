@@ -30,7 +30,7 @@ Terax 是面向开发者的开源桌面开发工作区，以终端为中心，�
 | 改预览端口菜单或预设 | [features/预览端口管理.md](features/预览端口管理.md) | `src/modules/preview/PreviewAddressBar.tsx`, `src/modules/preview/lib/portPresets.ts` |
 | 改命令面板命令或搜索模式 | [features/命令面板.md](features/命令面板.md) | `src/modules/command-palette/CommandPalette.tsx`, `src/modules/command-palette/commands.ts` |
 | 改按钮悬浮提示的快捷键格式 | [features/快捷键提示.md](features/快捷键提示.md) | `src/modules/shortcuts/components/ShortcutTooltip.tsx` |
-| 改 AI 面板或 Composer | [features/AI面板.md](features/AI面板.md) | `src/modules/ai/components/AiPanel.tsx`, `src/modules/ai/store/aiPanelStore.ts` |
+| 改 AI 面板、对话或 Composer | [features/AI面板.md](features/AI面板.md) | `src/modules/ai/components/AiPanel.tsx`, `src/modules/ai/components/AiChat.tsx`, `src/modules/ai/store/aiPanelStore.ts` |
 | 改 AI 生成提交信息或其提示词 | [features/AI提交信息生成.md](features/AI提交信息生成.md) | `src/modules/source-control/useSourceControlPanel.ts`, `src/modules/ai/config/prompts.ts` |
 | 改模型请求参数或思考强度档位 | [features/AI模型配置.md](features/AI模型配置.md) | `src/modules/ai/config/params.ts`, `src/settings/sections/models/StructuredFields.tsx` |
 | 改设置分区导航、选项搜索或结果定位 | [features/设置页.md](features/设置页.md) | `src/settings/SettingsView.tsx`, `src/settings/components/SettingsSearch.tsx`, `src/settings/settingsSearch.ts` |

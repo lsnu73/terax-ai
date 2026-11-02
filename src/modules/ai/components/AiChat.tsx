@@ -185,6 +185,7 @@ type Props = {
   status: ChatStatus;
   error: Error | undefined;
   clearError: () => void;
+  onRetry: () => void | PromiseLike<void>;
   addToolApprovalResponse: (arg: ApprovalArg) => void | PromiseLike<void>;
   stop: () => void | PromiseLike<void>;
   onContinue?: () => void;
@@ -195,6 +196,7 @@ export function AiChatView({
   status,
   error,
   clearError,
+  onRetry,
   addToolApprovalResponse,
   onContinue,
 }: Props) {
@@ -276,13 +278,22 @@ export function AiChatView({
             <div className="mt-0.5 leading-relaxed opacity-90">
               {error.message}
             </div>
-            <button
-              type="button"
-              onClick={clearError}
-              className="mt-1 underline opacity-80 hover:opacity-100"
-            >
-              {t("ai.chat.dismiss")}
-            </button>
+            <div className="mt-1 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => void onRetry()}
+                className="underline opacity-80 hover:opacity-100"
+              >
+                {t("common.retry")}
+              </button>
+              <button
+                type="button"
+                onClick={clearError}
+                className="underline opacity-80 hover:opacity-100"
+              >
+                {t("ai.chat.dismiss")}
+              </button>
+            </div>
           </div>
         )}
       </ConversationContent>

@@ -88,8 +88,14 @@ function AiPanelSession({
   const planQueue = usePlanStore((s) => s.queue);
 
   const chat = useMemo(() => getOrCreateChat(sessionId), [sessionId]);
-  const { status, messages, error, clearError, addToolApprovalResponse } =
-    useChat<UIMessage>({ chat });
+  const {
+    status,
+    messages,
+    error,
+    clearError,
+    regenerate,
+    addToolApprovalResponse,
+  } = useChat<UIMessage>({ chat });
   const busy = status === "submitted" || status === "streaming";
 
   useEffect(() => {
@@ -191,6 +197,7 @@ function AiPanelSession({
               status={status}
               error={error ?? undefined}
               clearError={clearError}
+              onRetry={() => void regenerate()}
               addToolApprovalResponse={(argument) =>
                 void addToolApprovalResponse(argument)
               }
