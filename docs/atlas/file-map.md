@@ -16,8 +16,8 @@
 | `src/modules/shortcuts/index.ts` | [快捷键提示](features/快捷键提示.md) | 无 | 快捷键模块公共导出 |
 | `src/modules/header/Header.tsx` | [快捷键提示](features/快捷键提示.md) | 顶栏布局 | 设置、侧栏、命令面板按钮提示 |
 | `src/modules/header/SearchInline.tsx` | [快捷键提示](features/快捷键提示.md) | 标签内搜索、[终端命令与结果块](features/终端命令与结果块.md) | Ctrl+F 与命令块查找共用的弹窗，按 target 切换全文或局部控制器 |
-| `src/modules/tabs/NewTabMenu.tsx` | [快捷键提示](features/快捷键提示.md) | 标签页管理 | 新建标签菜单动态显示快捷键 |
-| `src/modules/tabs/TabBar.tsx` | [快捷键提示](features/快捷键提示.md) | 标签页管理 | 标签关闭按钮动态标题 |
+| `src/modules/tabs/NewTabMenu.tsx` | [标签页管理](features/标签页管理.md) | [快捷键提示](features/快捷键提示.md) | 新建标签类型与编码代理启动入口，菜单显示快捷键 |
+| `src/modules/tabs/TabBar.tsx` | [标签页管理](features/标签页管理.md) | [快捷键提示](features/快捷键提示.md) | 标签栏、受控右键菜单与捕获阶段外部点击关闭 |
 | `src/modules/ai/components/AiOpenButton.tsx` | [快捷键提示](features/快捷键提示.md) | [独立AI窗口](features/独立AI窗口.md) | 状态栏 AI 开关与动态快捷键提示 |
 | `src/modules/ai/components/AiPanel.tsx` | [AI面板](features/AI面板.md) | AI 对话 | 右侧面板页面：聊天、会话、计划横幅与空态 |
 | `src/modules/ai/components/AiPanelComposer.tsx` | [AI面板](features/AI面板.md) | AI 对话 | 完整 Composer 与 prefill；元信息行组装 |

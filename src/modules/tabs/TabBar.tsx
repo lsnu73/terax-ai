@@ -22,10 +22,7 @@ import {
 } from "@/modules/editor/lib/languageDefinitions";
 import { resolveDisplayName } from "@/modules/editor/lib/languageResolver";
 import { FileIcon } from "@/modules/explorer/FileIcon";
-import {
-  shortcutHintLabel,
-  useShortcutHint,
-} from "@/modules/shortcuts";
+import { shortcutHintLabel, useShortcutHint } from "@/modules/shortcuts";
 import {
   leafIds,
   ptyIdForLeaf,
@@ -115,6 +112,8 @@ export function TabBar({
   const scrollRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [contextMenuTabId, setContextMenuTabId] = useState<number | null>(null);
+  const contextMenuContentRef = useRef<HTMLDivElement>(null);
   const [draggingId, setDraggingId] = useState<number | null>(null);
   const [dropGap, setDropGap] = useState<number | null>(null);
   const [showAllLanguages, setShowAllLanguages] = useState(false);
@@ -138,6 +137,26 @@ export function TabBar({
   useEffect(() => {
     seenRef.current = new Set(tabs.map((t) => t.id));
   }, [tabs]);
+
+  // Terminal surfaces stop pointerdown propagation, so Radix cannot rely on
+  // its bubble-phase outside listener to dismiss a tab menu.
+  useEffect(() => {
+    if (contextMenuTabId === null) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (
+        target instanceof Node &&
+        contextMenuContentRef.current?.contains(target)
+      ) {
+        return;
+      }
+      setContextMenuTabId(null);
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown, true);
+    };
+  }, [contextMenuTabId]);
 
   // Single shared pill slides to the active tab instead of each tab toggling
   // its own background. Measured relative to the list (its offsetParent) so it
@@ -522,9 +541,18 @@ export function TabBar({
               const hasTabsToRight = i < tabs.length - 1;
 
               const tabNode = (
-                <ContextMenu>
+                <ContextMenu
+                  open={contextMenuTabId === tab.id}
+                  onOpenChange={(open) => {
+                    setContextMenuTabId((current) => {
+                      if (open) return tab.id;
+                      return current === tab.id ? null : current;
+                    });
+                  }}
+                >
                   <ContextMenuTrigger asChild>{trigger}</ContextMenuTrigger>
                   <ContextMenuContent
+                    ref={contextMenuContentRef}
                     className="min-w-32 p-1"
                     onCloseAutoFocus={(e) => e.preventDefault()}
                   >
