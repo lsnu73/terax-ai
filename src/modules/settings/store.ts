@@ -185,7 +185,48 @@ export type Preferences = {
   lspActivation: Record<string, LspActivation>;
   lspCustomServers: LspCustomServer[];
   previewPortPresets: PreviewPortPreset[];
+  proxy: ProxySettings;
 };
+
+export type ProxySettings = {
+  host: string;
+  port: string;
+  /** 新建终端 PTY 注入 HTTP(S)_PROXY 环境变量。 */
+  terminal: boolean;
+  /** AI 会话的原生请求桥走代理。 */
+  ai: boolean;
+  /** 更新检查与下载走代理。 */
+  updater: boolean;
+  /** 代理软件可执行文件路径，供自动启动使用。 */
+  appPath: string;
+  /** 代理已配置且至少一个场景启用时，自动启动代理软件。 */
+  autoLaunch: boolean;
+};
+
+export const DEFAULT_PROXY_SETTINGS: ProxySettings = {
+  host: "localhost",
+  port: "7890",
+  terminal: false,
+  ai: false,
+  updater: false,
+  appPath: "",
+  autoLaunch: false,
+};
+
+function normalizeProxySettings(raw: unknown): ProxySettings {
+  const d = DEFAULT_PROXY_SETTINGS;
+  if (!raw || typeof raw !== "object") return d;
+  const p = raw as Partial<ProxySettings>;
+  return {
+    host: typeof p.host === "string" ? p.host : d.host,
+    port: typeof p.port === "string" ? p.port : d.port,
+    terminal: p.terminal === true,
+    ai: p.ai === true,
+    updater: p.updater === true,
+    appPath: typeof p.appPath === "string" ? p.appPath : d.appPath,
+    autoLaunch: p.autoLaunch === true,
+  };
+}
 
 export type EditorFormatter =
   | "lsp"
@@ -271,6 +312,7 @@ const KEY_EDITOR_CUSTOM_FORMAT_COMMAND = "editorCustomFormatCommand";
 const KEY_LSP_ACTIVATION = "lspActivation";
 const KEY_LSP_CUSTOM_SERVERS = "lspCustomServers";
 const KEY_PREVIEW_PORT_PRESETS = "previewPortPresets";
+const KEY_PROXY = "proxy";
 
 const TERMINAL_FONT_SIZE_DEFAULT = 14;
 const TERMINAL_FONT_SIZE_MIN = 8;
@@ -356,6 +398,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   lspActivation: {},
   lspCustomServers: [],
   previewPortPresets: DEFAULT_PREVIEW_PORT_PRESETS,
+  proxy: DEFAULT_PROXY_SETTINGS,
 };
 
 const store = new LazyStore(STORE_PATH, { defaults: {}, autoSave: 200 });
@@ -538,6 +581,7 @@ export async function loadPreferences(): Promise<Preferences> {
     previewPortPresets: normalizePreviewPortPresets(
       get<unknown>(KEY_PREVIEW_PORT_PRESETS),
     ),
+    proxy: normalizeProxySettings(get<unknown>(KEY_PROXY)),
   };
 }
 
@@ -897,6 +941,10 @@ export async function setPreviewPortPresets(
   await writePref(KEY_PREVIEW_PORT_PRESETS, normalizePreviewPortPresets(value));
 }
 
+export async function setProxySettings(value: ProxySettings): Promise<void> {
+  await writePref(KEY_PROXY, normalizeProxySettings(value));
+}
+
 export type PrefKey = keyof Preferences;
 
 /** 订阅任意窗口的变更（设置页 → 主窗口）。 */
@@ -959,6 +1007,7 @@ export async function onPreferencesChange(
     [KEY_LSP_ACTIVATION]: "lspActivation",
     [KEY_LSP_CUSTOM_SERVERS]: "lspCustomServers",
     [KEY_PREVIEW_PORT_PRESETS]: "previewPortPresets",
+    [KEY_PROXY]: "proxy",
   };
   // 同进程写入仍会立即触发 onChange；跨窗口写入则通过
   // writePref() 发出的 Tauri 事件送达。

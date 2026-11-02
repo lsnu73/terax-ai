@@ -215,6 +215,7 @@ pub fn spawn(
     blocks: bool,
     shell: Option<String>,
     control: Option<crate::modules::control::ShellControlEnv>,
+    proxy: Option<String>,
 ) -> Result<Arc<Session>, String> {
     let emitter = app.clone();
     spawn_with(
@@ -240,7 +241,7 @@ pub fn spawn(
             pixel_width: 0,
             pixel_height: 0,
         },
-        move || shell_init::build_command(cwd, workspace, blocks, shell, control),
+        move || shell_init::build_command(cwd, workspace, blocks, shell, control, proxy),
     )
 }
 

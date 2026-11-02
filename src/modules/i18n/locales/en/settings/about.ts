@@ -8,7 +8,6 @@ export const settingsAbout = {
   bundleId: "Bundle ID",
   license: "License",
   sourceCode: "Source code",
-  website: "Website",
   viewOnGitHub: "View on GitHub",
   reportIssue: "Report an issue",
   update: {

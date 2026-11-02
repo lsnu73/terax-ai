@@ -4,6 +4,8 @@ import { settingsEditor } from "./settings/editor";
 import { settingsGeneral } from "./settings/general";
 import { settingsLsp } from "./settings/lsp";
 import { settingsModels } from "./settings/models";
+import { settingsProxy } from "./settings/proxy";
+import { settingsSearch } from "./settings/search";
 import { settingsShortcuts } from "./settings/shortcuts";
 import { settingsTabs } from "./settings/tabs";
 import { settingsThemes } from "./settings/themes";
@@ -11,6 +13,7 @@ import { settingsThemes } from "./settings/themes";
 /** Settings page (main-window Settings tab) copy. */
 export const settings = {
   tabs: settingsTabs,
+  search: settingsSearch,
   general: settingsGeneral,
   editor: settingsEditor,
   themes: settingsThemes,
@@ -19,4 +22,5 @@ export const settings = {
   agents: settingsAgents,
   about: settingsAbout,
   lsp: settingsLsp,
+  proxy: settingsProxy,
 };

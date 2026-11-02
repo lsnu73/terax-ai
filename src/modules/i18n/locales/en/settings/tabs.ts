@@ -6,5 +6,6 @@ export const settingsTabs = {
   shortcuts: "Shortcuts",
   models: "Models",
   agents: "AI Behavior",
+  proxy: "Proxy",
   about: "About",
 };

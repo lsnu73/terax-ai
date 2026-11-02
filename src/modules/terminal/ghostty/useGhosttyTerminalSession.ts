@@ -8,6 +8,7 @@ import { initializeSessionGeneration as startSessionInitialization } from "@/mod
 import { replaceSessionSurface } from "@/modules/terminal/ghostty/replaceSessionSurface";
 import { openExternalUrl } from "@/lib/external-link";
 import { openPathInFileManager, pathFromLink } from "@/lib/open-path";
+import { proxyForScenario } from "@/modules/proxy/lib/proxy";
 import { ensureMonoFontsLoaded, resolveFontFamily } from "@/lib/fonts";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import type { TerminalBackendKind } from "@/modules/terminal/backend/contracts";
@@ -872,6 +873,7 @@ async function initializeSessionGeneration(
     true,
     preferences.terminalShell || undefined,
     session.leafId,
+    proxyForScenario(preferences, "terminal"),
   );
   if (session.disposed || generation !== session.generation) {
     await pty.close();

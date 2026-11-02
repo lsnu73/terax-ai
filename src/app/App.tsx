@@ -4,6 +4,7 @@ import {
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import { Toaster } from "@/components/ui/sonner";
+import type { PanelImperativeHandle } from "react-resizable-panels";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { consumeLaunchFiles, getLaunchDir } from "@/lib/launchDir";
 import { IS_MAC } from "@/lib/platform";
@@ -52,6 +53,7 @@ import {
 import { t } from "@/modules/i18n";
 import { setLspNavigator } from "@/modules/lsp";
 import type { PreviewPaneHandle } from "@/modules/preview";
+import { useProxyAutoLaunch } from "@/modules/proxy/lib/autoLaunch";
 import { openSettings, registerSettingsOpener } from "@/modules/settings/openSettings";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import { setShowHidden, setPathHistory } from "@/modules/settings/store";
@@ -401,6 +403,20 @@ export default function App() {
     [],
   );
   const aiPanelWidthRef = useRef(readAiPanelWidth());
+  const aiPanelRef = useRef<PanelImperativeHandle | null>(null);
+  const aiPanelVisible = aiPanelOpen && hasComposer;
+
+  // AI 面板始终挂载在同一个 ResizablePanelGroup 中（面板 ID 组合不变），
+  // 开关只 collapse/resize。此前按 aiPanelOpen 增删第三个面板会让
+  // react-resizable-panels 在两套布局缓存间切换，左侧栏开合状态被旧布局覆盖。
+  useEffect(() => {
+    const panel = aiPanelRef.current;
+    if (!panel) return;
+    if (aiPanelVisible) panel.resize(`${aiPanelWidthRef.current}px`);
+    else panel.collapse();
+  }, [aiPanelVisible]);
+
+  useProxyAutoLaunch();
 
   const activeTab = tabs.find((t) => t.id === activeId);
   const isTerminalTab = activeTab?.kind === "terminal";
@@ -1590,34 +1606,38 @@ export default function App() {
                   </div>
                 </div>
               </ResizablePanel>
-              {aiPanelOpen && hasComposer ? (
-                <>
-                  <ResizableHandle className="w-1 rounded-full bg-transparent transition-colors duration-[var(--dur-fast)] after:w-4 hover:bg-border" />
-                  <ResizablePanel
-                    id="ai-panel"
-                    defaultSize={`${aiPanelWidthRef.current}px`}
-                    minSize="280px"
-                    onResize={(size) => {
-                      try {
-                        localStorage.setItem(
-                          AI_PANEL_WIDTH_KEY,
-                          String(size.inPixels),
-                        );
-                      } catch {
-                        /* ignore */
-                      }
-                    }}
-                  >
-                    <div className="h-full min-h-0 pr-2">
-                      <div className="terax-pane h-full min-h-0 overflow-hidden">
-                        <Suspense fallback={null}>
-                          <AiPanel onClose={closeAiPanel} />
-                        </Suspense>
-                      </div>
-                    </div>
-                  </ResizablePanel>
-                </>
+              {aiPanelVisible ? (
+                <ResizableHandle className="w-1 rounded-full bg-transparent transition-colors duration-[var(--dur-fast)] after:w-4 hover:bg-border" />
               ) : null}
+              <ResizablePanel
+                id="ai-panel"
+                panelRef={aiPanelRef}
+                defaultSize="0px"
+                minSize="280px"
+                collapsible
+                collapsedSize={0}
+                onResize={(size) => {
+                  if (size.inPixels <= 0) return;
+                  try {
+                    localStorage.setItem(
+                      AI_PANEL_WIDTH_KEY,
+                      String(size.inPixels),
+                    );
+                  } catch {
+                    /* ignore */
+                  }
+                }}
+              >
+                {aiPanelVisible ? (
+                  <div className="h-full min-h-0 pr-2">
+                    <div className="terax-pane h-full min-h-0 overflow-hidden">
+                      <Suspense fallback={null}>
+                        <AiPanel onClose={closeAiPanel} />
+                      </Suspense>
+                    </div>
+                  </div>
+                ) : null}
+              </ResizablePanel>
             </ResizablePanelGroup>
           </main>
 

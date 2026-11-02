@@ -88,3 +88,12 @@
 | `src/modules/command-palette/lib/fuzzy.ts` | [命令面板](features/命令面板.md) | 无 | 命令模糊匹配打分 |
 | `src/modules/command-palette/lib/mru.ts` | [命令面板](features/命令面板.md) | 无 | 会话内最近使用排序 |
 | `src/modules/command-palette/hooks/useContentSearch.ts` | [命令面板](features/命令面板.md) | 无 | `#` 内容搜索异步查询 |
+| `src/settings/sections/AboutSection.tsx` | [设置-关于](features/设置-关于.md) | 无 | 关于分区 UI 与仓库链接 |
+| `src/modules/updater/useUpdater.ts` | [设置-关于](features/设置-关于.md) | 应用更新、[代理](features/代理.md) | 更新状态机与手动检查，检查/下载遵循更新场景代理 |
+| `src/settings/sections/ProxySection.tsx` | [代理](features/代理.md) | 无 | 代理设置分区 UI |
+| `src/modules/proxy/components/ProxyStatusButton.tsx` | [代理](features/代理.md) | 状态栏 | 状态栏三场景代理开关 |
+| `src/modules/proxy/lib/proxy.ts` | [代理](features/代理.md) | 无 | 代理 URL 解析与场景判定 |
+| `src/modules/proxy/lib/autoLaunch.ts` | [代理](features/代理.md) | 无 | 代理软件自动启动触发 |
+| `src-tauri/src/modules/proxy.rs` | [代理](features/代理.md) | 无 | 代理软件进程检测与启动 |
+| `src-tauri/src/modules/net/clients.rs` | [代理](features/代理.md) | AI 会话 | reqwest 客户端缓存，代理地址纳入缓存键 |
+| `src/modules/header/SearchInline.tsx` | 搜索弹窗（未单独成篇） | 无 | 弹窗式搜索，支持终端/编辑器/Git 历史与正则开关 |

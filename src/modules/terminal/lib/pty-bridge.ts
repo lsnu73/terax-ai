@@ -107,6 +107,7 @@ export async function openPty(
   blocks?: boolean,
   shell?: string,
   paneId?: number,
+  proxy?: string | null,
 ): Promise<PtySession> {
   const stream = outputHub();
   let id: number | null = null;
@@ -167,6 +168,7 @@ export async function openPty(
       shell: shell ?? null,
       paneId: paneId ?? null,
       presentation: presentation ?? null,
+      proxy: proxy ?? null,
     });
   } catch (error) {
     releaseHandlers();

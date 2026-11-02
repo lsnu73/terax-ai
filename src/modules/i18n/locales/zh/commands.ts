@@ -61,7 +61,7 @@ export const commandsZh: typeof commands = {
   palette: {
     title: "命令面板",
     description: "运行命令、切换主题或搜索工作区。",
-    placeholderCommands: "输入命令，# 在文件中查找",
+    placeholderCommands: "输入命令，> 搜索历史路径，# 在文件中查找",
     placeholderContent: "在文件中查找文本…",
     placeholderThemes: "搜索主题…",
     placeholderPaths: "搜索最近路径…",

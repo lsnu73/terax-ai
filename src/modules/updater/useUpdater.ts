@@ -1,13 +1,16 @@
 import { getVersion } from "@tauri-apps/api/app";
+import { invoke } from "@tauri-apps/api/core";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { useCallback, useEffect, useState } from "react";
 import { IS_LINUX } from "@/lib/platform";
+import { usePreferencesStore } from "@/modules/settings/preferences";
+import { proxyForScenario } from "@/modules/proxy/lib/proxy";
 
 const LAST_CHECK_KEY = "terax:updater:last-check";
 const CHECK_INTERVAL_MS = 30 * 60 * 1000;
 const GITHUB_LATEST_RELEASE =
-  "https://api.github.com/repos/crynta/terax-ai/releases/latest";
+  "https://api.github.com/repos/lsnu73/terax-ai/releases/latest";
 
 export interface ManualUpdateInfo {
   version: string;
@@ -46,17 +49,15 @@ function isNewer(remote: string, current: string): boolean {
   return false;
 }
 
-async function checkLinuxRelease(): Promise<ManualUpdateInfo | null> {
-  const [current, res] = await Promise.all([
+async function checkLinuxRelease(
+  proxy: string | null,
+): Promise<ManualUpdateInfo | null> {
+  const [current, text] = await Promise.all([
     getVersion(),
-    fetch(GITHUB_LATEST_RELEASE, {
-      headers: { Accept: "application/vnd.github+json" },
-    }),
+    // 浏览器 fetch 无法设置代理，改走原生 reqwest（同时遵循更新场景开关）。
+    invoke<string>("net_http_get", { url: GITHUB_LATEST_RELEASE, proxy }),
   ]);
-  if (!res.ok) {
-    throw new Error(`GitHub API ${res.status}`);
-  }
-  const data = (await res.json()) as {
+  const data = JSON.parse(text) as {
     tag_name: string;
     body?: string;
     html_url: string;
@@ -90,9 +91,10 @@ export function useUpdater({ autoCheck = true }: HookOptions = {}) {
       if (Date.now() - last < CHECK_INTERVAL_MS) return;
     }
     setStatus({ kind: "checking" });
+    const proxy = proxyForScenario(usePreferencesStore.getState(), "updater");
     try {
       if (IS_LINUX) {
-        const info = await checkLinuxRelease();
+        const info = await checkLinuxRelease(proxy);
         if (info) {
           setStatus({ kind: "manual-available", info });
         } else {
@@ -101,7 +103,8 @@ export function useUpdater({ autoCheck = true }: HookOptions = {}) {
         }
         return;
       }
-      const update = await check();
+      // proxy 随 Update 对象保留，下载阶段继续生效。
+      const update = await check({ proxy: proxy ?? undefined });
       if (update) {
         setStatus({ kind: "available", update });
       } else {

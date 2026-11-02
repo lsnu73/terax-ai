@@ -3,6 +3,7 @@ import type { SettingsTab } from "@/modules/settings/openSettings";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import {
   AiScanIcon,
+  Globe02Icon,
   InformationCircleIcon,
   KeyboardIcon,
   PaintBoardIcon,
@@ -11,13 +12,15 @@ import {
   UserMultiple02Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { type JSX, useEffect, useState } from "react";
+import { type JSX, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { SettingsSearch } from "./components/SettingsSearch";
 import { AboutSection } from "./sections/AboutSection";
 import { AgentsSection } from "./sections/AgentsSection";
 import { EditorSection } from "./sections/EditorSection";
 import { GeneralSection } from "./sections/GeneralSection";
 import { ModelsSection } from "./sections/ModelsSection";
+import { ProxySection } from "./sections/ProxySection";
 import { ShortcutsSection } from "./sections/ShortcutsSection";
 import { ThemesSection } from "./sections/ThemesSection";
 
@@ -62,6 +65,12 @@ const TABS: {
     labelKey: "settings.tabs.agents",
     icon: UserMultiple02Icon,
     component: AgentsSection,
+  },
+  {
+    id: "proxy",
+    labelKey: "settings.tabs.proxy",
+    icon: Globe02Icon,
+    component: ProxySection,
   },
   {
     id: "about",

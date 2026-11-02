@@ -56,16 +56,17 @@ pub fn build_command(
     blocks: bool,
     shell: Option<String>,
     control: Option<ShellControlEnv>,
+    proxy: Option<String>,
 ) -> Result<CommandBuilder, String> {
     let shell = sanitize_shell_override(shell);
     #[cfg(unix)]
     {
         let _ = workspace;
-        unix::build(cwd, blocks, shell, control)
+        unix::build(cwd, blocks, shell, control, proxy)
     }
     #[cfg(windows)]
     {
-        windows::build(cwd, workspace, blocks, shell, control)
+        windows::build(cwd, workspace, blocks, shell, control, proxy)
     }
 }
 
@@ -143,15 +144,37 @@ fn ensure_utf8_locale(cmd: &mut CommandBuilder) {
     cmd.env("LANG", fallback);
 }
 
+const PROXY_ENV_KEYS: [&str; 6] = [
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "ALL_PROXY",
+    "http_proxy",
+    "https_proxy",
+    "all_proxy",
+];
+
+/// `Some(url)` 注入代理环境变量；`None` 清除继承自应用进程的同名变量，
+/// 保证「终端代理关闭」就是直连。
+fn apply_proxy_env(cmd: &mut CommandBuilder, proxy: Option<&str>) {
+    for key in PROXY_ENV_KEYS {
+        match proxy {
+            Some(url) => cmd.env(key, url),
+            None => cmd.env_remove(key),
+        }
+    }
+}
+
 fn apply_common(
     cmd: &mut CommandBuilder,
     cwd: Option<String>,
     blocks: bool,
     control: Option<&ShellControlEnv>,
+    proxy: Option<&str>,
 ) {
     cmd.env("TERM", "xterm-256color");
     cmd.env("COLORTERM", "truecolor");
     cmd.env("TERAX_TERMINAL", "1");
+    apply_proxy_env(cmd, proxy);
     if blocks {
         cmd.env("TERAX_BLOCKS", "1");
     }
@@ -313,10 +336,11 @@ mod unix {
         blocks: bool,
         shell_override: Option<String>,
         control: Option<super::ShellControlEnv>,
+        proxy: Option<String>,
     ) -> Result<CommandBuilder, String> {
         let (shell, shell_path) = Shell::resolve(shell_override);
         let mut cmd = CommandBuilder::new(&shell_path);
-        super::apply_common(&mut cmd, cwd, blocks, control.as_ref());
+        super::apply_common(&mut cmd, cwd, blocks, control.as_ref(), proxy.as_deref());
         apply_shell_init(&mut cmd, &shell, &shell_path);
         Ok(cmd)
     }
@@ -542,10 +566,11 @@ mod windows {
         blocks: bool,
         shell: Option<String>,
         control: Option<super::ShellControlEnv>,
+        proxy: Option<String>,
     ) -> Result<CommandBuilder, String> {
         if let WorkspaceEnv::Wsl { distro } = workspace {
             let _ = (blocks, shell, control);
-            return build_wsl(cwd, distro);
+            return build_wsl(cwd, distro, proxy.as_deref());
         }
         let shell_path = shell
             .map(|s| s.trim().to_string())
@@ -562,7 +587,7 @@ mod windows {
         let is_bash = shell_name == "bash.exe";
 
         let mut cmd = CommandBuilder::new(&shell_path);
-        super::apply_common(&mut cmd, cwd, blocks, control.as_ref());
+        super::apply_common(&mut cmd, cwd, blocks, control.as_ref(), proxy.as_deref());
 
         if is_powershell {
             match prepare_ps_profile() {
@@ -602,7 +627,11 @@ mod windows {
         Ok(cmd)
     }
 
-    fn build_wsl(cwd: Option<String>, distro: String) -> Result<CommandBuilder, String> {
+    fn build_wsl(
+        cwd: Option<String>,
+        distro: String,
+        proxy: Option<&str>,
+    ) -> Result<CommandBuilder, String> {
         crate::modules::workspace::validate_wsl_distro_name(&distro)?;
         let shell_path = crate::modules::workspace::wsl_login_shell(distro.clone())?;
         let shell_kind = ShellKind::from_path(&shell_path);
@@ -663,6 +692,21 @@ mod windows {
         cmd.env("TERM", "xterm-256color");
         cmd.env("COLORTERM", "truecolor");
         cmd.env("TERAX_TERMINAL", "1");
+        // wsl.exe 不默认转发进程环境，需经 WSLENV 把代理变量带进发行版。
+        super::apply_proxy_env(&mut cmd, proxy);
+        if proxy.is_some() {
+            const TOKENS: &str =
+                "HTTP_PROXY/u:HTTPS_PROXY/u:ALL_PROXY/u:http_proxy/u:https_proxy/u:all_proxy/u";
+            let existing = std::env::var("WSLENV").unwrap_or_default();
+            cmd.env(
+                "WSLENV",
+                if existing.is_empty() {
+                    TOKENS.to_string()
+                } else {
+                    format!("{existing}:{TOKENS}")
+                },
+            );
+        }
         super::ensure_utf8_locale(&mut cmd);
         log::info!("spawning WSL shell: {distro} ({shell_path})");
         Ok(cmd)
@@ -1130,7 +1174,7 @@ mod tests {
             cli_path: Some("/app/terax-cli".into()),
             cli_bin_dir: Some(std::path::PathBuf::from("/app/bin")),
         };
-        apply_common(&mut command, None, false, Some(&control));
+        apply_common(&mut command, None, false, Some(&control), None);
 
         assert_eq!(
             command.get_env("TERAX_CONTROL_ADDR"),

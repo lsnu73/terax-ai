@@ -68,7 +68,7 @@ type CommitFileDiffOpenInput = {
 };
 
 export type GitHistorySearchHandle = {
-  setQuery: (query: string) => void;
+  setQuery: (query: string, options?: { regex?: boolean }) => void;
   clearQuery: () => void;
 };
 
@@ -202,14 +202,19 @@ export function GitHistoryPane({
   const [error, setError] = useState<string | null>(null);
   const [endReached, setEndReached] = useState(false);
   const [searchInput, setSearchInput] = useState("");
+  const [searchRegex, setSearchRegex] = useState(false);
   const deferredSearch = useDeferredValue(searchInput.trim());
+  const deferredRegex = useDeferredValue(searchRegex);
   // Require at least 2 characters before filtering to avoid noisy single-char
   // matches and pointless full-list scans on every keystroke.
   const activeSearch = deferredSearch.length >= 2 ? deferredSearch : "";
 
   useEffect(() => {
     onSearchHandle?.({
-      setQuery: (query: string) => setSearchInput(query),
+      setQuery: (query: string, options?: { regex?: boolean }) => {
+        setSearchInput(query);
+        if (options) setSearchRegex(options.regex === true);
+      },
       clearQuery: () => setSearchInput(""),
     });
     return () => onSearchHandle?.(null);
@@ -294,8 +299,23 @@ export function GitHistoryPane({
   const gridTemplate = GRID_TEMPLATE;
 
   const filtered = useMemo(() => {
+    if (!activeSearch) return commits;
+    if (deferredRegex) {
+      let re: RegExp;
+      try {
+        re = new RegExp(activeSearch, "i");
+      } catch {
+        return commits;
+      }
+      return commits.filter(
+        (c) =>
+          re.test(c.subject) ||
+          re.test(c.author) ||
+          re.test(c.authorEmail) ||
+          re.test(c.shortSha),
+      );
+    }
     const q = activeSearch.toLowerCase();
-    if (!q) return commits;
     return commits.filter((c) => {
       const subject = c.subject.toLowerCase();
       const author = c.author.toLowerCase();
@@ -307,7 +327,7 @@ export function GitHistoryPane({
         c.shortSha.includes(q)
       );
     });
-  }, [commits, activeSearch]);
+  }, [commits, activeSearch, deferredRegex]);
 
   const virtualizer = useVirtualizer({
     count: filtered.length,

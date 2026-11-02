@@ -15,3 +15,5 @@
 - 2026-10-31：新增「终端路径历史」功能文档并修订「终端链接打开」：终端文本检测扩展到绝对路径，Ctrl/Cmd+点击在第三方文件管理器打开（Explorer 垫底），Shift+点击向终端提交 cd；目录历史按浏览器浏览记录模型记录（默认 10 条，设置可改），Ctrl+E 弹窗与命令面板 `>` 模式均可搜索并跳转。
 - 2026-11-01：修订「终端命令与结果块」：Windows PowerShell 5.1 缺少 PSReadLine 时（会话完成命令周期却从无 OSC 133;C），弹一次性提示并附可复制的安装命令；侧边栏默认快捷键收敛为 Ctrl/Cmd+Shift+B，用户自定义裸 Ctrl+B 在终端聚焦时仍让路给 shell；修正 Ctrl+E 终端外无行为的过时注释。登记 blockAnchorProbe.ts 到 file-map。
 - 2026-11-01：新增「AI 提交信息生成」功能文档：内置提交信息提示词从 useSourceControlPanel 收敛到 config/prompts.ts，terax-ai-models.json 新增 commitMessagePrompt 覆盖字段（types/normalize/schema 同步），设置页 AI 行为新增「提交信息提示词」模块（编辑/保存/恢复默认）；更新 README 导航、功能覆盖度和文件反查表。
+- 2026-11-02：新增「设置-关于」功能文档：仓库链接改为 lsnu73/terax-ai、删除「官网」条目与 website 词条、更新检查 API 同步指向 lsnu73 仓库；更新 README 导航、功能覆盖度（应用更新标为骨架）和文件反查表。
+- 2026-11-02：新增「代理」功能文档：设置页代理分区（地址/端口、终端/AI/更新三开关、全部开关、软件路径与自动启动）、状态栏三场景开关；终端经 PTY 环境变量（WSL 走 WSLENV）、AI 经 proxyFetch→reqwest 客户端缓存键、更新经 check({proxy})/net_http_get 生效。主窗口固定搜索框改弹窗式并新增正则搜索（终端在 TS 侧实现、编辑器 CodeMirror regexp、Git 历史列表正则过滤）；修复 AI 面板动态增删导致左右侧栏布局互相覆盖（AI 面板常驻 + collapse/resize）；命令面板 placeholder 补充 `>` 路径模式提示。

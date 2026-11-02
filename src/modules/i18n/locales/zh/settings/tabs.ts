@@ -8,5 +8,6 @@ export const settingsTabsZh: typeof settingsTabs = {
   shortcuts: "快捷键",
   models: "模型",
   agents: "AI 行为",
+  proxy: "代理",
   about: "关于",
 };

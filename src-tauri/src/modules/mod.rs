@@ -13,6 +13,7 @@ pub mod ipc_body;
 pub mod lsp;
 pub mod net;
 pub mod proc;
+pub mod proxy;
 pub mod pty;
 pub mod runtime;
 pub mod secrets;

@@ -59,7 +59,8 @@ export const commands = {
   palette: {
     title: "Command Palette",
     description: "Run a command, switch theme, or search your workspace.",
-    placeholderCommands: "Type a command, # to find in files",
+    placeholderCommands:
+      "Type a command, > for path history, # to find in files",
     placeholderContent: "Find text in files...",
     placeholderThemes: "Search themes...",
     placeholderPaths: "Search recent paths...",

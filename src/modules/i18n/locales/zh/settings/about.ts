@@ -10,7 +10,6 @@ export const settingsAboutZh: typeof settingsAbout = {
   bundleId: "包标识",
   license: "许可证",
   sourceCode: "源代码",
-  website: "官网",
   viewOnGitHub: "在 GitHub 查看",
   reportIssue: "报告问题",
   update: {

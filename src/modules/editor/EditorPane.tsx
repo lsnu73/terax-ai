@@ -65,7 +65,7 @@ import { MediaPreview } from "./MediaPreview";
 initVimGlobals();
 
 export type EditorPaneHandle = {
-  setQuery: (q: string) => void;
+  setQuery: (q: string, options?: { regex?: boolean }) => void;
   findNext: () => void;
   findPrevious: () => void;
   clearQuery: () => void;
@@ -450,12 +450,16 @@ export const EditorPane = memo(
     useImperativeHandle(
       ref,
       () => ({
-        setQuery: (q: string) => {
+        setQuery: (q: string, options?: { regex?: boolean }) => {
           const view = cmRef.current?.view;
           if (!view) return;
           view.dispatch({
             effects: setSearchQuery.of(
-              new SearchQuery({ search: q, caseSensitive: false }),
+              new SearchQuery({
+                search: q,
+                caseSensitive: false,
+                regexp: options?.regex === true,
+              }),
             ),
           });
           if (q) findNext(view);

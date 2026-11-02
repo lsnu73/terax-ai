@@ -10,6 +10,7 @@ export type SettingsTab =
   | "shortcuts"
   | "models"
   | "agents"
+  | "proxy"
   | "about";
 
 type Opener = (tab?: SettingsTab) => void;

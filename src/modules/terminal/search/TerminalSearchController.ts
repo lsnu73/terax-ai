@@ -1,5 +1,7 @@
-type TerminalSearchOptions = {
+export type TerminalSearchOptions = {
   readonly incremental?: boolean;
+  /** 正则表达式搜索；无效表达式按无匹配处理。 */
+  readonly regex?: boolean;
   readonly decorations?: {
     readonly matchBackground?: string;
     readonly activeMatchBackground?: string;
