@@ -6,7 +6,7 @@
 
 ## 表象
 
-前端 `openPath("C:/Users/.../app.crynta.terax")` 抛 `Not allowed to open path C:/...`，目录不打开。
+前端 `openPath("C:/Users/.../app.wang.terax")` 抛 `Not allowed to open path C:/...`，目录不打开。
 
 ## 根因
 
@@ -22,8 +22,8 @@ tauri-plugin-opener 的权限与 scope 是两层：`allow-open-path` 只放行 `
 {
   "identifier": "opener:allow-open-path",
   "allow": [
-    { "path": "$APPDATA/app.crynta.terax" },
-    { "path": "$APPDATA/app.crynta.terax/**" }
+    { "path": "$APPDATA/app.wang.terax" },
+    { "path": "$APPDATA/app.wang.terax/**" }
   ]
 }
 ```

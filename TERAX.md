@@ -6,7 +6,7 @@ Terax loads `TERAX.md` from the workspace root as agent memory (similar to AGENT
 
 **Terax**: open-source AI-native terminal emulator. Tauri 2 + Rust (`portable-pty`) backend, React 19 + TypeScript + libghostty-vt WASM client (WebGPU, Terax WebGL fallback), BYOK AI via Vercel AI SDK v6.
 
-- Bundle id: `app.crynta.terax`
+- Bundle id: `app.wang.terax`
 - Package manager: **pnpm**
 - Platforms: macOS, Linux, Windows
 - Frontend checks: `pnpm lint`, `pnpm check-types`, `pnpm test`

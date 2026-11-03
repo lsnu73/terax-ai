@@ -79,7 +79,7 @@ backing size, so none is ever resized).
 
 ## Isolation
 
-The bundle is `Terax App Lab.app` with the identifier `app.crynta.terax.app-lab`, launched with
+The bundle is `Terax App Lab.app` with the identifier `app.wang.terax.app-lab`, launched with
 its own `HOME` (so the control-server descriptor, shell-integration files and history never touch
 the real user's) and `TERAX_BENCH_ISOLATED=1`. The bench binary refuses to start under the product
 identifier or without that variable (`modules/bench.rs::guard`, unit tested), and the profile

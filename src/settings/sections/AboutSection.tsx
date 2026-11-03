@@ -97,7 +97,7 @@ export function AboutSection() {
         <dt className="text-muted-foreground">
           {t("settings.about.bundleId")}
         </dt>
-        <dd className="font-mono text-[11.5px]">app.crynta.terax</dd>
+        <dd className="font-mono text-[11.5px]">app.wang.terax</dd>
 
         <dt className="text-muted-foreground">{t("settings.about.license")}</dt>
         <dd>Apache 2.0</dd>
