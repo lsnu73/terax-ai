@@ -33,6 +33,7 @@ export const agents = {
     activeCount_one: "{{count}} active",
     activeCount_other: "{{count}} active",
     clear: "Clear",
+    copied: "Copied",
     emptyLine1: "No notifications yet.",
     emptyLine2: "Agent activity and app messages will appear here.",
     waiting: "waiting",

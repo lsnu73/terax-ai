@@ -34,6 +34,7 @@ export const agentsZh: typeof agents = {
     activeCount_one: "{{count}} 个活跃",
     activeCount_other: "{{count}} 个活跃",
     clear: "清空",
+    copied: "已复制",
     emptyLine1: "还没有通知。",
     emptyLine2: "代理活动和软件运行消息会显示在这里。",
     waiting: "等待中",

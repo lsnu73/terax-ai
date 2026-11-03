@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   type AiConfig,
+  builtinProviders,
   builtinSystemPrompt,
   defaultAiConfig,
   getModelContextLimit,
@@ -84,9 +85,9 @@ function config(providers: ProviderEntry[]): AiConfig {
 }
 
 describe("built-in catalog", () => {
-  it("seeds domestic providers only, without a hardcoded model list", () => {
-    const seeded = defaultAiConfig();
-    const ids = seeded.providers.map((p) => p.id);
+  it("offers domestic provider templates without hardcoded models", () => {
+    const catalog = builtinProviders();
+    const ids = catalog.map((p) => p.id);
     expect(ids).toContain("zhipu");
     expect(ids).toContain("deepseek");
     expect(ids).toContain("dashscope");
@@ -94,13 +95,12 @@ describe("built-in catalog", () => {
     expect(ids).not.toContain("openai");
     expect(ids).not.toContain("anthropic");
     expect(ids).not.toContain("google");
-    expect(seeded.providers.every((p) => p.models.length === 0)).toBe(true);
-    expect(seeded.defaults.modelId).toBe("");
+    expect(catalog.every((p) => p.models.length === 0)).toBe(true);
   });
 
   it("declares effort ladders on providers, not in code", () => {
-    const seeded = defaultAiConfig();
-    const zhipu = seeded.providers.find((p) => p.id === "zhipu");
+    const catalog = builtinProviders();
+    const zhipu = catalog.find((p) => p.id === "zhipu");
     expect(zhipu?.effort?.path).toBe("reasoning_effort");
     expect(zhipu?.effort?.levels.map((l) => l.id)).toEqual([
       "off",
@@ -108,8 +108,18 @@ describe("built-in catalog", () => {
       "high",
       "max",
     ]);
-    const doubao = seeded.providers.find((p) => p.id === "volcengine");
+    const doubao = catalog.find((p) => p.id === "volcengine");
     expect(doubao?.effort?.path).toBe("thinking.type");
+  });
+});
+
+describe("defaultAiConfig", () => {
+  it("starts with no providers or default model", () => {
+    expect(defaultAiConfig()).toEqual({
+      version: 1,
+      defaults: { modelId: "" },
+      providers: [],
+    });
   });
 });
 
@@ -135,6 +145,28 @@ describe("normalizeAiConfig", () => {
     expect(result.config.defaults.modelId).toBe("");
   });
 
+  it("initializes a missing provider list as empty", () => {
+    const result = normalizeAiConfig({});
+    expect(result.config.providers).toEqual([]);
+    expect(result.config.defaults.modelId).toBe("");
+  });
+
+  it("does not append built-in providers to existing user configuration", () => {
+    const result = normalizeAiConfig({
+      providers: [
+        {
+          id: "custom",
+          baseURL: "https://example.test/v1",
+          models: [{ id: "custom-model" }],
+        },
+      ],
+    });
+    expect(result.config.providers).toHaveLength(1);
+    expect(result.config.providers[0].id).toBe("custom");
+    expect(result.config.providers[0].models[0].id).toBe("custom-model");
+    expect(result.config.defaults.modelId).toBe("custom-model");
+  });
+
   it("never carries API keys in static headers", () => {
     const result = normalizeAiConfig({
       providers: [
@@ -156,7 +188,11 @@ describe("normalizeAiConfig", () => {
   it("drops effort configs with no levels", () => {
     const result = normalizeAiConfig({
       providers: [
-        { id: "p", effort: { path: "x", default: "x", levels: [] }, models: [] },
+        {
+          id: "p",
+          effort: { path: "x", default: "x", levels: [] },
+          models: [],
+        },
       ],
     });
     expect(result.config.providers[0].effort).toBeNull();
@@ -225,16 +261,43 @@ describe("normalizeAiConfig", () => {
         {
           id: "p",
           params: [
-            { key: "frequency_penalty", location: "body", path: "frequency_penalty", type: "number", default: 0.5, enabled: true },
-            { key: "reasoning_effort", location: "body", path: "reasoning_effort", type: "string", enum: ["low", "high"], map: { low: "low" }, enabled: true },
-            { key: "x-thing", location: "header", path: "X-Thing", type: "string", default: "v", enabled: true },
+            {
+              key: "frequency_penalty",
+              location: "body",
+              path: "frequency_penalty",
+              type: "number",
+              default: 0.5,
+              enabled: true,
+            },
+            {
+              key: "reasoning_effort",
+              location: "body",
+              path: "reasoning_effort",
+              type: "string",
+              enum: ["low", "high"],
+              map: { low: "low" },
+              enabled: true,
+            },
+            {
+              key: "x-thing",
+              location: "header",
+              path: "X-Thing",
+              type: "string",
+              default: "v",
+              enabled: true,
+            },
           ],
           models: [],
         },
       ],
     });
     expect(result.config.providers[0].params).toEqual([
-      { key: "frequency_penalty", label: "frequency_penalty", value: 0.5, enabled: true },
+      {
+        key: "frequency_penalty",
+        label: "frequency_penalty",
+        value: 0.5,
+        enabled: true,
+      },
     ]);
   });
 
@@ -273,6 +336,17 @@ describe("normalizeAiConfig", () => {
       prompts: { full: "   " },
     });
     expect(empty.config.prompts).toBeUndefined();
+  });
+
+  it("parses the commit message prompt and drops blank overrides", () => {
+    expect(
+      normalizeAiConfig({ providers: [], commitMessagePrompt: "  concise  " })
+        .config.commitMessagePrompt,
+    ).toBe("  concise  ");
+    expect(
+      normalizeAiConfig({ providers: [], commitMessagePrompt: "   " }).config
+        .commitMessagePrompt,
+    ).toBeUndefined();
   });
 });
 
@@ -317,9 +391,7 @@ describe("resolveRequestParams", () => {
 
   it("skips a disabled param", () => {
     const p = provider({
-      params: [
-        { key: "frequency_penalty", value: 0.5, enabled: false },
-      ],
+      params: [{ key: "frequency_penalty", value: 0.5, enabled: false }],
     });
     expect(resolveRequestParams(p, p.models[0], "off").body).toEqual({});
   });

@@ -2,7 +2,7 @@
 
 > 只收录有业务含义的源文件。自动生成文件、测试、构建脚本和纯配置不在此列。
 > 一个文件涉及多个功能时，第二列登记主归属，其余登记在第三列。
-> 最后校验：2026-11-02
+> 最后校验：2026-11-03
 
 | 文件 | 主归属功能 | 次要归属 | 说明 |
 |---|---|---|---|
@@ -15,7 +15,9 @@
 | `src/modules/shortcuts/components/ShortcutTooltip.tsx` | [快捷键提示](features/快捷键提示.md) | 无 | 统一 Tooltip 与菜单快捷键文本 |
 | `src/modules/shortcuts/index.ts` | [快捷键提示](features/快捷键提示.md) | 无 | 快捷键模块公共导出 |
 | `src/modules/header/Header.tsx` | [快捷键提示](features/快捷键提示.md) | 顶栏布局、[通知中心](features/通知中心.md) | 设置、侧栏、命令面板按钮提示与通知铃铛入口 |
-| `src/modules/agents/components/NotificationBell.tsx` | [通知中心](features/通知中心.md) | 外部编码代理管理 | 未读角标、通知历史、详情、Agent 跳转与运行时动作 |
+| `src/modules/agents/components/NotificationBell.tsx` | [通知中心](features/通知中心.md) | 外部编码代理管理 | 未读角标、通知历史、右侧详情与复制、Agent 跳转与运行时动作 |
+| `src/modules/i18n/locales/zh/agents.ts` | [通知中心](features/通知中心.md) | 外部编码代理管理 | 通知详情复制反馈等中文文案 |
+| `src/modules/i18n/locales/en/agents.ts` | [通知中心](features/通知中心.md) | 外部编码代理管理 | 通知详情复制反馈等英文文案 |
 | `src/modules/agents/lib/runtimeNotifications.ts` | [通知中心](features/通知中心.md) | 无 | 软件消息统一入口与 Sonner/历史生命周期协调 |
 | `src/modules/agents/lib/types.ts` | [通知中心](features/通知中心.md) | 外部编码代理管理 | Agent/运行时通知联合类型 |
 | `src/modules/agents/store/agentStore.ts` | [通知中心](features/通知中心.md) | 外部编码代理管理 | 活跃 Agent、50 条通知历史、已读与稳定 ID 更新 |

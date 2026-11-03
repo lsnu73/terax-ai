@@ -9,14 +9,17 @@ import { t } from "@/modules/i18n";
 import {
   ArrowDown01Icon,
   ArrowUp01Icon,
+  Cancel01Icon,
   CheckmarkCircle02Icon,
+  Copy01Icon,
   Loading03Icon,
   Notification01Icon,
   Notification03Icon,
+  Tick02Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { invoke } from "@tauri-apps/api/core";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AgentIcon } from "../lib/agentIcon";
 import { displayAgent } from "../lib/format";
@@ -145,7 +148,7 @@ function NotificationRow({
   onAction,
 }: {
   n: AgentNotification;
-  onClick: () => void;
+  onClick: (anchor: HTMLButtonElement) => void;
   onAction: (n: RuntimeNotification, action: NotificationAction) => void;
 }) {
   const content = (
@@ -192,7 +195,13 @@ function NotificationRow({
   if (n.source === "runtime") {
     return (
       <div className="rounded-lg px-2 py-2 transition-colors hover:bg-accent/60">
-        <div className="flex items-start gap-2.5">{content}</div>
+        <button
+          type="button"
+          onClick={(event) => onClick(event.currentTarget)}
+          className="flex w-full items-start gap-2.5 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {content}
+        </button>
         {n.action || n.cancel ? (
           <div className="mt-2 flex justify-end gap-1.5">
             {n.cancel ? (
@@ -228,7 +237,7 @@ function NotificationRow({
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={(event) => onClick(event.currentTarget)}
       className="flex w-full items-start gap-2.5 rounded-lg px-2 py-2 text-left transition-colors hover:bg-accent"
     >
       {content}
@@ -236,9 +245,112 @@ function NotificationRow({
   );
 }
 
+function NotificationDetail({
+  n,
+  anchor,
+  onClose,
+  onAction,
+}: {
+  n: RuntimeNotification;
+  anchor: number;
+  onClose: () => void;
+  onAction: (n: RuntimeNotification, action: NotificationAction) => void;
+}) {
+  const { t } = useTranslation();
+  const [copied, setCopied] = useState(false);
+
+  const copy = async () => {
+    if (!navigator?.clipboard?.writeText) return;
+    try {
+      await navigator.clipboard.writeText(
+        n.body ? `${n.title}\n\n${n.body}` : n.title,
+      );
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Clipboard permissions can be unavailable in the current webview.
+    }
+  };
+
+  return (
+    <aside
+      className="absolute left-80 flex max-h-[26rem] w-96 shrink-0 -translate-y-1/2 flex-col overflow-hidden rounded-3xl bg-popover shadow-lg ring-1 ring-foreground/5 dark:ring-foreground/10"
+      style={{ top: anchor }}
+    >
+      <div className="flex items-start gap-1 border-b border-border/60 p-3">
+        <div className="min-w-0 flex-1 break-words pt-1 text-sm font-medium leading-relaxed text-foreground">
+          {n.title}
+        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          className="size-7 shrink-0"
+          onClick={copy}
+          title={copied ? t("agents.bell.copied") : t("common.copy")}
+        >
+          <HugeiconsIcon
+            icon={copied ? Tick02Icon : Copy01Icon}
+            size={14}
+            strokeWidth={1.75}
+          />
+          <span className="sr-only">
+            {copied ? t("agents.bell.copied") : t("common.copy")}
+          </span>
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          className="size-7 shrink-0"
+          onClick={onClose}
+          title={t("common.close")}
+        >
+          <HugeiconsIcon icon={Cancel01Icon} size={14} strokeWidth={1.75} />
+          <span className="sr-only">{t("common.close")}</span>
+        </Button>
+      </div>
+      <div className="min-h-0 flex-1 select-text overflow-y-auto whitespace-pre-wrap break-words p-4 text-xs leading-relaxed text-muted-foreground">
+        {n.body}
+      </div>
+      {n.action || n.cancel ? (
+        <div className="flex justify-end gap-2 p-3">
+          {n.cancel ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              onClick={() => {
+                if (n.cancel) onAction(n, n.cancel);
+              }}
+            >
+              {n.cancel.label}
+            </Button>
+          ) : null}
+          {n.action ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="xs"
+              onClick={() => {
+                if (n.action) onAction(n, n.action);
+              }}
+            >
+              {n.action.label}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+    </aside>
+  );
+}
+
 export function NotificationBell({ onActivate, onActivateLocal }: Props) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const [detailAnchor, setDetailAnchor] = useState<number | null>(null);
+  const popoverContentRef = useRef<HTMLDivElement>(null);
   const [hooks, setHooks] = useState<Record<string, boolean>>({});
   const [installing, setInstalling] = useState<string | null>(null);
   const [alertsOpen, setAlertsOpen] = useState(false);
@@ -247,6 +359,17 @@ export function NotificationBell({ onActivate, onActivateLocal }: Props) {
   const notifications = useAgentStore((s) => s.notifications);
   const markAllRead = useAgentStore((s) => s.markAllRead);
   const clearNotifications = useAgentStore((s) => s.clearNotifications);
+  const detailNotification = notifications.find(
+    (n): n is RuntimeNotification =>
+      n.source === "runtime" && n.id === detailId,
+  );
+
+  useEffect(() => {
+    if (detailId && !detailNotification) {
+      setDetailId(null);
+      setDetailAnchor(null);
+    }
+  }, [detailId, detailNotification]);
 
   const active = useMemo(() => Object.values(sessions), [sessions]);
   const activeCount = active.length + (localAgent ? 1 : 0);
@@ -271,6 +394,10 @@ export function NotificationBell({ onActivate, onActivateLocal }: Props) {
 
   const onOpenChange = (next: boolean) => {
     setOpen(next);
+    if (!next) {
+      setDetailId(null);
+      setDetailAnchor(null);
+    }
     if (next) {
       markAllRead();
       refreshHooks();
@@ -299,8 +426,21 @@ export function NotificationBell({ onActivate, onActivateLocal }: Props) {
     setOpen(false);
   };
 
-  const activateNotification = (n: AgentNotification) => {
-    if (n.source === "runtime") return;
+  const activateNotification = (
+    n: AgentNotification,
+    anchor: HTMLButtonElement,
+  ) => {
+    if (n.source === "runtime") {
+      const contentRect = popoverContentRef.current?.getBoundingClientRect();
+      const anchorRect = anchor.getBoundingClientRect();
+      if (contentRect) {
+        setDetailAnchor(
+          anchorRect.top - contentRect.top + anchorRect.height / 2,
+        );
+      }
+      setDetailId(n.id);
+      return;
+    }
     if (n.source === "local") activateLocal();
     else activate(n.tabId, n.leafId);
   };
@@ -311,6 +451,8 @@ export function NotificationBell({ onActivate, onActivateLocal }: Props) {
   ) => {
     action.onClick();
     runtimeToast.dismiss(n.runtimeId);
+    setDetailId(null);
+    setDetailAnchor(null);
     setOpen(false);
   };
 
@@ -319,6 +461,8 @@ export function NotificationBell({ onActivate, onActivateLocal }: Props) {
       if (n.source === "runtime") runtimeToast.dismiss(n.runtimeId);
     }
     clearNotifications();
+    setDetailId(null);
+    setDetailAnchor(null);
   };
 
   const empty = activeCount === 0 && notifications.length === 0;
@@ -345,108 +489,126 @@ export function NotificationBell({ onActivate, onActivateLocal }: Props) {
         </Button>
       </PopoverTrigger>
       <PopoverContent
+        ref={popoverContentRef}
         align="end"
         sideOffset={8}
-        className="w-80 overflow-hidden p-0 gap-0.5"
-      >
-        <div className="flex h-10 items-center gap-2 px-3 pt-0.5">
-          <span className="flex gap-1 text-[13px] text-foreground">
-            {t("agents.bell.header")}
-          </span>
-          <div className="ml-auto flex items-center gap-2">
-            {activeCount > 0 ? (
-              <span className="rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-muted-foreground">
-                {t("agents.bell.activeCount", { count: activeCount })}
-              </span>
-            ) : null}
-            {notifications.length > 0 ? (
-              <button
-                type="button"
-                onClick={clearAllNotifications}
-                className="rounded-md px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              >
-                {t("agents.bell.clear")}
-              </button>
-            ) : null}
-          </div>
-        </div>
-
-        {empty ? (
-          <div className="border-t border-border/60 px-3 py-5 text-center text-xs leading-relaxed text-muted-foreground">
-            {t("agents.bell.emptyLine1")}
-            <br />
-            {t("agents.bell.emptyLine2")}
-          </div>
-        ) : (
-          <div className="max-h-80 overflow-y-auto border-t border-border/60 p-1">
-            {localAgent ? (
-              <StatusRow
-                agent={localAgent.agent}
-                status={localAgent.status}
-                onClick={activateLocal}
-              />
-            ) : null}
-            {active.map((s) => (
-              <StatusRow
-                key={s.leafId}
-                agent={s.agent}
-                status={s.status}
-                onClick={() => activate(s.tabId, s.leafId)}
-              />
-            ))}
-            {activeCount > 0 && notifications.length > 0 ? (
-              <div className="mx-2 my-1 h-px bg-border/50" />
-            ) : null}
-            {notifications.map((n) => (
-              <NotificationRow
-                key={n.id}
-                n={n}
-                onClick={() => activateNotification(n)}
-                onAction={runNotificationAction}
-              />
-            ))}
-          </div>
+        className={cn(
+          "flex-row items-start overflow-visible rounded-none bg-transparent p-0 gap-0 shadow-none ring-0 dark:ring-0",
+          detailNotification ? "w-[44rem]" : "w-80",
         )}
-
-        <div className="border-t border-border/60 p-1">
-          <button
-            type="button"
-            onClick={() => setAlertsOpen((v) => !v)}
-            aria-expanded={alertsOpen}
-            className="flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground/70 transition-colors hover:text-foreground"
-          >
-            <HugeiconsIcon
-              icon={Notification03Icon}
-              size={11}
-              strokeWidth={2}
-            />
-            {t("agents.bell.alerts")}
-            <span className="ml-auto flex items-center gap-1.5 normal-case tracking-normal">
-              {enabledCount > 0 ? (
-                <span className="text-[10px] text-muted-foreground/60">
-                  {t("agents.bell.alertsOn", { count: enabledCount })}
+      >
+        <div className="w-80 shrink-0 overflow-hidden rounded-3xl bg-popover shadow-lg ring-1 ring-foreground/5 dark:ring-foreground/10">
+          <div className="flex h-10 items-center gap-2 px-3 pt-0.5">
+            <span className="flex gap-1 text-[13px] text-foreground">
+              {t("agents.bell.header")}
+            </span>
+            <div className="ml-auto flex items-center gap-2">
+              {activeCount > 0 ? (
+                <span className="rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-muted-foreground">
+                  {t("agents.bell.activeCount", { count: activeCount })}
                 </span>
               ) : null}
+              {notifications.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={clearAllNotifications}
+                  className="rounded-md px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                >
+                  {t("agents.bell.clear")}
+                </button>
+              ) : null}
+            </div>
+          </div>
+
+          {empty ? (
+            <div className="border-t border-border/60 px-3 py-5 text-center text-xs leading-relaxed text-muted-foreground">
+              {t("agents.bell.emptyLine1")}
+              <br />
+              {t("agents.bell.emptyLine2")}
+            </div>
+          ) : (
+            <div className="max-h-80 overflow-y-auto border-t border-border/60 p-1">
+              {localAgent ? (
+                <StatusRow
+                  agent={localAgent.agent}
+                  status={localAgent.status}
+                  onClick={activateLocal}
+                />
+              ) : null}
+              {active.map((s) => (
+                <StatusRow
+                  key={s.leafId}
+                  agent={s.agent}
+                  status={s.status}
+                  onClick={() => activate(s.tabId, s.leafId)}
+                />
+              ))}
+              {activeCount > 0 && notifications.length > 0 ? (
+                <div className="mx-2 my-1 h-px bg-border/50" />
+              ) : null}
+              {notifications.map((n) => (
+                <NotificationRow
+                  key={n.id}
+                  n={n}
+                  onClick={(anchor) => activateNotification(n, anchor)}
+                  onAction={runNotificationAction}
+                />
+              ))}
+            </div>
+          )}
+
+          <div className="border-t border-border/60 p-1">
+            <button
+              type="button"
+              onClick={() => setAlertsOpen((v) => !v)}
+              aria-expanded={alertsOpen}
+              className="flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground/70 transition-colors hover:text-foreground"
+            >
               <HugeiconsIcon
-                icon={alertsOpen ? ArrowUp01Icon : ArrowDown01Icon}
-                size={13}
+                icon={Notification03Icon}
+                size={11}
                 strokeWidth={2}
               />
-            </span>
-          </button>
-          {alertsOpen
-            ? HOOK_AGENTS.map((id) => (
-                <HookAgentRow
-                  key={id}
-                  id={id}
-                  label={displayAgent(id)}
-                  ready={hooks[id] === true}
-                  installing={installing === id}
-                  onEnable={() => enableHooks(id)}
+              {t("agents.bell.alerts")}
+              <span className="ml-auto flex items-center gap-1.5 normal-case tracking-normal">
+                {enabledCount > 0 ? (
+                  <span className="text-[10px] text-muted-foreground/60">
+                    {t("agents.bell.alertsOn", { count: enabledCount })}
+                  </span>
+                ) : null}
+                <HugeiconsIcon
+                  icon={alertsOpen ? ArrowUp01Icon : ArrowDown01Icon}
+                  size={13}
+                  strokeWidth={2}
                 />
-              ))
-            : null}
+              </span>
+            </button>
+            {alertsOpen
+              ? HOOK_AGENTS.map((id) => (
+                  <HookAgentRow
+                    key={id}
+                    id={id}
+                    label={displayAgent(id)}
+                    ready={hooks[id] === true}
+                    installing={installing === id}
+                    onEnable={() => enableHooks(id)}
+                  />
+                ))
+              : null}
+          </div>
         </div>
+        {detailNotification && detailAnchor !== null ? (
+          <NotificationDetail
+            key={detailNotification.id}
+            n={detailNotification}
+            anchor={detailAnchor}
+            onClose={() => {
+              setDetailId(null);
+              setDetailAnchor(null);
+            }}
+            onAction={runNotificationAction}
+          />
+        ) : null}
       </PopoverContent>
     </Popover>
   );

@@ -8,7 +8,7 @@ import type { AiConfig } from "./types";
 /**
  * 可手工编辑的模型配置的持久化。
  *
- * 文件是普通 JSON，顶层只有 `version`、`defaults`、`providers` 三个键，
+ * 文件是普通 JSON，保存模型目录与提示词覆盖，
  * 可以用任意编辑器修改，再在设置页重新加载。API Key 绝不写入这里，
  * 它们存放在操作系统钥匙串（见 `src/modules/ai/lib/keyring.ts`）。
  */
@@ -18,6 +18,8 @@ export const AI_CONFIG_STORE_PATH = "terax-ai-models.json";
 const KEY_VERSION = "version";
 const KEY_DEFAULTS = "defaults";
 const KEY_PROVIDERS = "providers";
+const KEY_PROMPTS = "prompts";
+const KEY_COMMIT_MESSAGE_PROMPT = "commitMessagePrompt";
 
 const store = new LazyStore(AI_CONFIG_STORE_PATH, {
   defaults: {},
@@ -38,16 +40,17 @@ function toRaw(entries: Array<[string, unknown]>): Record<string, unknown> {
     version: map.get(KEY_VERSION),
     defaults: map.get(KEY_DEFAULTS),
     providers: map.get(KEY_PROVIDERS),
+    prompts: map.get(KEY_PROMPTS),
+    commitMessagePrompt: map.get(KEY_COMMIT_MESSAGE_PROMPT),
   };
 }
 
 /**
  * 每次都从磁盘重新读取，确保外部编辑可见。
  *
- * - 文件不存在或为空 → 播种内置目录并写入一次，保证首次启动时所有
- *   Provider 都真正落盘。
- * - 文件无法读取或格式损坏 → 内存中回退到内置目录并给出 warning，
- *   不覆盖用户写下的内容。
+ * - 文件不存在或为空 → 写入一次空 Provider 默认配置。
+ * - 文件无法读取或格式损坏 → 内存中回退到空 Provider 默认配置并给出
+ *   warning，不覆盖用户写下的内容。
  */
 export async function readAiConfig(): Promise<LoadedAiConfig> {
   let reloadError: unknown = null;
@@ -66,8 +69,7 @@ export async function readAiConfig(): Promise<LoadedAiConfig> {
         seeded: false,
       };
     }
-    // 文件不存在（或为空）：写入一次内置目录，保证首次启动时
-    // Provider、模型和参数都真正落盘。
+    // 文件不存在（或为空）：写入一次空 Provider 默认配置。
     const seeded = defaultAiConfig();
     await writeAiConfig(seeded);
     return {
@@ -87,6 +89,13 @@ export async function writeAiConfig(config: AiConfig): Promise<void> {
   await store.set(KEY_VERSION, config.version);
   await store.set(KEY_DEFAULTS, config.defaults);
   await store.set(KEY_PROVIDERS, config.providers);
+  if (config.prompts === undefined) await store.delete(KEY_PROMPTS);
+  else await store.set(KEY_PROMPTS, config.prompts);
+  if (config.commitMessagePrompt === undefined) {
+    await store.delete(KEY_COMMIT_MESSAGE_PROMPT);
+  } else {
+    await store.set(KEY_COMMIT_MESSAGE_PROMPT, config.commitMessagePrompt);
+  }
   await store.save();
   await emit(AI_CONFIG_CHANGED_EVENT);
 }

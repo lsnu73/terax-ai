@@ -1,12 +1,12 @@
 # AI 模型配置
 
-- 最后校验：2026-10-31（`terax-diy`，含本轮 params/effort 重构）
+- 最后校验：2026-11-03
 - 状态：可用
 - 关联 lore：暂无（params 与 Effort 的职责分工规则见 §4，若沉淀取舍理由应进 lore）
 
 ## 1. 业务需求
 
-Provider 和模型全部由数据驱动（应用数据目录下的 terax-ai-models.json），设置页与该文件编辑的是同一份配置。用户可以自定义请求体额外参数（如频率惩罚系数），也可以按档位设置模型的思考强度。两者的职责分工是硬性规则：
+Provider 和模型全部由数据驱动（应用数据目录下的 terax-ai-models.json），设置页与该文件编辑的是同一份配置。新配置的 Provider 列表默认为空，内置目录只用于「添加 Provider」模板；已有用户配置不做清理或迁移。用户可以自定义请求体额外参数（如频率惩罚系数），也可以按档位设置模型的思考强度。两者的职责分工是硬性规则：
 
 - **Params**：每次请求都携带的自定义请求体参数（静态取值），例如 `frequency_penalty`、`top_p` 等高级参数。
 - **Effort（思考强度）**：只负责思考强度档位。所有档位共用一个请求体参数名（`path`），每个档位只填写自己的实际取值；取值 `null` 表示省略该参数（关闭思考）。
@@ -37,10 +37,11 @@ chatRuntime.getEffortLevelId -> runAgentStream(effortLevelId)
 | 文件 | 角色 | 备注 |
 |---|---|---|
 | `src/modules/ai/config/types.ts` | 数据模型 | `ParamDef`（key/value/enabled）、`EffortConfig`（path+levels） |
-| `src/modules/ai/config/defaults.ts` | 内置厂商目录 | 首次启动播种；导出 `GLM_52_EFFORT_EXAMPLE` 参考示例 |
+| `src/modules/ai/config/defaults.ts` | 默认配置与内置模板 | 默认 Provider 为空；目录仅供添加模板；导出 `GLM_52_EFFORT_EXAMPLE` |
 | `src/modules/ai/config/normalize.ts` | 收敛与迁移 | 旧 `thinking`、旧 `ParamDef` 自动迁移，非法值丢弃并告警 |
 | `src/modules/ai/config/params.ts` | 请求参数引擎 | 合并顺序：params → effort 档位 → 模型 `extra` |
-| `src/modules/ai/config/persist.ts` | 文件读写 | 应用数据目录下的模型配置 JSON |
+| `src/modules/ai/config/persist.ts` | 文件读写 | 读写 Provider、系统提示词和提交信息提示词，恢复默认时删除覆盖 |
+| `src/modules/ai/config/persist.test.ts` | 持久化回归测试 | 首次空配置、提示词 round-trip、清除覆盖与已有配置保留 |
 | `src/modules/ai/config/registry.ts` | 查询助手 | `resolveModel` / `toModelInfo` 等 |
 | `src/modules/ai/lib/agent.ts` | 传输注入 | 唯一感知传输 SDK 的位置；`PROTECTED_BODY_KEYS` 防劫持 |
 | `src/settings/sections/ModelsSection.tsx` | 设置页 | 模型/Provider 编辑器、校验 |
@@ -74,3 +75,4 @@ chatRuntime.getEffortLevelId -> runAgentStream(effortLevelId)
 ## 7. 变更记录
 
 - 2026-10-31：重构 params 与 thinking。`params` 收敛为「静态自定义请求体参数」（移除 location/path/type/enum/map）；`thinking` 更名为 `effort`（思考强度），改为「一个参数名 + 每档一个取值」，不再引用 params 的逻辑 key；设置页两种表单均明示分工规则；含旧格式自动迁移。
+- 2026-11-03：新配置默认 Provider 列表改为空，内置目录保留为添加模板；补全 `prompts` 与 `commitMessagePrompt` 的磁盘读写和持久化回归测试。

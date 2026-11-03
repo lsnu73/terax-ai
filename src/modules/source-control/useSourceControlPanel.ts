@@ -19,6 +19,7 @@ import {
   workingDiffKey,
 } from "@/modules/editor/lib/diffCache";
 import { t } from "@/modules/i18n";
+import { openSettings } from "@/modules/settings/openSettings";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SourceControlSummary } from "./useSourceControl";
@@ -836,6 +837,7 @@ export function useSourceControlPanel(
       return;
     }
     if (aiUnavailableReason) {
+      if (!selectedModel) openSettings("models");
       setActionError(aiUnavailableReason);
       return;
     }
@@ -896,6 +898,7 @@ export function useSourceControlPanel(
     aiUnavailableReason,
     aiBusy,
     repo,
+    selectedModel,
     selectedModelId,
     selectedModelSupportsTemperature,
     stagedEntries,

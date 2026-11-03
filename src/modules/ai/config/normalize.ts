@@ -348,7 +348,7 @@ export function normalizeAiConfig(raw: unknown): NormalizeResult {
   if (rawProviders === null) {
     return {
       config: defaultAiConfig(),
-      warnings: ["Missing providers[] — seeded the built-in catalog"],
+      warnings: ["Missing providers[]: initialized an empty provider list"],
       empty: true,
     };
   }

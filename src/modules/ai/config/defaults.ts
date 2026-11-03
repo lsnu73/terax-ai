@@ -6,7 +6,7 @@ import type {
 } from "./types";
 
 /**
- * 内置目录：首次启动时用于播种 `terax-ai-models.json`，同时填充“添加 Provider”菜单。
+ * 内置目录：只填充“添加 Provider”菜单，不作为默认配置写入 `terax-ai-models.json`。
  * 这里只有厂商元数据，没有任何模型。模型行始终由用户创建——要么从厂商的
  * `/models` 接口拉取，要么手动填写模型 ID。
  *
@@ -270,7 +270,7 @@ export function defaultAiConfig(): AiConfig {
   return {
     version: 1,
     defaults: { modelId: "" },
-    providers: builtinProviders(),
+    providers: [],
   };
 }
 

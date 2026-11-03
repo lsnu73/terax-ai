@@ -15,9 +15,10 @@ Providers and models are configuration, not code. The source of truth is
 `~/Library/Application Support/...` on macOS). Settings → Models edits the same
 document; both routes produce identical results.
 
-- Built-in catalog (seeded on first launch, no models): 智谱 GLM, DeepSeek,
-  阿里云百炼 Qwen, 月之暗面 Kimi, 火山方舟 豆包, 硅基流动, MiniMax, 阶跃星辰,
-  腾讯混元, 百度千帆, plus a generic OpenAI-compatible entry.
+- New configurations start with no providers. Existing user configurations are
+  preserved without migration. The built-in Add Provider catalog offers 智谱 GLM,
+  DeepSeek, 阿里云百炼 Qwen, 月之暗面 Kimi, 火山方舟 豆包, 硅基流动, MiniMax,
+  阶跃星辰, 腾讯混元, 百度千帆, plus a generic OpenAI-compatible entry.
 - Model rows are always user-created, either by fetching the provider's
   `/models` endpoint or by entering a model id manually.
 - Each provider declares `protocol` (transport adapter), `baseURL`, auth mode,
