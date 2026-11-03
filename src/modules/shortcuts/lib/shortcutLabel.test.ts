@@ -12,6 +12,7 @@ vi.mock("@/modules/settings/preferences", () => ({
 }));
 
 import { shortcutLabel } from "./shortcutLabel";
+import { shortcutHintLabel } from "./useShortcutTokens";
 
 beforeEach(() => {
   prefsMock.shortcuts = {};
@@ -28,5 +29,15 @@ describe("shortcutLabel", () => {
       "commandPalette.open": [{ ctrl: true, shift: true, key: "k" }],
     };
     expect(shortcutLabel("commandPalette.open")).toBe("Ctrl Shift K");
+  });
+});
+
+describe("shortcutHintLabel", () => {
+  it("appends the current binding in the tooltip format", () => {
+    expect(shortcutHintLabel("Settings", "Ctrl+,")).toBe("Settings(Ctrl+,)");
+  });
+
+  it("leaves the label unchanged when the shortcut is unassigned", () => {
+    expect(shortcutHintLabel("Settings", "")).toBe("Settings");
   });
 });

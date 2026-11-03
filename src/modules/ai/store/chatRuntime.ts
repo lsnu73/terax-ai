@@ -3,7 +3,7 @@ import {
   type ChatTransport,
   lastAssistantMessageIsCompleteWithApprovalResponses,
 } from "ai";
-import { getModel, providerNeedsKey, type ModelId } from "../config";
+import { providerNeedsKey, tryResolveModel } from "../config";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import { BUILTIN_AGENTS } from "../lib/agents";
 import { useAgentsStore } from "./agentsStore";
@@ -18,6 +18,8 @@ import {
   useChatStore,
 } from "./chatStore";
 
+// 【导览 16】把 transport 接到 @ai-sdk/react 的 Chat 实例上。
+// 注意 getModelId / getKeys 用的是 getter 而不是快照：用户随时切换模型，下一次请求自动生效。
 function makeChat(sessionId: string): Chat<UIMessage> {
   const readCache = new Map<string, { size: number; hash: number }>();
   const toolContext: ToolContext = {
@@ -41,6 +43,13 @@ function makeChat(sessionId: string): Chat<UIMessage> {
     getKeys: () => useChatStore.getState().apiKeys,
     toolContext,
     getModelId: () => useChatStore.getState().selectedModelId,
+    getEffortLevelId: () => {
+      const { selectedModelId } = useChatStore.getState();
+      return (
+        usePreferencesStore.getState().effortLevelByModel[selectedModelId] ??
+        null
+      );
+    },
     getCustomInstructions: () =>
       usePreferencesStore.getState().customInstructions,
     getAgentPersona: () => {
@@ -59,22 +68,6 @@ function makeChat(sessionId: string): Chat<UIMessage> {
       };
     },
     getPlanMode: () => usePlanStore.getState().active,
-    getLmstudioBaseURL: () => usePreferencesStore.getState().lmstudioBaseURL,
-    getLmstudioModelId: () => usePreferencesStore.getState().lmstudioModelId,
-    getMlxBaseURL: () => usePreferencesStore.getState().mlxBaseURL,
-    getMlxModelId: () => usePreferencesStore.getState().mlxModelId,
-    getOllamaBaseURL: () => usePreferencesStore.getState().ollamaBaseURL,
-    getOllamaModelId: () => usePreferencesStore.getState().ollamaModelId,
-    getOpenaiCompatibleBaseURL: () =>
-      usePreferencesStore.getState().openaiCompatibleBaseURL,
-    getOpenaiCompatibleModelId: () =>
-      usePreferencesStore.getState().openaiCompatibleModelId,
-    getOpenaiCompatibleContextLimit: () =>
-      usePreferencesStore.getState().openaiCompatibleContextLimit,
-    getOpenrouterModelId: () =>
-      usePreferencesStore.getState().openrouterModelId,
-    getCustomEndpoints: () => usePreferencesStore.getState().customEndpoints,
-    getCustomEndpointKeys: () => useChatStore.getState().customEndpointKeys,
     onStep: (step) => {
       useChatStore.getState().patchAgentMeta({ step });
     },
@@ -132,11 +125,11 @@ export async function sendMessage(text: string): Promise<boolean> {
   const state = useChatStore.getState();
   const sessionId = state.activeSessionId;
   if (!sessionId) return false;
-  if (
-    providerNeedsKey(getModel(state.selectedModelId as ModelId).provider) &&
-    !getActiveProviderKey()
-  )
+  const info = tryResolveModel(state.selectedModelId);
+  if (!info) return false;
+  if (providerNeedsKey(info.providerEntry) && !getActiveProviderKey()) {
     return false;
+  }
   const c = getOrCreateChat(sessionId);
   await c.sendMessage({ text });
   return true;

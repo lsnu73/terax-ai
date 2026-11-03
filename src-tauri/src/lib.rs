@@ -7,9 +7,9 @@ use modules::{
 };
 use std::path::PathBuf;
 use std::sync::Mutex;
-use tauri::{Emitter, Manager, State, WebviewUrl, WebviewWindowBuilder};
+use tauri::{Manager, State};
 #[cfg(target_os = "macos")]
-use tauri::{PhysicalPosition, WindowEvent};
+use tauri::WindowEvent;
 use tauri_plugin_window_state::StateFlags;
 
 /// Drained on first read so HMR / re-mounts can't replay the launch dir.
@@ -81,85 +81,9 @@ fn parse_launch_target() -> LaunchTarget {
     resolve_launch_target(entries)
 }
 
-const fn settings_always_on_top(is_macos: bool) -> bool {
-    !is_macos
-}
-
 #[tauri::command]
-async fn open_settings_window(app: tauri::AppHandle, tab: Option<String>) -> Result<(), String> {
-    let url_path = match tab.as_deref() {
-        Some(t) if !t.is_empty() => format!("settings.html?tab={}", t),
-        _ => "settings.html".to_string(),
-    };
-
-    if let Some(window) = app.get_webview_window("settings") {
-        #[cfg(not(target_os = "macos"))]
-        let _ = window.set_always_on_top(true);
-        let _ = window.show();
-        let _ = window.set_focus();
-        if let Some(t) = tab.as_deref().filter(|s| !s.is_empty()) {
-            // emit() serializes via JSON — no string-escape footgun, unlike
-            // eval() with format!(). Frontend listens via Tauri event API.
-            let _ = window.emit("terax:settings-tab", t);
-        }
-        return Ok(());
-    }
-
-    let builder = WebviewWindowBuilder::new(&app, "settings", WebviewUrl::App(url_path.into()))
-        .title("Settings")
-        .inner_size(900.0, 700.0)
-        .min_inner_size(820.0, 620.0)
-        .resizable(true)
-        .visible(false)
-        .always_on_top(settings_always_on_top(cfg!(target_os = "macos")));
-
-    // A normal-level child stays above Terax but recedes with the app on macOS.
-    // Never combine the macOS parent with always_on_top; that breaks WebView
-    // compositing and can hide Settings behind the main window (#33, #957).
-    let builder = if let Some(main) = app.get_webview_window("main") {
-        builder.parent(&main).map_err(|e| e.to_string())?
-    } else {
-        builder
-    };
-
-    #[cfg(target_os = "macos")]
-    let builder = builder
-        .title_bar_style(tauri::TitleBarStyle::Overlay)
-        .hidden_title(true);
-
-    // On Linux/Windows we render our own titlebar, so drop native chrome
-    // and make the window transparent.
-    #[cfg(any(target_os = "linux", target_os = "windows"))]
-    let builder = builder.decorations(false).transparent(true);
-
-    #[cfg_attr(windows, allow(unused_variables))]
-    let window = builder.build().map_err(|e| e.to_string())?;
-
-    // Some Linux compositors (GNOME/Mutter with CSD-by-default) ignore the
-    // builder-time decorations flag — re-assert it after realize.
-    #[cfg(target_os = "linux")]
-    {
-        let _ = window.set_decorations(false);
-    }
-
-    #[cfg(target_os = "macos")]
-    if let Some(main) = app.get_webview_window("main") {
-        if let (Ok(main_pos), Ok(main_size), Ok(settings_size)) = (
-            main.outer_position(),
-            main.outer_size(),
-            window.outer_size(),
-        ) {
-            let x = main_pos.x
-                + ((main_size.width as i32).saturating_sub(settings_size.width as i32)) / 2;
-            let y = main_pos.y
-                + ((main_size.height as i32).saturating_sub(settings_size.height as i32)) / 2;
-            let _ = window.set_position(PhysicalPosition::new(x, y));
-        } else {
-            let _ = window.center();
-        }
-    }
-
-    Ok(())
+fn open_devtools(window: tauri::WebviewWindow) {
+    window.open_devtools();
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -346,7 +270,9 @@ pub fn run() {
             control::control_respond,
             get_launch_dir,
             get_launch_files,
-            open_settings_window,
+            open_devtools,
+            modules::file_manager::open_ai_config_dir,
+            modules::file_manager::open_path_in_file_manager,
             agent::agent_enable_hooks,
             agent::agent_hooks_status,
             secrets::secrets_get,
@@ -354,9 +280,11 @@ pub fn run() {
             secrets::secrets_delete,
             secrets::secrets_get_all,
             net::lm_ping,
+            net::net_http_get,
             net::ai_http_stream,
             net::ai_http_cancel,
             net::ai_http_ack,
+            modules::proxy::proxy_ensure_running,
             modules::ai_sessions::ai_session_load,
             modules::ai_sessions::ai_session_save,
             modules::ai_sessions::ai_session_delete,
@@ -390,6 +318,11 @@ pub fn run() {
                     }
                     if let Some(state) = app.try_state::<pty::PtyState>() {
                         state.destroy_webview(&label);
+                    }
+                    if label == "main" {
+                        if let Some(window) = app.get_webview_window("settings") {
+                            let _ = window.destroy();
+                        }
                     }
                 }
                 // Servers exit on stdin EOF, but destructors are not guaranteed
@@ -441,7 +374,7 @@ pub fn run() {
 
 #[cfg(test)]
 mod launch_target_tests {
-    use super::{resolve_launch_target, settings_always_on_top, LaunchEntry, LaunchTarget};
+    use super::{resolve_launch_target, LaunchEntry, LaunchTarget};
     use std::path::PathBuf;
 
     #[test]
@@ -486,11 +419,5 @@ mod launch_target_tests {
         ]);
         assert_eq!(out.dir.as_deref(), Some("/workspace"));
         assert_eq!(out.files, vec!["/other/x.rs".to_string()]);
-    }
-
-    #[test]
-    fn settings_float_only_outside_macos() {
-        assert!(!settings_always_on_top(true));
-        assert!(settings_always_on_top(false));
     }
 }

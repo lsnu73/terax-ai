@@ -1,17 +1,11 @@
 import type { Chat, UIMessage } from "@ai-sdk/react";
-import { toast } from "sonner";
+import { runtimeToast as toast } from "@/modules/agents/lib/runtimeNotifications";
 import { create } from "zustand";
-import {
-  DEFAULT_MODEL_ID,
-  endpointIdFromCompatModel,
-  getModel,
-  isCompatModelId,
-  type ModelId,
-  type ProviderId,
-} from "../config";
+import { t } from "@/modules/i18n";
+import { getDefaultModelId, tryResolveModel, type ProviderId } from "../config";
 import { useTodosStore } from "./todoStore";
 import type { AgentUsage } from "../lib/agent";
-import { EMPTY_PROVIDER_KEYS, type ProviderKeys, type CustomEndpointKeys } from "../lib/keyring";
+import { EMPTY_PROVIDER_KEYS, type ProviderKeys } from "../lib/keyring";
 import {
   deleteSessionData,
   deriveTitle,
@@ -78,29 +72,16 @@ const IDLE_META: AgentMeta = {
   compactionNotice: null,
 };
 
-type MiniState = {
-  open: boolean;
-};
-
-type PendingSelection = {
-  id: string;
-  text: string;
-  source: "terminal" | "editor";
-};
-
-type ApprovalResponder = (
-  approvalId: string,
-  approved: boolean,
-) => void;
+type ApprovalResponder = (approvalId: string, approved: boolean) => void;
 
 type StoreState = {
   live: Live;
   setLive: (live: Live) => void;
 
   /**
-   * Set by AgentRunBridge each render. Lets surfaces outside the chat hook
-   * tree (e.g. the AI diff tab in the editor area) resolve a pending tool
-   * approval through the active session's `addToolApprovalResponse`.
+   * 每次渲染由 AgentRunBridge 写入。让聊天 hook 树之外的界面
+   * （例如编辑器区域里的 AI diff 标签页）能通过当前会话的
+   * `addToolApprovalResponse` 处理待审批的工具调用。
    */
   approvalResponder: ApprovalResponder | null;
   setApprovalResponder: (fn: ApprovalResponder | null) => void;
@@ -110,36 +91,19 @@ type StoreState = {
   setApiKeys: (keys: ProviderKeys) => void;
   setApiKey: (provider: ProviderId, key: string | null) => void;
 
-  customEndpointKeys: CustomEndpointKeys;
-  setCustomEndpointKeys: (keys: CustomEndpointKeys) => void;
-
+  // 【导览 17】当前选中的模型。这里只存字符串 ID，不存任何厂商对象。
+  // 初始值来自 JSON 配置的 defaults.modelId；下拉选择器见【导览 21】。
   selectedModelId: string;
   setSelectedModelId: (id: string) => void;
 
-  mini: MiniState;
-  openMini: () => void;
-  closeMini: () => void;
-  toggleMini: () => void;
-
-  panelOpen: boolean;
-  openPanel: () => void;
-  closePanel: () => void;
-  togglePanel: () => void;
-
   focusSignal: number;
-  pendingPrefill: string | null;
-  focusInput: (prefill?: string | null) => void;
-  consumePrefill: () => string | null;
-
-  pendingSelections: PendingSelection[];
-  attachSelection: (text: string, source: "terminal" | "editor") => void;
-  consumeSelections: () => PendingSelection[];
+  focusInput: () => void;
 
   agentMeta: AgentMeta;
   patchAgentMeta: (patch: Partial<AgentMeta>) => void;
   resetAgentMeta: () => void;
 
-  // Sessions
+  // 会话
   sessionsHydrated: boolean;
   sessions: SessionMeta[];
   activeSessionId: string | null;
@@ -148,7 +112,7 @@ type StoreState = {
   switchSession: (id: string) => void;
   deleteSession: (id: string) => void;
   renameSession: (id: string, title: string) => void;
-  /** Persist messages of a session and bump its updatedAt + auto-title. */
+  /** 持久化某个会话的消息，并更新其 updatedAt 与自动标题。 */
   persistMessages: (id: string, messages: UIMessage[]) => void;
 };
 
@@ -179,13 +143,12 @@ export function touchChat(id: string, c: Chat<UIMessage>) {
     chats.delete(oldest);
   }
 }
-// Initial messages for a session, populated at hydration time and consumed
-// when the matching Chat is constructed.
+// 会话的初始消息：hydration 时填充，构建对应 Chat 时消费。
 export const seedMessages = new Map<string, UIMessage[]>();
 
-// Per-token message persistence is scheduled, not debounced per token: see
-// `persistSchedule.ts`. Streaming saves are plain atomic replaces; the flush
-// functions below (turn end, switch, eviction, close) are durable.
+// 逐 token 的消息持久化是调度执行的，而不是每个 token 都防抖：见
+// `persistSchedule.ts`。流式保存只是普通的原子替换；下方的 flush
+// 函数（回合结束、切换、淘汰、关闭）才是持久化落盘。
 const pendingPersist = new Map<
   string,
   { latest: UIMessage[]; timer: ReturnType<typeof setTimeout>; firstAt: number }
@@ -242,55 +205,14 @@ export const useChatStore = create<StoreState>((set, get) => ({
     set({ apiKeys: { ...get().apiKeys, [provider]: key } });
   },
 
-  customEndpointKeys: {},
-  setCustomEndpointKeys: (keys) => set({ customEndpointKeys: keys }),
-
-  selectedModelId: DEFAULT_MODEL_ID,
+  selectedModelId: getDefaultModelId(),
   setSelectedModelId: (id) => {
     set({ selectedModelId: id });
     void pushRecentModel(id);
   },
 
-  mini: { open: false },
-  openMini: () => set({ mini: { open: true } }),
-  closeMini: () => set({ mini: { open: false } }),
-  toggleMini: () => set((s) => ({ mini: { open: !s.mini.open } })),
-
-  panelOpen: false,
-  openPanel: () => set({ panelOpen: true }),
-  closePanel: () => set({ panelOpen: false }),
-  togglePanel: () => set((s) => ({ panelOpen: !s.panelOpen })),
-
   focusSignal: 0,
-  pendingPrefill: null,
-  focusInput: (prefill = null) =>
-    set((s) => ({
-      panelOpen: true,
-      focusSignal: s.focusSignal + 1,
-      pendingPrefill: prefill ?? null,
-    })),
-  consumePrefill: () => {
-    const v = get().pendingPrefill;
-    if (v != null) set({ pendingPrefill: null });
-    return v;
-  },
-
-  pendingSelections: [],
-  attachSelection: (text, source) => {
-    const trimmed = text.trim();
-    if (!trimmed) return;
-    const id = `sel-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    set((s) => ({
-      panelOpen: true,
-      focusSignal: s.focusSignal + 1,
-      pendingSelections: [...s.pendingSelections, { id, text: trimmed, source }],
-    }));
-  },
-  consumeSelections: () => {
-    const v = get().pendingSelections;
-    if (v.length > 0) set({ pendingSelections: [] });
-    return v;
-  },
+  focusInput: () => set((s) => ({ focusSignal: s.focusSignal + 1 })),
 
   agentMeta: IDLE_META,
   patchAgentMeta: (patch) =>
@@ -306,9 +228,8 @@ export const useChatStore = create<StoreState>((set, get) => ({
     const { sessions } = await loadAll();
     if (get().sessionsHydrated) return;
 
-    // Reuse the most recent untitled "New chat" session if one exists from
-    // the previous run — no point stacking empty placeholder sessions every
-    // launch. Otherwise prepend a fresh one.
+    // 如果上一次运行留下了最近的未命名 "New chat" 会话就复用它，
+    // 没必要每次启动都堆一个空的占位会话；否则新建一个放到最前面。
     const reusable = sessions[0]?.title === "New chat" ? sessions[0] : null;
     let nextSessions: SessionMeta[];
     let freshId: string;
@@ -354,8 +275,8 @@ export const useChatStore = create<StoreState>((set, get) => ({
     if (get().activeSessionId === id) return;
     if (!get().sessions.some((s) => s.id === id)) return;
 
-    // Lazily seed the chat with persisted messages the first time we open
-    // this session. Subsequent switches reuse the cached Chat instance.
+    // 首次打开该会话时才用已持久化的消息播种聊天；
+    // 之后再切换会复用已缓存的 Chat 实例。
     const flip = () => {
       set({ activeSessionId: id, agentMeta: IDLE_META });
       void saveActiveId(id);
@@ -370,9 +291,9 @@ export const useChatStore = create<StoreState>((set, get) => ({
         flip();
       })
       .catch((error) => {
-        // Stay on the current conversation: opening this one empty could later
-        // overwrite a healthy file that was only momentarily unreadable.
-        toast.error("Could not open conversation", {
+        // 留在当前会话：以空内容打开这个会话，可能在稍后覆盖掉
+        // 只是暂时读不到的完好文件。
+        toast.error(t("ai.sessions.openFailed"), {
           id: `conversation-open:${id}`,
           description: String(error),
         });
@@ -422,12 +343,11 @@ export const useChatStore = create<StoreState>((set, get) => ({
   },
 
   persistMessages: (id, messages) => {
-    // Streaming fires this per token; the write itself is scheduled.
+    // 流式输出会逐 token 触发这里；真正的写盘由调度器执行。
     schedulePersist(id, messages);
 
-    // Update zustand session list only when the derived title actually
-    // changes — otherwise we'd rewrite the sessions array (and trigger
-    // re-renders + a store write) on every token.
+    // 只有派生标题真正变化时才更新 zustand 的会话列表；
+    // 否则每个 token 都会重写会话数组，触发重渲染和一次存储写入。
     const sessions = get().sessions;
     const meta = sessions.find((s) => s.id === id);
     if (!meta) return;
@@ -444,12 +364,15 @@ export const useChatStore = create<StoreState>((set, get) => ({
 }));
 
 export function getActiveProviderKey(): string | null {
-  const { selectedModelId, apiKeys, customEndpointKeys } = useChatStore.getState();
-  if (isCompatModelId(selectedModelId)) {
-    const eid = endpointIdFromCompatModel(selectedModelId);
-    return customEndpointKeys[eid] ?? null;
-  }
-  return apiKeys[getModel(selectedModelId as ModelId).provider] ?? null;
+  const { selectedModelId, apiKeys } = useChatStore.getState();
+  const info = tryResolveModel(selectedModelId);
+  if (!info) return null;
+  return apiKeys[info.provider] ?? null;
+}
+
+/** 选择器当前选中的模型；配置尚未 hydrate 或所选模型已被删除时返回 null。 */
+export function getSelectedModelInfo() {
+  return tryResolveModel(useChatStore.getState().selectedModelId);
 }
 
 export function getChat(sessionId?: string): Chat<UIMessage> | undefined {

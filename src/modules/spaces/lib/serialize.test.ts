@@ -75,7 +75,7 @@ describe("serializeTabs", () => {
 });
 
 describe("hydrateTabs", () => {
-  it("round-trips structure, cwd, blocks and active leaf", () => {
+  it("round-trips structure, cwd and active leaf", () => {
     const tree: PaneNode = {
       kind: "split",
       id: 10,
@@ -89,7 +89,6 @@ describe("hydrateTabs", () => {
       term({
         paneTree: tree,
         activeLeafId: 12,
-        blocks: true,
         customTitle: "x",
       }),
     ];
@@ -100,7 +99,6 @@ describe("hydrateTabs", () => {
 
     expect(restored.spaceId).toBe("s2");
     expect(restored.cold).toBe(true);
-    expect(restored.blocks).toBe(true);
     expect(restored.customTitle).toBe("x");
     expect(restored.paneTree.kind).toBe("split");
 

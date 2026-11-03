@@ -17,9 +17,10 @@ import {
   unbindLeafPty,
 } from "@/modules/terminal/lib/ptyPresentation";
 import { tokenBytes } from "@/modules/terminal/lib/ptyWire";
+import { t } from "@/modules/i18n";
 import { currentWorkspaceEnv } from "@/modules/workspace";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
-import { toast } from "sonner";
+import { runtimeToast as toast } from "@/modules/agents/lib/runtimeNotifications";
 
 const textEncoder = new TextEncoder();
 const receivers = new Map<number, PtyOutputReceiver>();
@@ -106,6 +107,7 @@ export async function openPty(
   blocks?: boolean,
   shell?: string,
   paneId?: number,
+  proxy?: string | null,
 ): Promise<PtySession> {
   const stream = outputHub();
   let id: number | null = null;
@@ -121,17 +123,20 @@ export async function openPty(
         if (notice !== undefined) toast.dismiss(notice);
         notice = undefined;
       } else if (status === "stalled" || status === "failed") {
-        notice = toast.error("Terminal output paused", {
+        notice = toast.error(t("terminal.pty.outputPaused"), {
           id: notice,
           duration: Number.POSITIVE_INFINITY,
           description:
             status === "failed"
-              ? "The terminal could not process output. Reopen this terminal to recover."
-              : "Waiting for the terminal connection. Delivery will resume automatically.",
+              ? t("terminal.pty.outputFailedDescription")
+              : t("terminal.pty.outputStalledDescription"),
           action:
             status === "failed"
               ? undefined
-              : { label: "Retry", onClick: () => stream.retry() },
+              : {
+                  label: t("terminal.pty.retry"),
+                  onClick: () => stream.retry(),
+                },
         });
       }
     },
@@ -163,6 +168,7 @@ export async function openPty(
       shell: shell ?? null,
       paneId: paneId ?? null,
       presentation: presentation ?? null,
+      proxy: proxy ?? null,
     });
   } catch (error) {
     releaseHandlers();

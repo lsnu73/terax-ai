@@ -1,9 +1,19 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { native } from "../lib/native";
+import { aiNeedsApproval } from "../lib/approvalMode";
 import { checkShellCommand } from "../lib/security";
 import type { ToolContext } from "./context";
 import { currentWorkspaceEnv, workspaceScopeKey } from "@/modules/workspace";
+import { usePreferencesStore } from "@/modules/settings/preferences";
+import { proxyForScenario } from "@/modules/proxy/lib/proxy";
+
+// AI 执行的命令跟随「终端代理」。每次调用时读取最新配置：agent shell 每条
+// 命令都是新进程（仅 cwd 跨调用保留），所以开关切换后下一条命令即生效，
+// 无需重建会话。
+function terminalProxy(): string | null {
+  return proxyForScenario(usePreferencesStore.getState(), "terminal");
+}
 
 /**
  * Per-session lazy shell-session id. The agent gets one persistent shell per
@@ -36,7 +46,7 @@ export function buildShellTools(ctx: ToolContext) {
         command: z.string(),
         timeout_secs: z.number().int().min(1).max(300).optional(),
       }),
-      needsApproval: true,
+      needsApproval: aiNeedsApproval,
       execute: async ({ command, timeout_secs }) => {
         const safety = checkShellCommand(command);
         if (!safety.ok) return { error: safety.reason };
@@ -50,6 +60,7 @@ export function buildShellTools(ctx: ToolContext) {
             command,
             cwd,
             timeout_secs,
+            terminalProxy(),
           );
           return {
             command,
@@ -73,13 +84,17 @@ export function buildShellTools(ctx: ToolContext) {
         command: z.string(),
         cwd: z.string().nullable().optional(),
       }),
-      needsApproval: true,
+      needsApproval: aiNeedsApproval,
       execute: async ({ command, cwd }) => {
         const safety = checkShellCommand(command);
         if (!safety.ok) return { error: safety.reason };
         const effectiveCwd = cwd ?? ctx.getCwd();
         try {
-          const handle = await native.shellBgSpawn(command, effectiveCwd);
+          const handle = await native.shellBgSpawn(
+            command,
+            effectiveCwd,
+            terminalProxy(),
+          );
           return { handle, command, cwd: effectiveCwd, ok: true };
         } catch (e) {
           return { error: String(e) };

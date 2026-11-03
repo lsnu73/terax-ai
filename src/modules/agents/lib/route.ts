@@ -48,7 +48,9 @@ export function routeAgentNotification({
   if (delivery === "none") return;
   if (!shouldDeliver({ source, agent, kind, tabId, leafId })) return;
 
-  useAgentStore.getState().pushNotification({ source, agent, kind, tabId, leafId });
+  useAgentStore
+    .getState()
+    .pushNotification({ source, agent, kind, title, body, tabId, leafId });
 
   if (delivery === "native") {
     void osNotify(title, body ?? agent).then((result) => {
@@ -61,7 +63,7 @@ export function routeAgentNotification({
     });
     return;
   }
-  if (delivery === "toast") {
+  if (delivery === "toast" && preferences.notificationDisplayMode === "toast") {
     if (preferences.agentNotificationSound) playAgentNotificationSound();
     showAgentToast({ agent, title, body, onActivate });
   }

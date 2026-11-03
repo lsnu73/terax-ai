@@ -1,16 +1,18 @@
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback } from "react";
 import { BlockOverlay } from "@/modules/terminal/block/BlockOverlay";
-import { BlockWatermark } from "@/modules/terminal/block/BlockWatermark";
 import { ensureGhosttyBlocks } from "@/modules/terminal/ghostty/ghosttyBlockSessions";
 import { ghosttyBlockCellHeight } from "@/modules/terminal/ghostty/useGhosttyTerminalSession";
-import {
-  focusLeafInput,
-  submitToLeaf,
-} from "@/modules/terminal/lib/terminalSessionApi";
 
-export default function GhosttyBlockOverlay({ leafId }: { leafId: number }) {
+type Props = {
+  leafId: number;
+  onCloseSearch: () => void;
+};
+
+export default function GhosttyBlockOverlay({
+  leafId,
+  onCloseSearch,
+}: Props) {
   const state = ensureGhosttyBlocks(leafId);
-  const mode = useSyncExternalStore(state.subscribeMode, state.getMode);
   const getVisible = useCallback(
     () =>
       state.controller?.visibleBlocks(ghosttyBlockCellHeight(leafId)) ?? {
@@ -20,25 +22,15 @@ export default function GhosttyBlockOverlay({ leafId }: { leafId: number }) {
       },
     [leafId, state],
   );
+  const closeSearch = useCallback(() => {
+    state.controller?.clearSearch();
+    onCloseSearch();
+  }, [state, onCloseSearch]);
   return (
-    <>
-      <BlockWatermark leafId={leafId} subscribe={state.subscribeContent} />
-      <BlockOverlay
-        subscribe={state.subscribeViewport}
-        getVisible={getVisible}
-        readOutput={(id) => state.controller?.readById(id)?.output ?? null}
-        searchBlock={(id, query, signal) =>
-          state.controller?.searchBlock(id, query, signal) ??
-          Promise.resolve([])
-        }
-        revealMatch={(match) => state.controller?.revealMatch(match)}
-        clearSearch={() => state.controller?.clearSearch()}
-        promptReady={mode === "prompt"}
-        onRunAgain={(command) => submitToLeaf(leafId, command)}
-        onRestoreFocus={() => {
-          if (state.getMode() === "prompt") focusLeafInput(leafId);
-        }}
-      />
-    </>
+    <BlockOverlay
+      subscribe={state.subscribeViewport}
+      getVisible={getVisible}
+      onCloseSearch={closeSearch}
+    />
   );
 }

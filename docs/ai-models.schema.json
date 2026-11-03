@@ -1,0 +1,233 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://terax.ai/schemas/ai-models.schema.json",
+  "title": "Terax model configuration",
+  "description": "Schema for terax-ai-models.json. API keys are never stored here; keyringAccount only names the OS keychain entry.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["providers"],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 1
+    },
+    "defaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "modelId": {
+          "type": "string",
+          "description": "Default chat model id. Empty means the first configured model."
+        },
+        "systemPrompt": {
+          "$ref": "#/$defs/systemPromptKind",
+          "description": "Global base prompt kind. Absent means full."
+        }
+      }
+    },
+    "prompts": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "User-edited prompt text overrides, managed from Settings > Models > System prompt management. Absent keys use the built-in text; custom has no built-in.",
+      "properties": {
+        "full": { "type": "string" },
+        "lite": { "type": "string" },
+        "custom": {
+          "type": "string",
+          "description": "Replaces the base prompt entirely; the tool protocol tail is always appended at runtime."
+        }
+      }
+    },
+    "commitMessagePrompt": {
+      "type": "string",
+      "description": "User-edited system prompt for AI-generated Git commit messages (Settings > AI behavior). Absent uses the built-in text."
+    },
+    "providers": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/provider" }
+    }
+  },
+  "$defs": {
+    "json": {
+      "description": "Any JSON value."
+    },
+    "systemPromptKind": {
+      "type": "string",
+      "enum": ["full", "lite", "custom"],
+      "description": "Base prompt kind. full/lite are built-in texts; custom uses prompts.custom with the tool protocol tail appended. Absent at model/provider level inherits upward (model > provider > global)."
+    },
+    "paramDef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key"],
+      "properties": {
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Logical id referenced by thinking levels."
+        },
+        "label": { "type": "string" },
+        "location": {
+          "type": "string",
+          "enum": ["body", "header"],
+          "default": "body"
+        },
+        "path": {
+          "type": "string",
+          "description": "Wire name. Dots create nested body objects. Header names are used verbatim."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["string", "number", "boolean", "object", "array"],
+          "default": "string"
+        },
+        "default": { "$ref": "#/$defs/json" },
+        "enum": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/json" }
+        },
+        "map": {
+          "type": "object",
+          "description": "Logical value -> wire value. A null wire value removes the key.",
+          "additionalProperties": {
+            "anyOf": [{ "$ref": "#/$defs/json" }, { "type": "null" }]
+          }
+        },
+        "enabled": { "type": "boolean", "default": true },
+        "description": { "type": "string" }
+      }
+    },
+    "thinkingLevel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "label": { "type": "string" },
+        "values": {
+          "type": "object",
+          "description": "Param key -> logical value. null omits the param for this notch.",
+          "additionalProperties": {
+            "anyOf": [{ "$ref": "#/$defs/json" }, { "type": "null" }]
+          }
+        }
+      }
+    },
+    "thinking": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["levels"],
+      "properties": {
+        "default": { "type": "string" },
+        "offLabel": { "type": "string" },
+        "levels": {
+          "type": "array",
+          "minItems": 1,
+          "description": "Ordered ladder; index 0 is the leftmost notch (off).",
+          "items": { "$ref": "#/$defs/thinkingLevel" }
+        }
+      }
+    },
+    "modelsApi": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "path": { "type": "string", "default": "/models" },
+        "itemsPath": { "type": "string" },
+        "idPath": { "type": "string", "default": "id" },
+        "labelPath": { "type": "string" }
+      }
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Wire model id. Must be unique across the whole file."
+        },
+        "label": { "type": "string" },
+        "inputTokens": { "type": "integer", "minimum": 1000, "default": 128000 },
+        "outputTokens": { "type": "integer", "minimum": 1, "default": 4096 },
+        "supportsTemperature": { "type": "boolean", "default": true },
+        "supportsAutocomplete": { "type": "boolean", "default": true },
+        "systemPrompt": { "$ref": "#/$defs/systemPromptKind" },
+        "params": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/paramDef" }
+        },
+        "thinking": {
+          "oneOf": [{ "$ref": "#/$defs/thinking" }, { "type": "null" }]
+        },
+        "extra": {
+          "type": "object",
+          "description": "Raw overlay merged into the request body after all other params."
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "\"reasoning\" keeps assistant reasoning across turns."
+        }
+      }
+    },
+    "provider": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "label": { "type": "string" },
+        "protocol": {
+          "type": "string",
+          "enum": ["openai-compatible", "anthropic", "google"],
+          "default": "openai-compatible"
+        },
+        "baseURL": { "type": "string", "default": "" },
+        "consoleUrl": { "type": "string" },
+        "keyringAccount": {
+          "type": "string",
+          "description": "OS keychain account name. Never the key itself."
+        },
+        "auth": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "mode": {
+              "type": "string",
+              "enum": ["bearer", "x-api-key", "none"],
+              "default": "bearer"
+            },
+            "header": {
+              "type": "string",
+              "description": "Header name when mode is x-api-key."
+            },
+            "required": { "type": "boolean", "default": true }
+          }
+        },
+        "headers": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Static headers. Secret headers are stripped during normalisation."
+        },
+        "modelsApi": { "$ref": "#/$defs/modelsApi" },
+        "systemPrompt": { "$ref": "#/$defs/systemPromptKind" },
+        "params": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/paramDef" }
+        },
+        "thinking": {
+          "oneOf": [{ "$ref": "#/$defs/thinking" }, { "type": "null" }]
+        },
+        "models": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/model" }
+        },
+        "icon": { "type": "string", "default": "plug" },
+        "builtin": { "type": "boolean", "default": false }
+      }
+    }
+  }
+}

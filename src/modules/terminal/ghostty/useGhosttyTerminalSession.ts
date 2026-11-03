@@ -7,16 +7,26 @@ import {
 import { initializeSessionGeneration as startSessionInitialization } from "@/modules/terminal/ghostty/sessionInitialization";
 import { replaceSessionSurface } from "@/modules/terminal/ghostty/replaceSessionSurface";
 import { openExternalUrl } from "@/lib/external-link";
+import { openPathInFileManager, pathFromLink } from "@/lib/open-path";
+import {
+  forgetLeafSpawnedProxy,
+  recordLeafSpawnedProxy,
+} from "@/modules/proxy/lib/terminalProxyRegistry";
+import { proxyForScenario } from "@/modules/proxy/lib/proxy";
 import { ensureMonoFontsLoaded, resolveFontFamily } from "@/lib/fonts";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import type { TerminalBackendKind } from "@/modules/terminal/backend/contracts";
 import { setLeafPresentation } from "@/modules/terminal/lib/ptyPresentation";
 import { PtyResizeDelivery } from "@/modules/terminal/lib/ptyResizeDelivery";
 import { useTerminalFont } from "@/modules/terminal/lib/useTerminalFont";
+import { cdTerminalLeafTo } from "@/modules/terminal/lib/terminalCd";
 import type { TerminalSearchController } from "@/modules/terminal/search/TerminalSearchController";
 import { invoke } from "@tauri-apps/api/core";
+import { t } from "@/modules/i18n";
+import { runtimeToast as toast } from "@/modules/agents/lib/runtimeNotifications";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { openPty, type PtySession } from "../lib/pty-bridge";
+import { BlockCommandAnchorProbe } from "../lib/blockAnchorProbe";
 import { writeTerminalClipboard } from "../lib/terminalClipboard";
 import { LatestClipboardWrite } from "@/modules/terminal/lib/LatestClipboardWrite";
 import { GhosttySemanticEventRouter } from "./core/GhosttySemanticEventRouter";
@@ -57,6 +67,7 @@ type Callbacks = {
   onSearchReady?: (search: TerminalSearchController) => void;
   onExit?: (code: number) => void;
   onCwd?: (cwd: string) => void;
+  onOpenPreviewUrl?: (url: string) => void;
 };
 
 type GhosttySession = {
@@ -101,6 +112,10 @@ type GhosttyStartupTimings = {
 const sessions = new Map<number, GhosttySession>();
 const textEncoder = new TextEncoder();
 const oscClipboard = new LatestClipboardWrite(writeTerminalClipboard);
+const IS_WINDOWS = /Windows/.test(navigator.userAgent);
+// The missing-PSReadLine hint fires once per app run: another terminal tab
+// reproduces the same condition and must not nag again.
+let psReadlineWarningShown = false;
 
 type Options = {
   leafId: number;
@@ -109,9 +124,9 @@ type Options = {
   visible: boolean;
   focused: boolean;
   initialCwd?: string;
-  blocks?: boolean;
   onExit?: (code: number) => void;
   onCwd?: (cwd: string) => void;
+  onOpenPreviewUrl?: (url: string) => void;
   onSearchReady?: (search: TerminalSearchController) => void;
 };
 
@@ -122,10 +137,10 @@ export function useGhosttyTerminalSession({
   visible,
   focused,
   initialCwd,
-  blocks = false,
   onSearchReady,
   onExit,
   onCwd,
+  onOpenPreviewUrl,
 }: Options) {
   const [model, setModel] = useState<GhosttyTerminalModelApi | null>(null);
   const [error, setError] = useState<GhosttySessionFailure | null>(null);
@@ -146,8 +161,18 @@ export function useGhosttyTerminalSession({
   );
   const fontRef = useRef(font);
   fontRef.current = font;
-  const callbackRef = useRef({ onSearchReady, onExit, onCwd });
-  callbackRef.current = { onSearchReady, onExit, onCwd };
+  const callbackRef = useRef({
+    onSearchReady,
+    onExit,
+    onCwd,
+    onOpenPreviewUrl,
+  });
+  callbackRef.current = {
+    onSearchReady,
+    onExit,
+    onCwd,
+    onOpenPreviewUrl,
+  };
   const initialCwdRef = useRef(initialCwd);
 
   useEffect(() => {
@@ -157,7 +182,7 @@ export function useGhosttyTerminalSession({
       initialCwdRef.current,
       fontRef.current,
     );
-    if (blocks) ensureGhosttyBlocks(leafId);
+    ensureGhosttyBlocks(leafId);
     const node = container.current;
     session.container = node;
     setModel(session.model);
@@ -167,6 +192,7 @@ export function useGhosttyTerminalSession({
       onSearchReady: (search) => callbackRef.current.onSearchReady?.(search),
       onExit: (code) => callbackRef.current.onExit?.(code),
       onCwd: (cwd) => callbackRef.current.onCwd?.(cwd),
+      onOpenPreviewUrl: (url) => callbackRef.current.onOpenPreviewUrl?.(url),
     };
     setError(sessionFailure(session));
     if (session.surface) {
@@ -181,7 +207,7 @@ export function useGhosttyTerminalSession({
         session.callbacks = {};
       }
     };
-  }, [leafId, backend, container, blocks]);
+  }, [leafId, backend, container]);
 
   useEffect(() => {
     const session = sessions.get(leafId);
@@ -283,6 +309,11 @@ export function hasGhosttySession(leafId: number): boolean {
   return sessions.has(leafId);
 }
 
+/** 当前所有存活会话的 leafId（含未聚焦窗格），供批量刷新等场景使用。 */
+export function ghosttyLeafIds(): number[] {
+  return [...sessions.keys()];
+}
+
 export function writeToGhosttySession(leafId: number, data: string): boolean {
   const session = sessions.get(leafId);
   if (!session || session.shellExited || session.disposed) return false;
@@ -300,7 +331,6 @@ export function submitToGhosttySession(leafId: number, text: string): boolean {
   if (accepted) {
     const blocks = ghosttyBlocks(leafId);
     if (blocks) {
-      blocks.everSubmitted = true;
       blocks.controller?.submitted(text);
       blocks.changed();
     }
@@ -308,35 +338,31 @@ export function submitToGhosttySession(leafId: number, text: string): boolean {
   return accepted;
 }
 
-export function interruptGhosttySession(leafId: number): boolean {
-  const session = sessions.get(leafId);
-  return session?.writer.enqueue(Uint8Array.of(3)) ?? false;
-}
-
 export function clearGhosttySession(leafId: number): boolean {
   const session = sessions.get(leafId);
   if (!session?.model || session.disposed) return false;
-  ghosttyBlocks(leafId)?.controller?.clear();
+  const blocks = ghosttyBlocks(leafId);
+  const atPrompt = blocks?.controller?.mode === "prompt";
+  blocks?.controller?.clear();
   session.model.clear();
+  // ConPTY keeps its own screen buffer: after a host-side wipe it still
+  // renders the next keystrokes at its old absolute cursor row, so the
+  // command lands mid-screen with no prompt text. Forwarding ^L while the
+  // shell sits at a prompt makes PSReadLine's Clear-Host wipe ConPTY's
+  // buffer and emit a full repaint that both sides agree on.
+  if (atPrompt && IS_WINDOWS) {
+    session.writer.enqueue(textEncoder.encode("\x0c"));
+  }
   focusGhosttySession(leafId);
   return true;
 }
 
 export function pasteIntoGhosttySession(leafId: number, text: string): boolean {
-  const blocks = ghosttyBlocks(leafId);
-  if (blocks?.getMode() === "prompt" && blocks.paste) {
-    blocks.paste(text);
-    return true;
-  }
   const session = sessions.get(leafId);
   if (!session?.input) return false;
   session.input.paste(text);
   session.surface?.focus();
   return true;
-}
-
-export function ghosttySelectionForLeaf(leafId: number): string | null {
-  return sessions.get(leafId)?.surface?.getSelection() ?? null;
 }
 
 export function ghosttyCwdForLeaf(leafId: number): string | null {
@@ -399,6 +425,7 @@ export function disposeGhosttySession(leafId: number): boolean {
   if (!session) return false;
   session.disposed = true;
   session.generation += 1;
+  forgetLeafSpawnedProxy(leafId);
   session.input?.dispose();
   session.surface?.dispose();
   disposeGhosttyBlocks(leafId);
@@ -411,7 +438,7 @@ export function disposeGhosttySession(leafId: number): boolean {
   return true;
 }
 
-async function respawnGhosttySession(
+export async function respawnGhosttySession(
   leafId: number,
   cwd?: string,
 ): Promise<boolean> {
@@ -638,6 +665,7 @@ async function initializeSessionGeneration(
   ]);
   if (!alive()) return;
 
+  const anchorProbe = new BlockCommandAnchorProbe();
   const semanticEvents = new GhosttySemanticEventRouter({
     onCwd: (cwd) => {
       if (session.lastCwd === cwd) return;
@@ -673,6 +701,22 @@ async function initializeSessionGeneration(
     onReply: (bytes) => session.writer.enqueue(bytes),
     onEvent: (event) => {
       semanticEvents.handle(event);
+      if (
+        event.type === "prompt-start" ||
+        event.type === "prompt-end" ||
+        event.type === "end-of-input" ||
+        event.type === "end-of-command"
+      ) {
+        anchorProbe.handle(event.type);
+        if (
+          IS_WINDOWS &&
+          !psReadlineWarningShown &&
+          anchorProbe.commandAnchorMissing
+        ) {
+          psReadlineWarningShown = true;
+          void warnMissingPsReadline();
+        }
+      }
       ghosttyBlocks(session.leafId)?.controller?.handle(
         event,
         session.lastCwd ?? session.initialCwd ?? "",
@@ -689,9 +733,6 @@ async function initializeSessionGeneration(
   const blockSession = ghosttyBlocks(session.leafId);
   if (blockSession) {
     blockSession.cellHeight = () => session.surface?.cellSize().height ?? 0;
-    // The shell/prompt input switch only depends on the block mode, so it runs
-    // when the mode changes instead of after every PTY chunk.
-    blockSession.modeEffect = () => applyBlockInputMode(session);
   }
   await blockSession?.attach(model, () => session.surface?.requestFrame());
   if (!alive()) {
@@ -713,8 +754,34 @@ async function initializeSessionGeneration(
     onFirstFrame: () => mark("firstFrameMs"),
     onFrame: () => ghosttyBlocks(session.leafId)?.present(),
     onRequestFocus: () => focusGhosttySession(session.leafId),
-    onOpenLink: (uri: string) => {
-      void openExternalUrl(uri, () => focusGhosttySession(session.leafId));
+    onOpenLink: (uri, modifiers) => {
+      const focus = () => focusGhosttySession(session.leafId);
+      // Absolute paths: Ctrl/Cmd opens the file manager, Shift cd's the
+      // shell there. URLs keep the Shift-preview / Ctrl-browser split.
+      const path = pathFromLink(uri);
+      if (path) {
+        if (modifiers.shiftKey) {
+          focus();
+          cdTerminalLeafTo(session.leafId, path);
+          return;
+        }
+        if (modifiers.ctrlKey || modifiers.metaKey) {
+          focus();
+          void openPathInFileManager(path);
+          return;
+        }
+        return;
+      }
+      if (
+        modifiers.shiftKey &&
+        /^https?:\/\//i.test(uri) &&
+        session.callbacks.onOpenPreviewUrl
+      ) {
+        focus();
+        session.callbacks.onOpenPreviewUrl(uri);
+        return;
+      }
+      void openExternalUrl(uri, focus);
     },
   };
   session.surfaceOptions = surfaceBaseOptions;
@@ -796,6 +863,9 @@ async function initializeSessionGeneration(
 
   const startCols = model.cols;
   const startRows = model.rows;
+  // 记录本次 PTY 实际注入的终端代理，供状态栏检测「设置已变更、终端未刷新」。
+  const spawnedProxyUrl = proxyForScenario(preferences, "terminal");
+  recordLeafSpawnedProxy(session.leafId, spawnedProxyUrl);
   const pty = await openPty(
     startCols,
     startRows,
@@ -816,9 +886,10 @@ async function initializeSessionGeneration(
       },
     },
     session.initialCwd,
-    !!ghosttyBlocks(session.leafId),
+    true,
     preferences.terminalShell || undefined,
     session.leafId,
+    spawnedProxyUrl,
   );
   if (session.disposed || generation !== session.generation) {
     await pty.close();
@@ -841,12 +912,12 @@ function createGhosttyInput(
   model: GhosttyTerminalModelApi,
   surface: GhosttySurface,
 ): GhosttyInputController {
-  const insertPromptText = (text: string): boolean => {
-    const blocks = ghosttyBlocks(session.leafId);
-    if (blocks?.getMode() !== "prompt" || !blocks.paste) return false;
-    blocks.paste(text);
-    return true;
-  };
+  // PSReadLine's Ctrl+L clear makes ConPTY follow up with a full-screen
+  // repaint in absolute coordinates that no longer matches this side's
+  // buffer, scattering command output across blank rows. Clear host-side
+  // instead while the shell sits at a prompt; clearGhosttySession then
+  // forwards ^L so ConPTY's buffer is wiped and repainted to match.
+  // Foreground programs still receive the keystroke untouched.
   return new GhosttyInputController({
     model,
     input: surface.inputElement(),
@@ -857,21 +928,8 @@ function createGhosttyInput(
     }),
     gridShiftY: () => surface.gridShiftY(),
     onData: (bytes) => {
-      if (
-        ghosttyBlocks(session.leafId)?.getMode() === "prompt" &&
-        !(bytes.length === 1 && bytes[0] === 3)
-      )
-        return;
       session.writer.enqueue(bytes);
     },
-    onKeyDown: (event) => {
-      const blocks = ghosttyBlocks(session.leafId);
-      return (
-        blocks?.getMode() === "prompt" && (blocks.keyDown?.(event) ?? false)
-      );
-    },
-    onText: insertPromptText,
-    onPaste: insertPromptText,
     getSelection: () => surface.getSelection(),
     onCopy: () => {
       const text = surface.getSelection();
@@ -879,37 +937,55 @@ function createGhosttyInput(
       void writeTerminalClipboard(text).catch(() => {});
       return true;
     },
+    onKeyDown: (event) => {
+      if (
+        IS_WINDOWS &&
+        event.ctrlKey &&
+        !event.shiftKey &&
+        !event.altKey &&
+        !event.metaKey &&
+        event.code === "KeyL" &&
+        ghosttyBlocks(session.leafId)?.getMode() === "prompt"
+      ) {
+        clearGhosttySession(session.leafId);
+        return true;
+      }
+      return false;
+    },
   });
 }
 
 export function focusGhosttySession(leafId: number): void {
-  const session = sessions.get(leafId);
-  if (session) focusSessionSurface(session, session.surface);
+  sessions.get(leafId)?.surface?.focus();
 }
 
-function focusSessionSurface(
-  session: GhosttySession,
-  surface: GhosttySurface | null,
-): void {
-  const blocks = ghosttyBlocks(session.leafId);
-  if (blocks?.getMode() === "prompt" && blocks.focus) blocks.focus();
-  else surface?.focus();
-}
-
-function applyBlockInputMode(
-  session: GhosttySession,
-  surface = session.surface,
-): void {
-  const input = surface?.inputElement();
-  const blocks = ghosttyBlocks(session.leafId);
-  if (!input || !blocks) return;
-  const prompt = blocks.getMode() === "prompt";
-  const changed =
-    input.getAttribute("data-terax-block-prompt") !== String(prompt);
-  if (!changed) return;
-  input.setAttribute("data-terax-block-prompt", String(prompt));
-  surface?.setCursorEnabled(!prompt);
-  if (session.visible && session.focused) focusSessionSurface(session, surface);
+/**
+ * A Windows PowerShell session that completed a command cycle without a
+ * single command start marker is running without PSReadLine (the module that
+ * provides the hook Terax needs): tell the user how to restore block mode.
+ */
+async function warnMissingPsReadline(): Promise<void> {
+  try {
+    const override = usePreferencesStore.getState().terminalShell?.trim();
+    const shellName = override
+      ? (override.split(/[\\/]/).pop() ?? "").toLowerCase()
+      : (await invoke<string>("pty_shell_name")).toLowerCase();
+    if (shellName !== "powershell.exe" && shellName !== "powershell") return;
+    toast.warning(t("terminal.psReadline.missingTitle"), {
+      description: t("terminal.psReadline.missingDescription"),
+      duration: Number.POSITIVE_INFINITY,
+      action: {
+        label: t("terminal.psReadline.missingAction"),
+        onClick: () => {
+          void writeTerminalClipboard(
+            t("terminal.psReadline.installCommand"),
+          ).catch(() => {});
+        },
+      },
+    });
+  } catch {
+    // Diagnostics only: a failed shell-name probe must not surface.
+  }
 }
 
 /**
@@ -945,8 +1021,7 @@ function attachGhosttySurface(
   surface.attach(session.container);
   surface.setVisible(true);
   surface.setFocused(session.focused);
-  applyBlockInputMode(session, surface);
-  if (session.focused) focusSessionSurface(session, surface);
+  if (session.focused) surface.focus();
 }
 
 function createWebGlFallbackSurface(

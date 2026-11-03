@@ -155,6 +155,7 @@ pub async fn pty_open(
     shell: Option<String>,
     pane_id: Option<u32>,
     presentation: Option<PresentationClass>,
+    proxy: Option<String>,
 ) -> Result<u32, String> {
     let workspace = WorkspaceEnv::from_option(workspace);
     let blocks = blocks.unwrap_or(false);
@@ -190,6 +191,7 @@ pub async fn pty_open(
             blocks,
             shell,
             control_env,
+            proxy,
         )
     })
     .await

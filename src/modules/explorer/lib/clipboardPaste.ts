@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
-import { toast } from "sonner";
+import { runtimeToast as toast } from "@/modules/agents/lib/runtimeNotifications";
+import { t } from "@/modules/i18n";
 import type { WorkspaceEnv } from "@/modules/workspace";
 
 export function parentDir(path: string, fallback: string): string {
@@ -44,7 +45,7 @@ export function reportCopyFailures(result: CopyResult): void {
   if (result.failed.length === 0) return;
   const first = result.failed[0];
   const count = result.failed.length;
-  toast.error(`Could not copy ${count} ${count === 1 ? "item" : "items"}`, {
+  toast.error(t("explorer.toast.copyFailed", { count }), {
     description: `${first.source}: ${first.message}`,
   });
 }
@@ -58,7 +59,7 @@ export async function pasteClipboardFiles(
     const sources = await invoke<string[]>("fs_clipboard_paths");
     if (!isCurrent()) return [];
     if (sources.length === 0) {
-      toast.message("No files on the clipboard");
+      toast.message(t("explorer.toast.noFilesOnClipboard"));
       return [];
     }
     copyStarted = true;
@@ -74,7 +75,7 @@ export async function pasteClipboardFiles(
     const refreshed = await refresh(destDir);
     return refreshed && isCurrent() ? result.created : [];
   } catch (err) {
-    toast.error(`Paste failed: ${String(err)}`);
+    toast.error(t("explorer.toast.pasteFailed", { error: String(err) }));
     if (copyStarted && isCurrent()) await refresh(destDir);
     return [];
   }

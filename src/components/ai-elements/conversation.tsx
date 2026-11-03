@@ -2,11 +2,13 @@
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { t as tModule } from "@/modules/i18n";
 import type { UIMessage } from "ai";
 import { ArrowDown01Icon, Download01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { ComponentProps } from "react";
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
 
 export type ConversationProps = ComponentProps<typeof StickToBottom>;
@@ -43,32 +45,40 @@ export type ConversationEmptyStateProps = ComponentProps<"div"> & {
 
 export const ConversationEmptyState = ({
   className,
-  title = "No messages yet",
-  description = "Start a conversation to see messages here",
+  title,
+  description,
   icon,
   children,
   ...props
-}: ConversationEmptyStateProps) => (
-  <div
-    className={cn(
-      "flex size-full flex-col items-center justify-center gap-3 p-8 text-center",
-      className
-    )}
-    {...props}
-  >
-    {children ?? (
-      <>
-        {icon && <div className="text-muted-foreground">{icon}</div>}
-        <div className="space-y-1">
-          <h3 className="font-medium text-sm">{title}</h3>
-          {description && (
-            <p className="text-muted-foreground text-sm">{description}</p>
-          )}
-        </div>
-      </>
-    )}
-  </div>
-);
+}: ConversationEmptyStateProps) => {
+  const { t } = useTranslation();
+  const resolvedTitle = title ?? t("aiElements.conversation.emptyTitle");
+  const resolvedDescription =
+    description ?? t("aiElements.conversation.emptyDescription");
+  return (
+    <div
+      className={cn(
+        "flex size-full flex-col items-center justify-center gap-3 p-8 text-center",
+        className
+      )}
+      {...props}
+    >
+      {children ?? (
+        <>
+          {icon && <div className="text-muted-foreground">{icon}</div>}
+          <div className="space-y-1">
+            <h3 className="font-medium text-sm">{resolvedTitle}</h3>
+            {resolvedDescription && (
+              <p className="text-muted-foreground text-sm">
+                {resolvedDescription}
+              </p>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
 
 export type ConversationScrollButtonProps = ComponentProps<typeof Button>;
 
@@ -116,9 +126,17 @@ export type ConversationDownloadProps = Omit<
   formatMessage?: (message: UIMessage, index: number) => string;
 };
 
+const ROLE_LABEL_KEYS: Record<string, string> = {
+  user: "aiElements.message.roleUser",
+  assistant: "aiElements.message.roleAssistant",
+  system: "aiElements.message.roleSystem",
+};
+
 const defaultFormatMessage = (message: UIMessage): string => {
-  const roleLabel =
-    message.role.charAt(0).toUpperCase() + message.role.slice(1);
+  const key = ROLE_LABEL_KEYS[message.role];
+  const roleLabel = key
+    ? tModule(key)
+    : message.role.charAt(0).toUpperCase() + message.role.slice(1);
   return `**${roleLabel}:** ${getMessageText(message)}`;
 };
 

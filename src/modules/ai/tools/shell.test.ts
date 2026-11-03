@@ -127,6 +127,7 @@ describe("bash_background", () => {
     expect(nativeMock.shellBgSpawn).toHaveBeenCalledWith(
       "pnpm dev",
       "/workspace",
+      null,
     );
   });
 });

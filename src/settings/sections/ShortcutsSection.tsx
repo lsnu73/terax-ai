@@ -15,6 +15,7 @@ import { usePreferencesStore } from "@/modules/settings/preferences";
 import { setShortcuts } from "@/modules/settings/store";
 import {
   getBindingTokens,
+  isTerminalHistoryBinding,
   type KeyBinding,
   SHORTCUT_GROUPS,
   SHORTCUTS,
@@ -28,12 +29,17 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { SectionHeader } from "../components/SectionHeader";
 
 export function ShortcutsSection() {
+  const { t } = useTranslation();
   const userShortcuts = usePreferencesStore((s) => s.shortcuts);
   const [search, setSearch] = useState("");
   const [recordingId, setRecordingId] = useState<ShortcutId | null>(null);
+  const [historyConflictId, setHistoryConflictId] = useState<ShortcutId | null>(
+    null,
+  );
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
 
   const filteredShortcuts = useMemo(() => {
@@ -43,39 +49,50 @@ export function ShortcutsSection() {
     const lower = search.toLowerCase();
     return base.filter(
       (s) =>
-        s.label.toLowerCase().includes(lower) ||
-        s.group.toLowerCase().includes(lower),
+        t(s.labelKey).toLowerCase().includes(lower) ||
+        t(`settings.shortcuts.groups.${s.group.toLowerCase()}`)
+          .toLowerCase()
+          .includes(lower),
     );
-  }, [search]);
+  }, [search, t]);
 
   const onRecord = (id: ShortcutId, binding: KeyBinding) => {
+    if (isTerminalHistoryBinding(binding)) {
+      setHistoryConflictId(id);
+      setRecordingId(null);
+      return;
+    }
     const next = { ...userShortcuts, [id]: [binding] };
     void setShortcuts(next);
+    setHistoryConflictId(null);
     setRecordingId(null);
   };
 
   const onClear = (id: ShortcutId) => {
     const next = { ...userShortcuts, [id]: [] };
     void setShortcuts(next);
+    setHistoryConflictId(null);
   };
 
   const onResetShortcut = (id: ShortcutId) => {
     const next = { ...userShortcuts };
     delete next[id];
     void setShortcuts(next);
+    setHistoryConflictId(null);
   };
 
   const onResetAll = () => {
     void setShortcuts({});
+    setHistoryConflictId(null);
     setResetDialogOpen(false);
   };
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
+      <div data-setting-id="shortcuts.resetAll" className="flex items-center justify-between">
         <SectionHeader
-          title="Shortcuts"
-          description="View and customize keyboard shortcuts."
+          title={t("settings.shortcuts.header.title")}
+          description={t("settings.shortcuts.header.description")}
         />
         <Button
           variant="outline"
@@ -88,7 +105,7 @@ export function ShortcutsSection() {
             size={12}
             strokeWidth={2}
           />
-          Reset All
+          {t("settings.shortcuts.resetAll")}
         </Button>
       </div>
 
@@ -100,7 +117,7 @@ export function ShortcutsSection() {
           className="absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground"
         />
         <Input
-          placeholder="Search shortcuts..."
+          placeholder={t("settings.shortcuts.searchPlaceholder")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="h-9 pl-9 text-[12.5px]"
@@ -115,7 +132,7 @@ export function ShortcutsSection() {
           return (
             <div key={group} className="flex flex-col gap-3">
               <h3 className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-                {group}
+                {t(`settings.shortcuts.groups.${group.toLowerCase()}`)}
               </h3>
               <div className="flex flex-col divide-y divide-border/40 rounded-lg border border-border/60 bg-card/40 overflow-hidden">
                 {items.map((s) => (
@@ -123,7 +140,15 @@ export function ShortcutsSection() {
                     key={s.id}
                     shortcut={s}
                     isRecording={recordingId === s.id}
-                    onStartRecording={() => setRecordingId(s.id)}
+                    historyConflict={
+                      historyConflictId === s.id ||
+                      (userShortcuts[s.id]?.some(isTerminalHistoryBinding) ??
+                        false)
+                    }
+                    onStartRecording={() => {
+                      setHistoryConflictId(null);
+                      setRecordingId(s.id);
+                    }}
                     onStopRecording={() => setRecordingId(null)}
                     onRecord={(b) => onRecord(s.id, b)}
                     onClear={() => onClear(s.id)}
@@ -140,19 +165,20 @@ export function ShortcutsSection() {
       <AlertDialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Reset all shortcuts?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {t("settings.shortcuts.resetDialog.title")}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              This will revert all your custom keyboard shortcuts to their
-              factory defaults. This action cannot be undone.
+              {t("settings.shortcuts.resetDialog.description")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={onResetAll}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Reset All
+              {t("settings.shortcuts.resetAll")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -164,6 +190,7 @@ export function ShortcutsSection() {
 function ShortcutRow({
   shortcut,
   isRecording,
+  historyConflict,
   onStartRecording,
   onStopRecording,
   onRecord,
@@ -173,6 +200,7 @@ function ShortcutRow({
 }: {
   shortcut: Shortcut;
   isRecording: boolean;
+  historyConflict: boolean;
   onStartRecording: () => void;
   onStopRecording: () => void;
   onRecord: (b: KeyBinding) => void;
@@ -180,15 +208,26 @@ function ShortcutRow({
   onReset: () => void;
   userBindings?: KeyBinding[];
 }) {
+  const { t } = useTranslation();
   const bindings =
     userBindings !== undefined ? userBindings : shortcut.defaultBindings;
   const isModified = userBindings !== undefined;
   const hasBindings = bindings && bindings.length > 0;
 
   return (
-    <div className="group flex items-center justify-between px-3 py-2.5 transition-colors hover:bg-muted/30">
+    <div
+      data-setting-id={`shortcut.${shortcut.id}`}
+      className="group flex items-center justify-between px-3 py-2.5 transition-colors hover:bg-muted/30"
+    >
       <div className="flex flex-col gap-0.5">
-        <span className="text-[12.5px] font-medium">{shortcut.label}</span>
+        <span className="text-[12.5px] font-medium">
+          {t(shortcut.labelKey)}
+        </span>
+        {historyConflict && (
+          <span role="alert" className="text-[11px] text-destructive">
+            {t("settings.shortcuts.terminalHistoryConflict")}
+          </span>
+        )}
       </div>
 
       <div className="flex items-center gap-2">
@@ -202,18 +241,18 @@ function ShortcutRow({
             >
               {hasBindings ? (
                 <KbdGroup>
-                  {getBindingTokens(bindings[0]).map((t, i) => (
+                  {getBindingTokens(bindings[0]).map((token, i) => (
                     <Kbd
                       key={i}
                       className="group-hover:bg-accent group-hover:text-accent-foreground transition-colors"
                     >
-                      {t}
+                      {token}
                     </Kbd>
                   ))}
                 </KbdGroup>
               ) : (
                 <span className="text-[11px] text-muted-foreground italic">
-                  Unassigned
+                  {t("settings.shortcuts.unassigned")}
                 </span>
               )}
             </div>
@@ -225,7 +264,7 @@ function ShortcutRow({
                   size="icon"
                   className="size-7 text-muted-foreground hover:text-foreground"
                   onClick={onReset}
-                  title="Reset to default"
+                  title={t("settings.shortcuts.resetToDefault")}
                 >
                   <HugeiconsIcon icon={ArrowTurnBackwardIcon} size={12} />
                 </Button>
@@ -235,7 +274,7 @@ function ShortcutRow({
                 size="icon"
                 className="size-7 text-muted-foreground hover:text-destructive opacity-0 transition-opacity group-hover:opacity-100"
                 onClick={onClear}
-                title="Clear shortcut"
+                title={t("settings.shortcuts.clearShortcut")}
               >
                 <HugeiconsIcon icon={Delete02Icon} size={12} />
               </Button>
@@ -254,6 +293,7 @@ function Recorder({
   onRecord: (b: KeyBinding) => void;
   onCancel: () => void;
 }) {
+  const { t } = useTranslation();
   const [_mods, setMods] = useState({
     ctrl: false,
     shift: false,
@@ -321,8 +361,12 @@ function Recorder({
 
   return (
     <div className="flex items-center gap-2 rounded bg-accent/50 px-2 py-1 text-[11px] ring-1 ring-accent">
-      <span className="animate-pulse font-medium">Recording...</span>
-      <span className="text-muted-foreground">(Esc to cancel)</span>
+      <span className="animate-pulse font-medium">
+        {t("settings.shortcuts.recording")}
+      </span>
+      <span className="text-muted-foreground">
+        {t("settings.shortcuts.escToCancel")}
+      </span>
     </div>
   );
 }

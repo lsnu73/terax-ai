@@ -1,11 +1,16 @@
-import { CodeIcon, HashtagIcon, TerminalIcon } from "@hugeicons/core-free-icons";
+import {
+  CodeIcon,
+  HashtagIcon,
+  TerminalIcon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import type { FileAttachment } from "../lib/composer";
 import type { Snippet } from "../lib/snippets";
 import { Chip } from "./Chip";
 
-type CommandChip = { name: string; label: string; icon: typeof HashtagIcon };
+type CommandChip = { name: string; labelKey: string; icon: typeof HashtagIcon };
 
 type Props = {
   files: FileAttachment[];
@@ -17,7 +22,6 @@ type Props = {
   /** Passive chips rendered before the attachment chips (e.g. cwd + branch). */
   leading?: ReactNode;
 };
-
 export function ChipsRow({
   files,
   onRemoveFile,
@@ -27,6 +31,7 @@ export function ChipsRow({
   onRemoveCommand,
   leading,
 }: Props) {
+  const { t } = useTranslation();
   const hasAttachments =
     files.length > 0 || snippets.length > 0 || commands.length > 0;
   if (!leading && !hasAttachments) return null;
@@ -37,9 +42,9 @@ export function ChipsRow({
         <Chip
           key={`cmd-${cmd.name}`}
           icon={cmd.icon}
-          title={cmd.label}
+          title={t(cmd.labelKey)}
           onRemove={() => onRemoveCommand(cmd.name)}
-          removeLabel="Remove command"
+          removeLabel={t("ai.composer.removeCommand")}
         >
           #{cmd.name}
         </Chip>
@@ -51,7 +56,7 @@ export function ChipsRow({
           icon={HashtagIcon}
           title={s.description || s.name}
           onRemove={() => onRemoveSnippet(s.id)}
-          removeLabel="Remove snippet"
+          removeLabel={t("ai.composer.removeSnippet")}
         >
           {s.handle}
         </Chip>
@@ -74,7 +79,13 @@ export function ChipsRow({
 
 function fileIcon(f: FileAttachment): ReactNode {
   if (f.kind === "image" && f.url) {
-    return <img src={f.url} alt="" className="size-4 shrink-0 rounded object-cover" />;
+    return (
+      <img
+        src={f.url}
+        alt=""
+        className="size-4 shrink-0 rounded object-cover"
+      />
+    );
   }
   if (f.kind === "selection") {
     return (

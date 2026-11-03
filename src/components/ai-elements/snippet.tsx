@@ -20,6 +20,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useTranslation } from "react-i18next";
 
 interface SnippetContextType {
   code: string;
@@ -97,6 +98,7 @@ export const SnippetCopyButton = ({
   className,
   ...props
 }: SnippetCopyButtonProps) => {
+  const { t } = useTranslation();
   const [isCopied, setIsCopied] = useState(false);
   const timeoutRef = useRef<number>(0);
   const { code } = useContext(SnippetContext);
@@ -133,11 +135,11 @@ export const SnippetCopyButton = ({
 
   return (
     <InputGroupButton
-      aria-label="Copy"
+      aria-label={t("aiElements.snippet.copy")}
       className={className}
       onClick={copyToClipboard}
       size="icon-sm"
-      title="Copy"
+      title={t("aiElements.snippet.copy")}
       {...props}
     >
       {children ?? <HugeiconsIcon icon={Icon} size={14} className="size-3.5" />}

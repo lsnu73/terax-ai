@@ -10,9 +10,13 @@ import {
   PopoverAnchor,
   PopoverContent,
 } from "@/components/ui/popover";
-import { fmtShortcut, MOD_KEY, SHIFT_KEY } from "@/lib/platform";
 import { AgentLauncherPanel } from "@/modules/agents/components/AgentLauncherPanel";
 import type { AgentLaunchRequest } from "@/modules/agents/lib/launcher";
+import {
+  ShortcutHint,
+  shortcutHintLabel,
+  useShortcutHint,
+} from "@/modules/shortcuts";
 import {
   AiBrowserIcon,
   ArrowRight01Icon,
@@ -25,10 +29,10 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 type Props = {
   onNew: () => void;
-  onNewBlock: () => void;
   onNewPrivate: () => void;
   onNewPreview: () => void;
   onNewEditor: () => void;
@@ -38,13 +42,14 @@ type Props = {
 
 export function NewTabMenu({
   onNew,
-  onNewBlock,
   onNewPrivate,
   onNewPreview,
   onNewEditor,
   onNewGitGraph,
   onLaunchAgents,
 }: Props) {
+  const { t } = useTranslation();
+  const newTabHint = useShortcutHint("tab.new");
   const [menuOpen, setMenuOpen] = useState(false);
   const [launcherOpen, setLauncherOpen] = useState(false);
   const openLauncherAfterMenuClose = useRef(false);
@@ -77,7 +82,7 @@ export function NewTabMenu({
                 variant="ghost"
                 size="icon"
                 className="ml-1 size-6 shrink-0 rounded-full bg-foreground/[0.06] text-muted-foreground ring-1 ring-inset ring-foreground/[0.04] hover:bg-foreground/[0.12] hover:text-foreground"
-                title="New tab"
+                title={shortcutHintLabel(t("tabbar.newTab"), newTabHint)}
               >
                 <HugeiconsIcon icon={PlusSignIcon} size={14} strokeWidth={2} />
               </Button>
@@ -99,21 +104,8 @@ export function NewTabMenu({
                   size={14}
                   strokeWidth={1.75}
                 />
-                <span className="flex-1">Terminal</span>
-                <span className="text-xs text-muted-foreground">
-                  {fmtShortcut(MOD_KEY, "T")}
-                </span>
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={onNewBlock}>
-                <HugeiconsIcon
-                  icon={ComputerTerminal02Icon}
-                  size={14}
-                  strokeWidth={1.75}
-                />
-                <span className="flex-1">Blocks</span>
-                <span className="text-xs text-muted-foreground">
-                  {fmtShortcut(MOD_KEY, SHIFT_KEY, "T")}
-                </span>
+                <span className="flex-1">{t("tabbar.kindTerminal")}</span>
+                <ShortcutHint id="tab.new" />
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={openLauncher}>
                 <HugeiconsIcon
@@ -121,7 +113,7 @@ export function NewTabMenu({
                   size={14}
                   strokeWidth={1.75}
                 />
-                <span className="flex-1">Agents</span>
+                <span className="flex-1">{t("tabbar.kindAgents")}</span>
                 <HugeiconsIcon
                   icon={ArrowRight01Icon}
                   size={14}
@@ -135,10 +127,8 @@ export function NewTabMenu({
                   size={14}
                   strokeWidth={1.75}
                 />
-                <span className="flex-1">Privacy</span>
-                <span className="text-xs text-muted-foreground">
-                  {fmtShortcut(MOD_KEY, "R")}
-                </span>
+                <span className="flex-1">{t("tabbar.kindPrivacy")}</span>
+                <ShortcutHint id="tab.newPrivate" />
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={onNewEditor}>
                 <HugeiconsIcon
@@ -146,10 +136,8 @@ export function NewTabMenu({
                   size={14}
                   strokeWidth={1.75}
                 />
-                <span className="flex-1">Editor</span>
-                <span className="text-xs text-muted-foreground">
-                  {fmtShortcut(MOD_KEY, "E")}
-                </span>
+                <span className="flex-1">{t("tabbar.kindEditor")}</span>
+                <ShortcutHint id="tab.newEditor" />
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={onNewPreview}>
                 <HugeiconsIcon
@@ -157,10 +145,8 @@ export function NewTabMenu({
                   size={14}
                   strokeWidth={1.75}
                 />
-                <span className="flex-1">Preview</span>
-                <span className="text-xs text-muted-foreground">
-                  {fmtShortcut(MOD_KEY, "P")}
-                </span>
+                <span className="flex-1">{t("tabbar.kindPreview")}</span>
+                <ShortcutHint id="tab.newPreview" />
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={onNewGitGraph}>
                 <HugeiconsIcon
@@ -168,7 +154,7 @@ export function NewTabMenu({
                   size={14}
                   strokeWidth={1.75}
                 />
-                <span className="flex-1">Git Graph</span>
+                <span className="flex-1">{t("tabbar.kindGitGraph")}</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

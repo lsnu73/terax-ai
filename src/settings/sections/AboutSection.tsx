@@ -1,15 +1,15 @@
 import { Button } from "@/components/ui/button";
 import { useUpdater } from "@/modules/updater";
-import { GithubIcon, Globe02Icon } from "@hugeicons/core-free-icons";
+import { GithubIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { getName, getVersion } from "@tauri-apps/api/app";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { arch, platform } from "@tauri-apps/plugin-os";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { SectionHeader } from "../components/SectionHeader";
 
-const REPO_URL = "https://github.com/crynta/terax-ai";
-const WEBSITE = "https://terax.app";
+const REPO_URL = "https://github.com/lsnu73/terax-ai";
 
 const PLATFORM_LABEL: Record<string, string> = {
   macos: "macOS",
@@ -21,6 +21,7 @@ const PLATFORM_LABEL: Record<string, string> = {
 };
 
 export function AboutSection() {
+  const { t } = useTranslation();
   const [version, setVersion] = useState("");
   const [name, setName] = useState("Terax");
   const [build, setBuild] = useState("");
@@ -32,20 +33,24 @@ export function AboutSection() {
   const ready = status.kind === "ready";
   const checkLabel =
     status.kind === "uptodate"
-      ? "You're up to date"
+      ? t("settings.about.update.upToDate")
       : status.kind === "error"
-        ? "Check failed — retry"
+        ? t("settings.about.update.checkFailed")
         : checking
-          ? "Checking…"
+          ? t("settings.about.update.checking")
           : downloading
-            ? "Downloading…"
+            ? t("settings.about.update.downloading")
             : ready
-              ? "Restart to install"
+              ? t("settings.about.update.restartToInstall")
               : available
-                ? `Install v${status.update.version}`
+                ? t("settings.about.update.installVersion", {
+                    version: status.update.version,
+                  })
                 : manualAvailable
-                  ? `Update to v${status.info.version}`
-                  : "Check for updates";
+                  ? t("settings.about.update.updateToVersion", {
+                      version: status.info.version,
+                    })
+                  : t("settings.about.update.checkForUpdates");
   const onUpdateClick = () => {
     if (available) void install();
     else void check({ manual: true });
@@ -66,7 +71,7 @@ export function AboutSection() {
 
   return (
     <div className="flex flex-col gap-6">
-      <SectionHeader title="About" description="" />
+      <SectionHeader title={t("settings.about.header.title")} description="" />
 
       <div className="flex items-center gap-4 rounded-xl border border-border/60 bg-card/60 p-5">
         <img src="/logo.png" alt="" className="size-12" draggable={false} />
@@ -75,7 +80,7 @@ export function AboutSection() {
             {name}
           </span>
           <span className="text-[11px] text-muted-foreground">
-            Open-source AI-native terminal emulator
+            {t("settings.about.tagline")}
           </span>
           <span className="mt-1 font-mono text-[11px] text-muted-foreground">
             v{version || "—"}
@@ -84,42 +89,35 @@ export function AboutSection() {
       </div>
 
       <dl className="grid grid-cols-[110px_1fr] gap-y-2.5 text-[12px]">
-        <dt className="text-muted-foreground">Build</dt>
+        <dt className="text-muted-foreground">{t("settings.about.build")}</dt>
         <dd className="font-mono text-[11.5px]">
           {build ? `${build} · v${version}` : `v${version}`}
         </dd>
 
-        <dt className="text-muted-foreground">Bundle ID</dt>
-        <dd className="font-mono text-[11.5px]">app.crynta.terax</dd>
+        <dt className="text-muted-foreground">
+          {t("settings.about.bundleId")}
+        </dt>
+        <dd className="font-mono text-[11.5px]">app.wang.terax</dd>
 
-        <dt className="text-muted-foreground">License</dt>
+        <dt className="text-muted-foreground">{t("settings.about.license")}</dt>
         <dd>Apache 2.0</dd>
 
-        <dt className="text-muted-foreground">Source code</dt>
-        <dd>
+        <dt className="text-muted-foreground">
+          {t("settings.about.sourceCode")}
+        </dt>
+        <dd data-setting-id="about.source">
           <button
             type="button"
             onClick={() => void openUrl(REPO_URL)}
             className="inline-flex items-center gap-1.5 rounded-md text-[12px] underline-offset-2 hover:text-foreground hover:underline"
           >
             <HugeiconsIcon icon={GithubIcon} size={12} strokeWidth={1.75} />
-            crynta/terax-ai
-          </button>
-        </dd>
-        <dt className="text-muted-foreground">Website</dt>
-        <dd>
-          <button
-            type="button"
-            onClick={() => void openUrl(WEBSITE)}
-            className="inline-flex items-center gap-1.5 rounded-md text-[12px] underline-offset-2 hover:text-foreground hover:underline"
-          >
-            <HugeiconsIcon icon={Globe02Icon} size={12} strokeWidth={1.75} />
-            terax.app
+            lsnu73/terax-ai
           </button>
         </dd>
       </dl>
 
-      <div className="flex flex-col gap-1.5">
+      <div data-setting-id="about.update" className="flex flex-col gap-1.5">
         <div className="flex gap-2">
           <Button
             size="sm"
@@ -135,14 +133,14 @@ export function AboutSection() {
             className="gap-1.5"
           >
             <HugeiconsIcon icon={GithubIcon} size={12} strokeWidth={1.75} />
-            View on GitHub
+            {t("settings.about.viewOnGitHub")}
           </Button>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => void openUrl(`${REPO_URL}/issues/new`)}
           >
-            Report an issue
+            {t("settings.about.reportIssue")}
           </Button>
         </div>
         {status.kind === "error" && (

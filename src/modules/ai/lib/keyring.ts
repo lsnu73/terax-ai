@@ -1,157 +1,98 @@
 import { invoke } from "@tauri-apps/api/core";
+import { t } from "@/modules/i18n";
 import {
-  getProvider,
-  KEYRING_SERVICE,
-  PROVIDERS,
+  allKeyringAccounts,
+  findProvider,
   providerSupportsKey,
-  type CustomEndpoint,
-  type ProviderId,
 } from "../config";
 
-export type ProviderKeys = Record<ProviderId, string | null>;
-export type CustomEndpointKeys = Record<string, string | null>;
+/**
+ * API Key 存放在操作系统钥匙串，绝不写入 JSON 配置文件。
+ * 账户名是每个 Provider 配置的一部分（`keyringAccount`），
+ * 因此新增 Provider 不需要改代码。
+ */
+export const KEYRING_SERVICE = "terax-ai";
 
-export const EMPTY_PROVIDER_KEYS: ProviderKeys = {
-  openai: null,
-  anthropic: null,
-  google: null,
-  xai: null,
-  cerebras: null,
-  groq: null,
-  deepseek: null,
-  mistral: null,
-  openrouter: null,
-  "openai-compatible": null,
-  lmstudio: null,
-  mlx: null,
-  ollama: null,
-};
+export type ProviderKeys = Record<string, string | null>;
 
-export async function getKey(provider: ProviderId): Promise<string | null> {
-  if (!providerSupportsKey(provider)) return null;
+export const EMPTY_PROVIDER_KEYS: ProviderKeys = {};
+
+async function getByAccount(account: string): Promise<string | null> {
+  if (!account) return null;
   try {
-    const v = await invoke<string | null>("secrets_get", {
+    const value = await invoke<string | null>("secrets_get", {
       service: KEYRING_SERVICE,
-      account: getProvider(provider).keyringAccount,
+      account,
     });
-    return v && v.length > 0 ? v : null;
+    return value && value.length > 0 ? value : null;
   } catch {
     return null;
   }
 }
 
-export async function setKey(provider: ProviderId, key: string): Promise<void> {
+async function getAllByAccount(
+  accounts: readonly string[],
+): Promise<Map<string, string | null>> {
+  const out = new Map<string, string | null>();
+  if (accounts.length === 0) return out;
+  try {
+    const results = await invoke<(string | null)[]>("secrets_get_all", {
+      service: KEYRING_SERVICE,
+      accounts: [...accounts],
+    });
+    accounts.forEach((account, index) => {
+      const value = results[index];
+      out.set(account, value && value.length > 0 ? value : null);
+    });
+    return out;
+  } catch {
+    for (const account of accounts)
+      out.set(account, await getByAccount(account));
+    return out;
+  }
+}
+
+export async function getKey(providerId: string): Promise<string | null> {
+  const provider = findProvider(providerId);
+  if (!provider || !providerSupportsKey(provider)) return null;
+  return getByAccount(provider.keyringAccount);
+}
+
+export async function setKey(providerId: string, key: string): Promise<void> {
+  const provider = findProvider(providerId);
+  if (!provider) throw new Error(`Unknown provider: ${providerId}`);
   if (!providerSupportsKey(provider)) {
-    throw new Error(`${provider} does not use an API key`);
+    throw new Error(t("ai.keyring.noKeyUsed", { provider: provider.label }));
   }
   const trimmed = key.trim();
-  if (!trimmed) throw new Error("API key is empty");
+  if (!trimmed) throw new Error(t("ai.keyring.emptyKey"));
   await invoke("secrets_set", {
     service: KEYRING_SERVICE,
-    account: getProvider(provider).keyringAccount,
+    account: provider.keyringAccount,
     password: trimmed,
   });
 }
 
-export async function clearKey(provider: ProviderId): Promise<void> {
-  if (!providerSupportsKey(provider)) return;
+export async function clearKey(providerId: string): Promise<void> {
+  const provider = findProvider(providerId);
+  if (!provider) return;
   try {
     await invoke("secrets_delete", {
       service: KEYRING_SERVICE,
-      account: getProvider(provider).keyringAccount,
+      account: provider.keyringAccount,
     });
   } catch {
-    // already absent — fine
+    // 本来就不存在——忽略
   }
 }
 
+/** 所有已配置 Provider 的密钥。 */
 export async function getAllKeys(): Promise<ProviderKeys> {
-  const out = { ...EMPTY_PROVIDER_KEYS };
-  const need = PROVIDERS.filter((p) => providerSupportsKey(p.id));
-  try {
-    const results = await invoke<(string | null)[]>("secrets_get_all", {
-      service: KEYRING_SERVICE,
-      accounts: need.map((p) => p.keyringAccount),
-    });
-    need.forEach((p, i) => {
-      const v = results[i];
-      out[p.id] = v && v.length > 0 ? v : null;
-    });
-    return out;
-  } catch {
-    const entries = await Promise.all(
-      need.map(async (p) => [p.id, await getKey(p.id)] as const),
-    );
-    for (const [id, v] of entries) out[id] = v;
-    return out;
-  }
-}
-
-export function hasAnyKey(keys: ProviderKeys): boolean {
-  return PROVIDERS.some((p) => providerSupportsKey(p.id) && !!keys[p.id]);
-}
-
-function compatKeyringAccount(endpointId: string): string {
-  return `compat-${endpointId}-api-key`;
-}
-
-export async function getCustomEndpointKey(
-  endpointId: string,
-): Promise<string | null> {
-  try {
-    const v = await invoke<string | null>("secrets_get", {
-      service: KEYRING_SERVICE,
-      account: compatKeyringAccount(endpointId),
-    });
-    return v && v.length > 0 ? v : null;
-  } catch {
-    return null;
-  }
-}
-
-export async function setCustomEndpointKey(
-  endpointId: string,
-  key: string,
-): Promise<void> {
-  const trimmed = key.trim();
-  if (!trimmed) throw new Error("API key is empty");
-  await invoke("secrets_set", {
-    service: KEYRING_SERVICE,
-    account: compatKeyringAccount(endpointId),
-    password: trimmed,
-  });
-}
-
-export async function clearCustomEndpointKey(
-  endpointId: string,
-): Promise<void> {
-  try {
-    await invoke("secrets_delete", {
-      service: KEYRING_SERVICE,
-      account: compatKeyringAccount(endpointId),
-    });
-  } catch {}
-}
-
-export async function getAllCustomEndpointKeys(
-  endpoints: readonly CustomEndpoint[],
-): Promise<CustomEndpointKeys> {
-  if (endpoints.length === 0) return {};
-  const out: CustomEndpointKeys = {};
-  try {
-    const accounts = endpoints.map((e) => compatKeyringAccount(e.id));
-    const results = await invoke<(string | null)[]>("secrets_get_all", {
-      service: KEYRING_SERVICE,
-      accounts,
-    });
-    endpoints.forEach((e, i) => {
-      const v = results[i];
-      out[e.id] = v && v.length > 0 ? v : null;
-    });
-  } catch {
-    for (const e of endpoints) {
-      out[e.id] = await getCustomEndpointKey(e.id);
-    }
+  const providers = allKeyringAccounts();
+  const values = await getAllByAccount(providers.map((p) => p.account));
+  const out: ProviderKeys = {};
+  for (const { providerId, account } of providers) {
+    out[providerId] = values.get(account) ?? null;
   }
   return out;
 }

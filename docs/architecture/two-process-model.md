@@ -124,6 +124,10 @@ Three distinct surfaces:
 - get_launch_files - files opened at launch (CLI args or OS Open With), drained on first read
 - `open_settings_window` - open the separate settings webview (optional `tab` deep-link)
 
+### File manager integration (`src-tauri/src/modules/file_manager.rs`)
+
+- `open_ai_config_dir` - opens the app data directory (where `terax-ai-models.json` lives) in the user's file manager. Windows resolves the third-party handler registered for the `Directory` / `Folder` shell classes first, probes well-known installs (One Commander, Directory Opus, Total Commander, XYplorer, Q-Dir, FreeCommander) next, and only then falls back to Explorer. macOS uses `open`, Linux uses `xdg-open`.
+
 ### CLI control plane
 
 - `control_frontend_ready` - marks the restored main UI ready for routed CLI actions

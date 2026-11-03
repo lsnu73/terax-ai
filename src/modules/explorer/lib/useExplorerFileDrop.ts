@@ -1,7 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { runtimeToast as toast } from "@/modules/agents/lib/runtimeNotifications";
+import { t } from "@/modules/i18n";
 import { currentWorkspaceEnv } from "@/modules/workspace";
 import {
   parentDir,
@@ -85,7 +86,13 @@ export function useExplorerFileDrop({
             workspace,
           })
             .then(reportCopyFailures)
-            .catch((err) => toast.error(`Copy failed: ${String(err)}`))
+            .catch((err) =>
+              toast.error(
+                t("explorer.toast.copyFailedWithError", {
+                  error: String(err),
+                }),
+              ),
+            )
             .finally(() => {
               if (
                 !disposed &&

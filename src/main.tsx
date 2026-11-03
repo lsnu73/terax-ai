@@ -4,13 +4,17 @@ import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import ReactDOM from "react-dom/client";
 import App from "./app/App";
+import { disableNativeContextMenu } from "./lib/disableNativeContextMenu";
 import { initLaunchDir } from "./lib/launchDir";
 import { USE_CUSTOM_WINDOW_CONTROLS } from "./lib/platform";
+import { initI18n } from "./modules/i18n";
 import { terminalDiagnosticsEnabled } from "@/modules/terminal/lib/terminalDiagnosticsEnabled";
 
 if (USE_CUSTOM_WINDOW_CONTROLS) {
   document.documentElement.dataset.chrome = "borderless";
 }
+
+disableNativeContextMenu();
 
 // Render-instrumentation overlay, opt-in: `VITE_REACT_SCAN=true pnpm dev`.
 // Dev-only dynamic import so it never reaches the production bundle.
@@ -26,11 +30,13 @@ if (__TERAX_BENCH__) {
   await installBenchEarly();
 }
 
-// Reap PTY sessions orphaned by a prior webview load before any tab spawns.
-await invoke("pty_close_all").catch(() => {});
-
-// Seed before first paint so default tab mounts at target cwd (no flicker).
-await initLaunchDir();
+// Complete independent bootstrap work together, and reap orphaned PTYs before
+// any tab can spawn. i18n and launch cwd must be ready before the first render.
+await Promise.all([
+  invoke("pty_close_all").catch(() => {}),
+  initLaunchDir(),
+  initI18n(),
+]);
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <App />,

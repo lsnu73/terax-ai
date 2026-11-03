@@ -110,26 +110,21 @@ describe("block chrome recomputation", () => {
     const state = new GhosttyBlockSession();
     state.cellHeight = () => 19;
     const chrome = vi.fn();
-    const content = vi.fn();
     state.subscribeViewport(chrome);
-    state.subscribeContent(content);
     await state.attach(env.model, () => {});
     state.setVisible(true);
     state.present();
     chrome.mockClear();
-    content.mockClear();
-    return { ...env, state, chrome, content };
+    return { ...env, state, chrome };
   }
 
   it("does not recompute block chrome for frames that move nothing", async () => {
-    const { state, chrome, content } = await presented();
+    const { state, chrome } = await presented();
     for (let frame = 0; frame < 50; frame++) {
       state.changed();
       state.present();
     }
     expect(chrome).not.toHaveBeenCalled();
-    // Screen-content subscribers (the watermark) still see every dirty frame.
-    expect(content).toHaveBeenCalledTimes(50);
   });
 
   it.each([
@@ -183,12 +178,12 @@ describe("block chrome recomputation", () => {
     expect(chrome).toHaveBeenCalledTimes(1);
   });
 
-  it("runs the mode effect once per mode change, not per damage", async () => {
+  it("notifies mode listeners once per mode change, not per damage", async () => {
     const { state, listeners } = await presented();
-    const effect = vi.fn();
-    state.modeEffect = effect;
+    const modeListener = vi.fn();
+    state.subscribeMode(modeListener);
     for (let i = 0; i < 20; i++) for (const listener of listeners) listener();
-    expect(effect).not.toHaveBeenCalled();
+    expect(modeListener).not.toHaveBeenCalled();
 
     // Prompt integration flips the controller from "plain" to "prompt".
     state.controller?.handle(
@@ -196,8 +191,8 @@ describe("block chrome recomputation", () => {
       "/",
     );
     state.changed();
-    expect(effect).toHaveBeenCalledTimes(1);
+    expect(modeListener).toHaveBeenCalledTimes(1);
     for (let i = 0; i < 20; i++) state.changed();
-    expect(effect).toHaveBeenCalledTimes(1);
+    expect(modeListener).toHaveBeenCalledTimes(1);
   });
 });

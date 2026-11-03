@@ -9,13 +9,16 @@ import { useChatStore } from "@/modules/ai/store/chatStore";
 import {
   modelSupportsTemperature,
   providerNeedsKey,
-  resolveModel,
+  selectCommitMessagePrompt,
+  tryResolveModel,
+  useAiConfigStore,
 } from "@/modules/ai/config";
 import {
   invalidateDiff,
   invalidateRepoDiffs,
   workingDiffKey,
 } from "@/modules/editor/lib/diffCache";
+import { t } from "@/modules/i18n";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SourceControlSummary } from "./useSourceControl";
@@ -29,8 +32,6 @@ const COMMIT_MESSAGE_MAX_OUTPUT_TOKENS = 1024;
 const RECONCILE_DEBOUNCE_MS = 180;
 const CONVENTIONAL_PREFIX =
   /^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([^)]+\))?: .+/;
-const COMMIT_MESSAGE_SYSTEM_PROMPT =
-  "You write concise Conventional Commit subject lines in English. Return exactly one complete line, with no markdown, no quotes, no body, and no explanation.";
 
 type DiffSelection = {
   path: string;
@@ -51,7 +52,7 @@ type SourceControlEntry = {
 
 export type CheckState = "checked" | "indeterminate" | "unchecked";
 
-/** One row per changed file (flat list) — merges the staged/unstaged split. */
+/** 每个变更文件一行（扁平列表）——合并已暂存/未暂存的区分。 */
 export type SourceControlFileEntry = {
   key: string;
   path: string;
@@ -120,7 +121,7 @@ function normalizeError(error: unknown): string {
     const message = (error as { message?: unknown }).message;
     if (typeof message === "string") return message;
   }
-  return "Unknown source control error";
+  return t("sourceControl.unknownError");
 }
 
 function normalizeStatusCode(status: string): string {
@@ -262,7 +263,8 @@ function optimisticStage(
     if (!paths.has(file.path)) return file;
     if (file.staged && !file.unstaged) return file;
     changed = true;
-    const wt = file.worktreeStatus !== " " ? file.worktreeStatus : file.indexStatus;
+    const wt =
+      file.worktreeStatus !== " " ? file.worktreeStatus : file.indexStatus;
     return {
       ...file,
       indexStatus: wt,
@@ -292,7 +294,8 @@ function optimisticUnstage(
       continue;
     }
     changed = true;
-    const idx = file.indexStatus !== " " ? file.indexStatus : file.worktreeStatus;
+    const idx =
+      file.indexStatus !== " " ? file.indexStatus : file.worktreeStatus;
     if (idx === "R" && file.originalPath) {
       next.push({
         path: file.originalPath,
@@ -373,21 +376,12 @@ export function useSourceControlPanel(
   const selectedModelId = useChatStore((state) => state.selectedModelId);
   const agentStatus = useChatStore((state) => state.agentMeta.status);
   const hasApiKeyForSelected = useChatStore((state) => {
-    const model = resolveModel(state.selectedModelId);
-    return !providerNeedsKey(model.provider) || !!state.apiKeys[model.provider];
+    const model = tryResolveModel(state.selectedModelId);
+    if (!model) return false;
+    return (
+      !providerNeedsKey(model.providerEntry) || !!state.apiKeys[model.provider]
+    );
   });
-  const lmstudioModelId = usePreferencesStore((state) => state.lmstudioModelId);
-  const mlxModelId = usePreferencesStore((state) => state.mlxModelId);
-  const ollamaModelId = usePreferencesStore((state) => state.ollamaModelId);
-  const openaiCompatibleBaseURL = usePreferencesStore(
-    (state) => state.openaiCompatibleBaseURL,
-  );
-  const openaiCompatibleModelId = usePreferencesStore(
-    (state) => state.openaiCompatibleModelId,
-  );
-  const openrouterModelId = usePreferencesStore(
-    (state) => state.openrouterModelId,
-  );
   const [panelState, setPanelState] = useState<PanelState>("closed");
   const [repo, setRepo] = useState<GitRepoInfo | null>(null);
   const [status, setStatus] = useState<GitStatusSnapshot | null>(null);
@@ -466,72 +460,45 @@ export function useSourceControlPanel(
 
   const allClean = stagedEntries.length === 0 && unstagedEntries.length === 0;
   const canPush = !!status?.upstream && status.behind === 0;
-  const selectedModel = resolveModel(selectedModelId);
-  const selectedModelSupportsTemperature = modelSupportsTemperature(
-    selectedModel.provider,
-    selectedModel.id,
-  );
+  const selectedModel = tryResolveModel(selectedModelId);
+  const selectedModelSupportsTemperature = selectedModel
+    ? modelSupportsTemperature(selectedModel.provider, selectedModel.id)
+    : false;
   const aiBusy = agentStatus !== "idle" && agentStatus !== "error";
   const anyActionBusy = localActionBusy !== null || summary.busyAction !== null;
   const aiUnavailableReason = useMemo(() => {
     if (stagedEntries.length === 0) {
-      return "Stage changes to generate a commit message";
+      return t("sourceControl.actions.generateStageFirst");
     }
-    if (!hasApiKeyForSelected) {
-      return "Connect an AI provider to generate commit messages";
-    }
-    if (selectedModel.id === "lmstudio-local" && !lmstudioModelId.trim()) {
-      return "Connect an AI provider to generate commit messages";
-    }
-    if (selectedModel.id === "mlx-local" && !mlxModelId.trim()) {
-      return "Connect an AI provider to generate commit messages";
-    }
-    if (selectedModel.id === "ollama-local" && !ollamaModelId.trim()) {
-      return "Connect an AI provider to generate commit messages";
-    }
-    if (
-      selectedModel.id === "openai-compatible-custom" &&
-      (!openaiCompatibleBaseURL.trim() || !openaiCompatibleModelId.trim())
-    ) {
-      return "Connect an AI provider to generate commit messages";
-    }
-    if (selectedModel.id === "openrouter-custom" && !openrouterModelId.trim()) {
-      return "Connect an AI provider to generate commit messages";
+    if (!selectedModel || !hasApiKeyForSelected) {
+      return t("sourceControl.actions.generateConnectProvider");
     }
     return null;
-  }, [
-    hasApiKeyForSelected,
-    lmstudioModelId,
-    mlxModelId,
-    ollamaModelId,
-    openaiCompatibleBaseURL,
-    openaiCompatibleModelId,
-    openrouterModelId,
-    selectedModel,
-    stagedEntries.length,
-  ]);
+  }, [hasApiKeyForSelected, selectedModel, stagedEntries.length]);
   const canGenerateCommitMessage =
     stagedEntries.length > 0 && !anyActionBusy && !aiBusy && !!repo;
   const generateCommitMessageHint = aiUnavailableReason
     ? aiUnavailableReason
     : aiBusy
-      ? "Wait for the current AI action to finish"
-      : "Generate commit message";
+      ? t("sourceControl.actions.aiWaitFinish")
+      : t("sourceControl.actions.generateCommitMessage");
   const pushHint = useMemo(() => {
     if (!status) return null;
     if (!status.upstream) {
-      return "Configure or publish this branch in the terminal to enable push in this iteration.";
+      return t("sourceControl.actions.pushConfigureBranch");
     }
     if (status.behind > 0) {
-      return "Pull remote changes before pushing local commits.";
+      return t("sourceControl.actions.pushPullFirst");
     }
     if (status.ahead === 0) {
-      return `No local commits to push to ${status.upstream}.`;
+      return t("sourceControl.actions.pushNoLocalCommits", {
+        upstream: status.upstream,
+      });
     }
-    return `Pushes to ${status.upstream}.`;
+    return t("sourceControl.actions.pushesTo", { upstream: status.upstream });
   }, [status]);
-  const stagedEmptyText = "No staged changes";
-  const unstagedEmptyText = "No unstaged changes";
+  const stagedEmptyText = t("sourceControl.actions.noStagedChanges");
+  const unstagedEmptyText = t("sourceControl.actions.noUnstagedChanges");
 
   const cancelReconcile = useCallback(() => {
     if (reconcileTimerRef.current) {
@@ -551,7 +518,11 @@ export function useSourceControlPanel(
   useEffect(() => () => cancelReconcile(), [cancelReconcile]);
 
   const openSelection = useCallback(
-    (sel: DiffSelection, repoRoot: string, file: GitChangedFile | undefined) => {
+    (
+      sel: DiffSelection,
+      repoRoot: string,
+      file: GitChangedFile | undefined,
+    ) => {
       onOpenDiff?.({
         path: sel.path,
         repoRoot,
@@ -649,7 +620,10 @@ export function useSourceControlPanel(
   const selectEntry = useCallback(
     async (entry: SourceControlEntry) => {
       if (!repo) return;
-      const nextSelection: DiffSelection = { path: entry.path, mode: entry.mode };
+      const nextSelection: DiffSelection = {
+        path: entry.path,
+        mode: entry.mode,
+      };
       if (sameSelection(selected, nextSelection)) {
         setActionError(null);
         setActionMessage(null);
@@ -858,7 +832,7 @@ export function useSourceControlPanel(
   const generateCommitMessage = useCallback(async () => {
     if (!repo || stagedEntries.length === 0) return;
     if (aiBusy) {
-      setActionError("Wait for the current AI action to finish");
+      setActionError(t("sourceControl.actions.aiWaitFinish"));
       return;
     }
     if (aiUnavailableReason) {
@@ -877,25 +851,22 @@ export function useSourceControlPanel(
         ]);
       const { text: diffText, truncated } = truncateDiff(diff.diffText);
       const chatState = useChatStore.getState();
-      const prefs = usePreferencesStore.getState();
+      const effortLevelId =
+        usePreferencesStore.getState().effortLevelByModel[selectedModelId] ??
+        null;
+      // 【导览 20】消费方四：用当前对话所选模型生成 Git 提交信息。
+      // 与聊天共用同一条构建链路（含 JSON 配置里的自定义参数与思考强度档位）。
       const model = await buildConfiguredLanguageModel(
         selectedModelId,
         chatState.apiKeys,
-        {
-          lmstudioBaseURL: prefs.lmstudioBaseURL,
-          lmstudioModelId,
-          mlxBaseURL: prefs.mlxBaseURL,
-          mlxModelId,
-          ollamaBaseURL: prefs.ollamaBaseURL,
-          ollamaModelId,
-          openaiCompatibleBaseURL,
-          openaiCompatibleModelId,
-          openrouterModelId,
-        },
+        { effortLevelId },
+      );
+      const systemPrompt = selectCommitMessagePrompt(
+        useAiConfigStore.getState().config.commitMessagePrompt,
       );
       const result = await generateText({
         model,
-        system: COMMIT_MESSAGE_SYSTEM_PROMPT,
+        system: systemPrompt,
         prompt: buildCommitMessagePrompt(stagedEntries, diffText, truncated),
         maxOutputTokens: COMMIT_MESSAGE_MAX_OUTPUT_TOKENS,
         ...(selectedModelSupportsTemperature ? { temperature: 0.2 } : {}),
@@ -904,7 +875,7 @@ export function useSourceControlPanel(
       if (!isValidCommitMessage(message)) {
         const repair = await generateText({
           model,
-          system: COMMIT_MESSAGE_SYSTEM_PROMPT,
+          system: systemPrompt,
           prompt: buildRepairCommitMessagePrompt(message, stagedEntries),
           maxOutputTokens: COMMIT_MESSAGE_MAX_OUTPUT_TOKENS,
           ...(selectedModelSupportsTemperature ? { temperature: 0 } : {}),
@@ -912,9 +883,7 @@ export function useSourceControlPanel(
         message = cleanCommitMessage(repair.text);
       }
       if (!isValidCommitMessage(message)) {
-        throw new Error(
-          "AI returned an invalid commit message. Try again or switch models.",
-        );
+        throw new Error(t("sourceControl.actions.generateInvalid"));
       }
       setCommitMessage(message);
       setActionMessage(null);
@@ -926,12 +895,6 @@ export function useSourceControlPanel(
   }, [
     aiUnavailableReason,
     aiBusy,
-    lmstudioModelId,
-    mlxModelId,
-    ollamaModelId,
-    openaiCompatibleBaseURL,
-    openaiCompatibleModelId,
-    openrouterModelId,
     repo,
     selectedModelId,
     selectedModelSupportsTemperature,
@@ -947,7 +910,10 @@ export function useSourceControlPanel(
       const result = await native.gitCommit(repo.repoRoot, commitMessage);
       setCommitMessage("");
       setActionMessage(
-        `Committed ${result.commitSha.slice(0, 7)} ${result.summary}`,
+        t("sourceControl.actions.committed", {
+          sha: result.commitSha.slice(0, 7),
+          summary: result.summary,
+        }),
       );
       invalidateRepoDiffs(repo.repoRoot);
       await summary.refresh({ remote: "never" });
@@ -965,7 +931,11 @@ export function useSourceControlPanel(
     const result = await summary.runRemoteAction("push");
     if (result.ok) {
       setActionMessage(
-        status?.upstream ? `Pushed to ${status.upstream}` : "Push completed",
+        status?.upstream
+          ? t("sourceControl.actions.pushedTo", {
+              upstream: status.upstream,
+            })
+          : t("sourceControl.actions.pushCompleted"),
       );
       return;
     }
@@ -986,9 +956,9 @@ export function useSourceControlPanel(
     return {
       scope: "all",
       count: pendingDiscard.entries.length,
-      label: `${pendingDiscard.entries.length} unstaged ${
-        pendingDiscard.entries.length === 1 ? "file" : "files"
-      }`,
+      label: t("sourceControl.actions.unstagedFiles", {
+        count: pendingDiscard.entries.length,
+      }),
     };
   }, [pendingDiscard]);
 

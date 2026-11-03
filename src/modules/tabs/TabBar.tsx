@@ -22,6 +22,7 @@ import {
 } from "@/modules/editor/lib/languageDefinitions";
 import { resolveDisplayName } from "@/modules/editor/lib/languageResolver";
 import { FileIcon } from "@/modules/explorer/FileIcon";
+import { shortcutHintLabel, useShortcutHint } from "@/modules/shortcuts";
 import {
   leafIds,
   ptyIdForLeaf,
@@ -39,6 +40,8 @@ import {
   IncognitoIcon,
   Message02Icon,
   PencilEdit02Icon,
+  RefreshIcon,
+  Settings01Icon,
   Tick02Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -50,6 +53,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
 import { selectTabAgentStatus } from "./lib/tabAgentStatus";
 import { labelFor } from "./lib/tabLabel";
@@ -61,7 +65,6 @@ type Props = {
   activeId: number;
   onSelect: (id: number) => void;
   onNew: () => void;
-  onNewBlock: () => void;
   onNewPrivate: () => void;
   onNewPreview: () => void;
   onNewEditor: () => void;
@@ -76,6 +79,8 @@ type Props = {
   onPin: (id: number) => void;
   /** Set a terminal tab's custom label; empty string resets to default. */
   onRename: (id: number, title: string) => void;
+  /** Restart a terminal tab's shells so new settings take effect. */
+  onRefresh: (id: number) => void;
   /** Move a dragged tab to a new position (insertion gap index 0..tabs.length). */
   onReorder: (fromId: number, toGapIndex: number) => void;
   onOverrideLanguage?: (id: number, lang: string | null) => void;
@@ -87,7 +92,6 @@ export function TabBar({
   activeId,
   onSelect,
   onNew,
-  onNewBlock,
   onNewPrivate,
   onNewPreview,
   onNewEditor,
@@ -98,13 +102,18 @@ export function TabBar({
   onCloseOtherTabs,
   onPin,
   onRename,
+  onRefresh,
   onReorder,
   onOverrideLanguage,
   compact,
 }: Props) {
+  const { t } = useTranslation();
+  const closeHint = useShortcutHint("tab.close");
   const scrollRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [contextMenuTabId, setContextMenuTabId] = useState<number | null>(null);
+  const contextMenuContentRef = useRef<HTMLDivElement>(null);
   const [draggingId, setDraggingId] = useState<number | null>(null);
   const [dropGap, setDropGap] = useState<number | null>(null);
   const [showAllLanguages, setShowAllLanguages] = useState(false);
@@ -128,6 +137,26 @@ export function TabBar({
   useEffect(() => {
     seenRef.current = new Set(tabs.map((t) => t.id));
   }, [tabs]);
+
+  // Terminal surfaces stop pointerdown propagation, so Radix cannot rely on
+  // its bubble-phase outside listener to dismiss a tab menu.
+  useEffect(() => {
+    if (contextMenuTabId === null) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (
+        target instanceof Node &&
+        contextMenuContentRef.current?.contains(target)
+      ) {
+        return;
+      }
+      setContextMenuTabId(null);
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown, true);
+    };
+  }, [contextMenuTabId]);
 
   // Single shared pill slides to the active tab instead of each tab toggling
   // its own background. Measured relative to the list (its offsetParent) so it
@@ -239,11 +268,12 @@ export function TabBar({
                   : { opacity: 0 }
               }
             />
-            {tabs.map((t, i) => {
+            {tabs.map((tab, i) => {
               const isPreview =
-                (t.kind === "editor" || t.kind === "git-diff") && t.preview;
-              const isActive = t.id === activeId;
-              const isNew = !firstRender && !seen.has(t.id);
+                (tab.kind === "editor" || tab.kind === "git-diff") &&
+                tab.preview;
+              const isActive = tab.id === activeId;
+              const isNew = !firstRender && !seen.has(tab.id);
 
               const srcIndex = tabs.findIndex((x) => x.id === draggingId);
               const showGap = (gap: number) =>
@@ -255,22 +285,22 @@ export function TabBar({
               // While renaming, render a non-button cell so the <input> is not
               // nested inside the trigger <button> (invalid HTML, and WebKit
               // blocks focus/selection on inputs inside buttons).
-              if (editingId === t.id && t.kind === "terminal") {
+              if (editingId === tab.id && tab.kind === "terminal") {
                 return (
-                  <Fragment key={t.id}>
+                  <Fragment key={tab.id}>
                     {showGap(i) && <DropIndicator />}
                     <div
-                      data-tab-id={t.id}
+                      data-tab-id={tab.id}
                       className={cn(
                         "flex h-7 shrink-0 items-center gap-1.5 rounded-md bg-accent text-xs text-foreground",
                         compact ? "px-1.5" : "px-2",
                       )}
                     >
-                      <TabIcon tab={t} />
+                      <TabIcon tab={tab} />
                       <TabRenameInput
-                        initial={labelFor(t)}
+                        initial={labelFor(tab)}
                         onCommit={(value) => {
-                          onRename(t.id, value);
+                          onRename(tab.id, value);
                           setEditingId(null);
                         }}
                         onCancel={() => setEditingId(null)}
@@ -285,8 +315,8 @@ export function TabBar({
 
               const trigger = (
                 <TabsTrigger
-                  value={String(t.id)}
-                  data-tab-id={t.id}
+                  value={String(tab.id)}
+                  data-tab-id={tab.id}
                   data-tab-active={isActive ? "true" : undefined}
                   onPointerDown={(e) => {
                     if (e.button !== 0) return;
@@ -295,7 +325,7 @@ export function TabBar({
                     drag.current = {
                       pointerId: e.pointerId,
                       startX: e.clientX,
-                      fromId: t.id,
+                      fromId: tab.id,
                       active: false,
                     };
                     e.currentTarget.setPointerCapture(e.pointerId);
@@ -317,17 +347,17 @@ export function TabBar({
                     if (st?.active && dropGap !== null) {
                       onReorder(st.fromId, dropGap);
                     } else if (st && !st.active) {
-                      onSelect(t.id);
+                      onSelect(tab.id);
                     }
                     endDrag(e.currentTarget);
                   }}
                   onPointerCancel={(e) => endDrag(e.currentTarget)}
-                  onDoubleClick={() => isPreview && onPin(t.id)}
+                  onDoubleClick={() => isPreview && onPin(tab.id)}
                   onAuxClick={(e) => {
                     if (e.button === 1 && tabs.length > 1) {
                       e.preventDefault();
                       e.stopPropagation();
-                      onClose(t.id);
+                      onClose(tab.id);
                     }
                   }}
                   // Suppress Radix's switch-on-mousedown so a tab grabbed to
@@ -350,7 +380,7 @@ export function TabBar({
                     isActive
                       ? "text-foreground dark:text-foreground"
                       : "text-muted-foreground hover:text-foreground/80 dark:text-muted-foreground",
-                    draggingId === t.id && "opacity-50",
+                    draggingId === tab.id && "opacity-50",
                     compact
                       ? "px-1.5!"
                       : tabs.length === 1
@@ -364,7 +394,7 @@ export function TabBar({
                       compact ? "max-w-48" : "max-w-80",
                     )}
                   >
-                    {t.kind === "editor" ? (
+                    {tab.kind === "editor" ? (
                       <DropdownMenu
                         onOpenChange={(open) => {
                           if (!open) setShowAllLanguages(false);
@@ -383,7 +413,7 @@ export function TabBar({
                             }}
                             className="inline-flex shrink-0 cursor-pointer items-center justify-center rounded-sm p-1 -m-1 transition-all hover:bg-accent hover:text-accent-foreground hover:ring-1 hover:ring-primary/30 hover:shadow-[0_0_4px_var(--color-popover-foreground)]"
                           >
-                            <TabIcon tab={t} />
+                            <TabIcon tab={tab} />
                           </span>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent
@@ -398,21 +428,23 @@ export function TabBar({
                         >
                           <DropdownMenuItem
                             onSelect={() => {
-                              onOverrideLanguage?.(t.id, null);
+                              onOverrideLanguage?.(tab.id, null);
                             }}
                             className="flex items-center gap-2 px-2.5 py-1.5 text-xs rounded-lg cursor-default focus:bg-accent focus:text-accent-foreground"
                           >
                             <FileIcon
-                              name={t.title}
+                              name={tab.title}
                               className="size-3.5 shrink-0 object-contain"
                             />
                             <div className="flex flex-1 flex-col">
-                              <span>Auto Detect</span>
+                              <span>{t("tabbar.languageAutoDetect")}</span>
                               <span className="text-[10px] text-muted-foreground italic">
-                                Mode: {resolveDisplayName(t.title)}
+                                {t("tabbar.languageMode", {
+                                  name: resolveDisplayName(tab.title),
+                                })}
                               </span>
                             </div>
-                            {!(t as EditorTab).overrideLanguage && (
+                            {!(tab as EditorTab).overrideLanguage && (
                               <HugeiconsIcon
                                 icon={Tick02Icon}
                                 className="size-3.5 text-primary"
@@ -427,8 +459,8 @@ export function TabBar({
                             className="w-full px-2.5 py-1.5 text-left text-xs text-primary/60 hover:text-primary rounded-lg transition-colors hover:bg-accent"
                           >
                             {showAllLanguages
-                              ? "↑ Fewer languages"
-                              : "↓ All languages"}
+                              ? t("tabbar.fewerLanguages")
+                              : t("tabbar.allLanguages")}
                           </DropdownMenuItem>
                           <DropdownMenuSeparator className="my-1 border-t border-border/30" />
                           {(showAllLanguages
@@ -436,12 +468,12 @@ export function TabBar({
                             : EXPOSED_LANGUAGES
                           ).map((lang) => {
                             const isSelected =
-                              (t as EditorTab).overrideLanguage === lang.ext;
+                              (tab as EditorTab).overrideLanguage === lang.ext;
                             return (
                               <DropdownMenuItem
                                 key={lang.ext}
                                 onSelect={() =>
-                                  onOverrideLanguage?.(t.id, lang.ext)
+                                  onOverrideLanguage?.(tab.id, lang.ext)
                                 }
                                 className="flex items-center gap-2 px-2.5 py-1.5 text-xs rounded-lg cursor-default focus:bg-accent focus:text-accent-foreground"
                               >
@@ -462,16 +494,16 @@ export function TabBar({
                         </DropdownMenuContent>
                       </DropdownMenu>
                     ) : (
-                      <TabIcon tab={t} />
+                      <TabIcon tab={tab} />
                     )}
                     {/* Preview tabs use italic to signal the transient state,
                         matching the visual convention from VSCode. */}
                     <span className={cn("truncate", isPreview && "italic")}>
-                      {labelFor(t)}
+                      {labelFor(tab)}
                     </span>
-                    {t.kind === "editor" && t.dirty ? (
+                    {tab.kind === "editor" && tab.dirty ? (
                       <span
-                        aria-label="Unsaved changes"
+                        aria-label={t("tabbar.unsavedChanges")}
                         className="size-1.5 shrink-0 rounded-full bg-foreground/70"
                       />
                     ) : null}
@@ -479,7 +511,8 @@ export function TabBar({
                   {tabs.length > 1 && (
                     <span
                       role="button"
-                      aria-label="Close tab"
+                      aria-label={t("tabbar.closeTab")}
+                      title={shortcutHintLabel(t("tabbar.closeTab"), closeHint)}
                       data-no-drag
                       onPointerDown={(e) => {
                         e.preventDefault();
@@ -491,7 +524,7 @@ export function TabBar({
                       }}
                       onClick={(e) => {
                         e.stopPropagation();
-                        onClose(t.id);
+                        onClose(tab.id);
                       }}
                       className="rounded p-0.5 opacity-0 transition-opacity hover:bg-accent hover:opacity-100 group-hover:opacity-60"
                     >
@@ -508,38 +541,60 @@ export function TabBar({
               const hasTabsToRight = i < tabs.length - 1;
 
               const tabNode = (
-                <ContextMenu>
+                <ContextMenu
+                  open={contextMenuTabId === tab.id}
+                  onOpenChange={(open) => {
+                    setContextMenuTabId((current) => {
+                      if (open) return tab.id;
+                      return current === tab.id ? null : current;
+                    });
+                  }}
+                >
                   <ContextMenuTrigger asChild>{trigger}</ContextMenuTrigger>
                   <ContextMenuContent
+                    ref={contextMenuContentRef}
                     className="min-w-32 p-1"
                     onCloseAutoFocus={(e) => e.preventDefault()}
                   >
-                    {t.kind === "terminal" && (
+                    {tab.kind === "terminal" && (
                       <>
                         <ContextMenuItem
                           className="gap-2 rounded-xl px-2.5 py-1.5 text-[13px]"
-                          onSelect={() => setEditingId(t.id)}
+                          onSelect={() => onRefresh(tab.id)}
+                        >
+                          <HugeiconsIcon
+                            icon={RefreshIcon}
+                            size={13}
+                            strokeWidth={1.75}
+                          />
+                          <span className="flex-1">{t("tabbar.refresh")}</span>
+                        </ContextMenuItem>
+                        <ContextMenuItem
+                          className="gap-2 rounded-xl px-2.5 py-1.5 text-[13px]"
+                          onSelect={() => setEditingId(tab.id)}
                         >
                           <HugeiconsIcon
                             icon={PencilEdit02Icon}
                             size={13}
                             strokeWidth={1.75}
                           />
-                          <span className="flex-1">Rename</span>
+                          <span className="flex-1">{t("common.rename")}</span>
                         </ContextMenuItem>
                         {tabs.length > 1 && (
                           <>
                             <ContextMenuSeparator />
                             <ContextMenuItem
                               className="gap-2 rounded-xl px-2.5 py-1.5 text-[13px]"
-                              onSelect={() => onClose(t.id)}
+                              onSelect={() => onClose(tab.id)}
                             >
                               <HugeiconsIcon
                                 icon={Cancel01Icon}
                                 size={13}
                                 strokeWidth={1.75}
                               />
-                              <span className="flex-1">Close</span>
+                              <span className="flex-1">
+                                {t("common.close")}
+                              </span>
                             </ContextMenuItem>
                           </>
                         )}
@@ -548,33 +603,37 @@ export function TabBar({
                     <ContextMenuItem
                       className="gap-2 rounded-xl px-2.5 py-1.5 text-[13px]"
                       disabled={!hasTabsToRight}
-                      onSelect={() => onCloseTabsToRight(t.id)}
+                      onSelect={() => onCloseTabsToRight(tab.id)}
                     >
                       <HugeiconsIcon
                         icon={ArrowRight01Icon}
                         size={13}
                         strokeWidth={1.75}
                       />
-                      <span className="flex-1">Close tabs to the right</span>
+                      <span className="flex-1">
+                        {t("tabbar.closeTabsToRight")}
+                      </span>
                     </ContextMenuItem>
                     <ContextMenuItem
                       className="gap-2 rounded-xl px-2.5 py-1.5 text-[13px]"
                       disabled={tabs.length <= 1}
-                      onSelect={() => onCloseOtherTabs(t.id)}
+                      onSelect={() => onCloseOtherTabs(tab.id)}
                     >
                       <HugeiconsIcon
                         icon={CancelCircleIcon}
                         size={13}
                         strokeWidth={1.75}
                       />
-                      <span className="flex-1">Close other tabs</span>
+                      <span className="flex-1">
+                        {t("tabbar.closeOtherTabs")}
+                      </span>
                     </ContextMenuItem>
                   </ContextMenuContent>
                 </ContextMenu>
               );
 
               return (
-                <Fragment key={t.id}>
+                <Fragment key={tab.id}>
                   {showGap(i) && <DropIndicator />}
                   {tabNode}
                   {i === tabs.length - 1 && showGap(tabs.length) && (
@@ -587,7 +646,6 @@ export function TabBar({
         </Tabs>
         <NewTabMenu
           onNew={onNew}
-          onNewBlock={onNewBlock}
           onNewPrivate={onNewPrivate}
           onNewPreview={onNewPreview}
           onNewEditor={onNewEditor}
@@ -729,6 +787,16 @@ export function TabIcon({ tab }: { tab: Tab }) {
       />
     );
   }
+  if (tab.kind === "settings") {
+    return (
+      <HugeiconsIcon
+        icon={Settings01Icon}
+        size={14}
+        strokeWidth={2}
+        className="shrink-0"
+      />
+    );
+  }
   return <TerminalTabIcon tab={tab} />;
 }
 
@@ -741,6 +809,7 @@ function TabRenameInput({
   onCommit: (value: string) => void;
   onCancel: () => void;
 }) {
+  const { t } = useTranslation();
   const ref = useRef<HTMLInputElement>(null);
   // Guards against a trailing blur re-resolving an edit that Enter/Escape
   // already finished (Escape must never commit).
@@ -774,7 +843,7 @@ function TabRenameInput({
     <input
       ref={ref}
       defaultValue={initial}
-      aria-label="Rename tab"
+      aria-label={t("tabbar.renameTab")}
       className={cn(
         "w-28 min-w-0 rounded-sm bg-background px-1 text-xs text-foreground",
         "outline-none ring-1 ring-border focus:ring-ring",

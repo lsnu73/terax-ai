@@ -25,18 +25,50 @@ export type AgentSession = {
   attentionSince: number | null;
 };
 
-export type AgentNotification = {
+export type NotificationAction = {
+  label: string;
+  onClick: () => void;
+};
+
+type NotificationBase = {
   id: string;
+  title: string;
+  body?: string;
+  at: number;
+  read: boolean;
+  action?: NotificationAction;
+  cancel?: NotificationAction;
+  onDismiss?: () => void;
+};
+
+export type AgentEventNotification = NotificationBase & {
   source: AgentSource;
   leafId: number;
   tabId: number;
   agent: string;
-  kind: NotificationKind;
-  at: number;
-  read: boolean;
+  kind: AgentNotificationKind;
 };
 
-export type NotificationKind = "attention" | "finished" | "error";
+export type RuntimeNotification = NotificationBase & {
+  source: "runtime";
+  runtimeId: string | number;
+  kind: RuntimeNotificationKind;
+  dismissal?: { dismissed: boolean };
+};
+
+export type AgentNotification = AgentEventNotification | RuntimeNotification;
+export type NewAgentNotification =
+  | Omit<AgentEventNotification, "id" | "at" | "read">
+  | Omit<RuntimeNotification, "id" | "at" | "read">;
+
+export type AgentNotificationKind = "attention" | "finished" | "error";
+export type RuntimeNotificationKind =
+  | "message"
+  | "success"
+  | "info"
+  | "warning"
+  | "error";
+export type NotificationKind = AgentNotificationKind;
 
 export type LocalAgentState = {
   agent: string;

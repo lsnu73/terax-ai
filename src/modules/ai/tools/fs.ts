@@ -1,6 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { native } from "../lib/native";
+import { aiNeedsApproval } from "../lib/approvalMode";
 import {
   checkReadableCanonical,
   checkWritableCanonical,
@@ -140,7 +141,7 @@ export function buildFsTools(ctx: ToolContext) {
         path: z.string(),
         content: z.string(),
       }),
-      needsApproval: true,
+      needsApproval: aiNeedsApproval,
       execute: async ({ path, content }) => {
         const reqPath = resolvePath(path, ctx.getCwd());
         const safety = await checkWritableCanonical(reqPath, native.canonicalize);
@@ -187,7 +188,7 @@ export function buildFsTools(ctx: ToolContext) {
       inputSchema: z.object({
         path: z.string(),
       }),
-      needsApproval: true,
+      needsApproval: aiNeedsApproval,
       execute: async ({ path }) => {
         const reqPath = resolvePath(path, ctx.getCwd());
         const safety = await checkWritableCanonical(reqPath, native.canonicalize);

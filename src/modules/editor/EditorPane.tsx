@@ -1,5 +1,6 @@
-import { endpointIdFromCompatModel } from "@/modules/ai/config";
-import { getCustomEndpointKey, getKey } from "@/modules/ai/lib/keyring";
+import { getKey } from "@/modules/ai/lib/keyring";
+import type { SearchOptions } from "@/lib/searchOptions";
+import { t as tModule } from "@/modules/i18n";
 import { lspFormatDocument, useLspExtension } from "@/modules/lsp";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import { onKeysChanged } from "@/modules/settings/store";
@@ -29,7 +30,8 @@ import {
   useRef,
   useState,
 } from "react";
-import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
+import { runtimeToast as toast } from "@/modules/agents/lib/runtimeNotifications";
 import {
   inlineCompletion,
   triggerInlineCompletion,
@@ -64,27 +66,29 @@ import { MediaPreview } from "./MediaPreview";
 initVimGlobals();
 
 export type EditorPaneHandle = {
-  setQuery: (q: string) => void;
+  setQuery: (q: string, options?: SearchOptions) => void;
+  /** 当前查询的匹配数量；无查询或表达式无效时为 0。 */
+  matchCount: () => number;
   findNext: () => void;
   findPrevious: () => void;
   clearQuery: () => void;
-  /** Open CodeMirror's find/replace panel. */
+  /** 打开 CodeMirror 的查找/替换面板。 */
   openSearch: () => void;
   focus: () => void;
   getSelection: () => string | null;
   getPath: () => string;
-  /** Re-read the file from disk. Skips silently if the buffer is dirty. */
+  /** 从磁盘重新读取文件。缓冲区有未保存修改时静默跳过。 */
   reload: () => boolean;
-  /** Move the cursor to a 1-based line and center it, once content is ready. */
+  /** 内容就绪后，把光标移到从 1 开始计数的指定行并居中。 */
   gotoLine: (line: number, options?: { focus?: boolean }) => void;
-  /** Apply CodeMirror's undo/redo commands. */
+  /** 执行 CodeMirror 的撤销/重做命令。 */
   undo: () => void;
   redo: () => void;
-  /** Persist the buffer (format-on-save + write), same as Mod+S / :w. */
+  /** 持久化缓冲区（保存时格式化 + 写入），等价于 Mod+S / :w。 */
   save: () => Promise<void>;
-  /** Request an AI ghost suggestion at the cursor. */
+  /** 在光标处请求 AI 幽灵补全建议。 */
   triggerAiComplete: () => void;
-  /** Open CodeMirror's completion popup. */
+  /** 打开 CodeMirror 的补全弹窗。 */
   triggerCodeComplete: () => void;
 };
 
@@ -97,8 +101,8 @@ type Props = {
   mediaActive?: boolean;
 };
 
-// Above this, syntax highlighting and LSP are disabled: a multi-MB lezer
-// parse tree and a didOpen of that size cost far more than they give.
+// 超过此大小时禁用语法高亮与 LSP：多 MB 的 lezer 解析树和同等规模的
+// didOpen 带来的开销远大于收益。
 const SYNTAX_MAX_BYTES = 4 * 1024 * 1024;
 
 function formatBytes(n: number): string {
@@ -107,8 +111,8 @@ function formatBytes(n: number): string {
   return `${(n / 1024 / 1024).toFixed(1)} MB`;
 }
 
-// memo: EditorStack passes identity-stable props, so background editors
-// skip re-rendering entirely when App re-renders (terminal events, tab churn).
+// memo：EditorStack 传入的 props 引用稳定，因此 App 重渲染
+// （终端事件、标签页增删）时，后台编辑器可以完全跳过重渲染。
 export const EditorPane = memo(
   forwardRef<EditorPaneHandle, Props>(function EditorPane(props, ref) {
     const {
@@ -119,6 +123,7 @@ export const EditorPane = memo(
       onClose,
       mediaActive = true,
     } = props;
+    const { t } = useTranslation();
 
     const { doc, onChange, save, reload, adoptDiskText, openAnyway } =
       useDocument({
@@ -142,21 +147,9 @@ export const EditorPane = memo(
     useEffect(() => {
       let cancelled = false;
       const refresh = async () => {
-        const s = usePreferencesStore.getState();
-        const provider = s.autocompleteProvider;
-        if (
-          provider === "lmstudio" ||
-          provider === "mlx" ||
-          provider === "ollama"
-        ) {
+        const provider = usePreferencesStore.getState().autocompleteProvider;
+        if (!provider) {
           apiKeyRef.current = null;
-          return;
-        }
-        // OpenAI-compatible keys live in a per-endpoint keyring slot.
-        if (provider === "openai-compatible") {
-          const eid = endpointIdFromCompatModel(s.autocompleteModelId);
-          const k = eid ? await getCustomEndpointKey(eid) : null;
-          if (!cancelled) apiKeyRef.current = k;
           return;
         }
         const k = await getKey(provider);
@@ -182,9 +175,8 @@ export const EditorPane = memo(
         unsubPrefs();
       };
     }, []);
-    // Stabilize save + onSaved via refs so the extensions array never changes
-    // identity — a new identity makes @uiw/react-codemirror reconfigure the
-    // whole state, wiping the language compartment.
+    // 用 ref 固定 save / onSaved 的引用，避免 extensions 数组的引用变化——
+    // 引用一变，@uiw/react-codemirror 会重新配置整个状态，清空语言 compartment。
     const saveRef = useRef(save);
     saveRef.current = save;
     const onSavedRef = useRef(onSaved);
@@ -205,27 +197,24 @@ export const EditorPane = memo(
           try {
             res = await lspFormatDocument(view);
           } catch (e) {
-            toast.error("Language server format failed", {
+            toast.error(tModule("editor.format.lspFailed"), {
               description: String(e),
             });
           }
           if (res === "unsupported" && !warnedNoFormatRef.current) {
             warnedNoFormatRef.current = true;
-            toast.warning("Format on save skipped", {
-              description:
-                "The active language server has no formatter. Pick an external one in Settings (Ruff for Python, Prettier, rustfmt, ...).",
+            toast.warning(tModule("editor.format.skipped"), {
+              description: tModule("editor.format.noLspFormatter"),
             });
           }
         } else if (!warnedNoLspRef.current) {
           warnedNoLspRef.current = true;
-          toast.warning("Format on save skipped", {
-            description:
-              "No active language server for this file. Enable one in the statusbar, or pick an external formatter in Settings.",
+          toast.warning(tModule("editor.format.skipped"), {
+            description: tModule("editor.format.noLsp"),
           });
         }
       }
-      // Snapshot before save: edits typed during the formatter round-trip
-      // must not be clobbered by the disk read-back.
+      // 保存前先快照：格式化往返期间输入的修改不能被磁盘回读覆盖。
       const docAtSave = view?.state.doc;
       const saved = await saveRef.current();
       if (!saved) return;
@@ -236,7 +225,9 @@ export const EditorPane = memo(
           prefs.editorCustomFormatCommand,
         );
         if (error) {
-          toast.error(`${formatter} format failed`, { description: error });
+          toast.error(tModule("editor.format.failed", { formatter }), {
+            description: error,
+          });
         } else {
           const readBack = await readFileText(pathRef.current);
           if (readBack !== null && view && view.state.doc === docAtSave) {
@@ -321,8 +312,8 @@ export const EditorPane = memo(
 
     const extensions = useMemo(
       () => [
-        // basicSetup is added before user extensions by @uiw/react-codemirror,
-        // so we must elevate vim's precedence to win the keymap.
+        // @uiw/react-codemirror 会把 basicSetup 排在用户扩展之前，
+        // 因此必须提高 vim 的优先级才能让它的 keymap 生效。
         vimCompartment.of(
           usePreferencesStore.getState().vimMode ? Prec.highest(vim()) : [],
         ),
@@ -344,43 +335,17 @@ export const EditorPane = memo(
         languageCompartment.of([]),
         lspCompartment.of([]),
         diagnosticsReporter(() => pathRef.current),
-        // Before inlineCompletion so an open popup wins Tab over the ghost.
+        // 必须排在 inlineCompletion 之前，让已打开的补全弹窗优先接管 Tab。
         Prec.highest(keymap.of([{ key: "Tab", run: acceptCompletion }])),
         inlineCompletion({
           getPrefs: () => {
             const s = usePreferencesStore.getState();
-            const p = s.autocompleteProvider;
-            // autocompleteModelId holds the compat- id of the chosen endpoint.
-            const compatEp =
-              p === "openai-compatible"
-                ? s.customEndpoints.find(
-                    (e) =>
-                      e.id === endpointIdFromCompatModel(s.autocompleteModelId),
-                  )
-                : undefined;
-            const modelId =
-              p === "lmstudio"
-                ? s.lmstudioModelId
-                : p === "mlx"
-                  ? s.mlxModelId
-                  : p === "ollama"
-                    ? s.ollamaModelId
-                    : p === "openai-compatible"
-                      ? (compatEp?.modelId ?? "")
-                      : p === "openrouter"
-                        ? s.openrouterModelId
-                        : s.autocompleteModelId;
             return {
               enabled: s.autocompleteEnabled,
               trigger: s.autocompleteTrigger,
-              provider: p,
-              modelId,
+              provider: s.autocompleteProvider,
+              modelId: s.autocompleteModelId,
               apiKey: apiKeyRef.current,
-              lmstudioBaseURL: s.lmstudioBaseURL,
-              mlxBaseURL: s.mlxBaseURL,
-              ollamaBaseURL: s.ollamaBaseURL,
-              openaiCompatibleBaseURL:
-                compatEp?.baseURL ?? s.openaiCompatibleBaseURL,
             };
           },
           getPath: () => pathRef.current,
@@ -443,8 +408,8 @@ export const EditorPane = memo(
       [],
     );
 
-    // Warm the language chunk while the file is still being read; the
-    // ready-gated effect below then resolves from cache.
+    // 在文件仍在读取时预热语言 chunk；下方受 ready 门控的 effect
+    // 随后会直接从缓存解析。
     useEffect(() => {
       const resolvePath = overrideLanguage ? `dummy.${overrideLanguage}` : path;
       void resolveLanguage(resolvePath).catch(() => {});
@@ -485,18 +450,39 @@ export const EditorPane = memo(
       };
     }, [path, doc.status, overrideLanguage]);
 
+    const searchQueryRef = useRef<SearchQuery | null>(null);
     useImperativeHandle(
       ref,
       () => ({
-        setQuery: (q: string) => {
+        setQuery: (q: string, options?: SearchOptions) => {
           const view = cmRef.current?.view;
           if (!view) return;
+          const query = new SearchQuery({
+            search: q,
+            caseSensitive: options?.caseSensitive === true,
+            regexp: options?.regex === true,
+            wholeWord: options?.wholeWord === true,
+          });
+          searchQueryRef.current = query;
           view.dispatch({
-            effects: setSearchQuery.of(
-              new SearchQuery({ search: q, caseSensitive: false }),
-            ),
+            effects: setSearchQuery.of(query),
           });
           if (q) findNext(view);
+        },
+        matchCount: () => {
+          const view = cmRef.current?.view;
+          const query = searchQueryRef.current;
+          if (!view || !query || !query.search) return 0;
+          try {
+            let count = 0;
+            const cursor = query.getCursor(view.state.doc);
+            for (let next = cursor.next(); !next.done; next = cursor.next()) {
+              count += 1;
+            }
+            return count;
+          } catch {
+            return 0;
+          }
         },
         findNext: () => {
           const view = cmRef.current?.view;
@@ -507,6 +493,7 @@ export const EditorPane = memo(
           if (view) findPrevious(view);
         },
         clearQuery: () => {
+          searchQueryRef.current = null;
           const view = cmRef.current?.view;
           if (!view) return;
           view.dispatch({
@@ -564,7 +551,7 @@ export const EditorPane = memo(
     if (doc.status === "loading") {
       return (
         <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
-          Loading…
+          {t("editor.media.loading")}
         </div>
       );
     }
@@ -619,11 +606,15 @@ export const EditorPane = memo(
       return (
         <div className="flex h-full flex-col items-center justify-center gap-1 px-6 text-center">
           <div className="text-sm text-foreground">
-            {doc.status === "binary" ? "Binary file" : "File too large"}
+            {doc.status === "binary"
+              ? t("editor.media.binaryFile")
+              : t("editor.media.fileTooLarge")}
           </div>
           <div className="text-xs text-muted-foreground">
             {formatBytes(doc.size)} ·{" "}
-            {canForce ? "syntax features disabled" : "preview not supported"}
+            {canForce
+              ? t("editor.media.syntaxDisabled")
+              : t("editor.media.previewNotSupported")}
           </div>
           {canForce && (
             <button
@@ -631,7 +622,7 @@ export const EditorPane = memo(
               onClick={openAnyway}
               className="mt-2 rounded-md border border-border bg-muted/60 px-3 py-1 text-xs text-foreground hover:bg-accent"
             >
-              Open anyway
+              {t("editor.media.openAnyway")}
             </button>
           )}
         </div>

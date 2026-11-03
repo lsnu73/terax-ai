@@ -8,9 +8,11 @@ import {
 } from "@/components/ui/hover-card";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
+import { currentLocale } from "@/modules/i18n";
 import type { LanguageModelUsage } from "ai";
 import type { ComponentProps } from "react";
 import { createContext, useContext, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 
 const PERCENT_MAX = 100;
 const ICON_RADIUS = 10;
@@ -57,6 +59,7 @@ export const Context = ({
 };
 
 const ContextIcon = () => {
+  const { t } = useTranslation();
   const { usedTokens, maxTokens } = useContextValue();
   const circumference = 2 * Math.PI * ICON_RADIUS;
   const usedPercent = usedTokens / maxTokens;
@@ -64,7 +67,7 @@ const ContextIcon = () => {
 
   return (
     <svg
-      aria-label="Model context usage"
+      aria-label={t("aiElements.context.usageLabel")}
       height="20"
       role="img"
       style={{ color: "currentcolor" }}
@@ -102,7 +105,7 @@ export type ContextTriggerProps = ComponentProps<typeof Button>;
 export const ContextTrigger = ({ children, ...props }: ContextTriggerProps) => {
   const { usedTokens, maxTokens } = useContextValue();
   const usedPercent = usedTokens / maxTokens;
-  const renderedPercent = new Intl.NumberFormat("en-US", {
+  const renderedPercent = new Intl.NumberFormat(currentLocale(), {
     maximumFractionDigits: 1,
     style: "percent",
   }).format(usedPercent);
@@ -142,14 +145,14 @@ export const ContextContentHeader = ({
 }: ContextContentHeaderProps) => {
   const { usedTokens, maxTokens } = useContextValue();
   const usedPercent = usedTokens / maxTokens;
-  const displayPct = new Intl.NumberFormat("en-US", {
+  const displayPct = new Intl.NumberFormat(currentLocale(), {
     maximumFractionDigits: 1,
     style: "percent",
   }).format(usedPercent);
-  const used = new Intl.NumberFormat("en-US", {
+  const used = new Intl.NumberFormat(currentLocale(), {
     notation: "compact",
   }).format(usedTokens);
-  const total = new Intl.NumberFormat("en-US", {
+  const total = new Intl.NumberFormat(currentLocale(), {
     notation: "compact",
   }).format(maxTokens);
 
@@ -205,7 +208,9 @@ export const ContextContentFooter = ({
 const formatTokenCount = (tokens?: number) =>
   tokens === undefined
     ? "—"
-    : new Intl.NumberFormat("en-US", { notation: "compact" }).format(tokens);
+    : new Intl.NumberFormat(currentLocale(), { notation: "compact" }).format(
+        tokens
+      );
 
 const UsageRow = ({
   label,
@@ -228,6 +233,7 @@ export const ContextInputUsage = ({
   children,
   ...props
 }: ContextInputUsageProps) => {
+  const { t } = useTranslation();
   const { usage } = useContextValue();
   const inputTokens = usage?.inputTokens ?? 0;
 
@@ -239,7 +245,13 @@ export const ContextInputUsage = ({
     return null;
   }
 
-  return <UsageRow label="Input" tokens={inputTokens} {...props} />;
+  return (
+    <UsageRow
+      label={t("aiElements.context.input")}
+      tokens={inputTokens}
+      {...props}
+    />
+  );
 };
 
 export type ContextOutputUsageProps = ComponentProps<"div">;
@@ -248,6 +260,7 @@ export const ContextOutputUsage = ({
   children,
   ...props
 }: ContextOutputUsageProps) => {
+  const { t } = useTranslation();
   const { usage } = useContextValue();
   const outputTokens = usage?.outputTokens ?? 0;
 
@@ -259,7 +272,13 @@ export const ContextOutputUsage = ({
     return null;
   }
 
-  return <UsageRow label="Output" tokens={outputTokens} {...props} />;
+  return (
+    <UsageRow
+      label={t("aiElements.context.output")}
+      tokens={outputTokens}
+      {...props}
+    />
+  );
 };
 
 export type ContextReasoningUsageProps = ComponentProps<"div">;
@@ -268,6 +287,7 @@ export const ContextReasoningUsage = ({
   children,
   ...props
 }: ContextReasoningUsageProps) => {
+  const { t } = useTranslation();
   const { usage } = useContextValue();
   const reasoningTokens = usage?.reasoningTokens ?? 0;
 
@@ -279,7 +299,13 @@ export const ContextReasoningUsage = ({
     return null;
   }
 
-  return <UsageRow label="Reasoning" tokens={reasoningTokens} {...props} />;
+  return (
+    <UsageRow
+      label={t("aiElements.context.reasoning")}
+      tokens={reasoningTokens}
+      {...props}
+    />
+  );
 };
 
 export type ContextCacheUsageProps = ComponentProps<"div">;
@@ -288,6 +314,7 @@ export const ContextCacheUsage = ({
   children,
   ...props
 }: ContextCacheUsageProps) => {
+  const { t } = useTranslation();
   const { usage } = useContextValue();
   const cacheTokens = usage?.cachedInputTokens ?? 0;
 
@@ -299,5 +326,11 @@ export const ContextCacheUsage = ({
     return null;
   }
 
-  return <UsageRow label="Cache" tokens={cacheTokens} {...props} />;
+  return (
+    <UsageRow
+      label={t("aiElements.context.cache")}
+      tokens={cacheTokens}
+      {...props}
+    />
+  );
 };

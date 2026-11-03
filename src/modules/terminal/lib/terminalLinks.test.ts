@@ -4,7 +4,33 @@ const { openUrl } = vi.hoisted(() => ({ openUrl: vi.fn() }));
 
 vi.mock("@tauri-apps/plugin-opener", () => ({ openUrl }));
 
-import { createTerminalLinkHandler } from "./terminalLinks";
+import {
+  createTerminalLinkHandler,
+  linkModifierHeld,
+} from "./terminalLinks";
+
+describe("linkModifierHeld", () => {
+  it("accepts Ctrl or Cmd for the system browser", () => {
+    expect(
+      linkModifierHeld({ ctrlKey: true, metaKey: false, shiftKey: false }),
+    ).toBe(true);
+    expect(
+      linkModifierHeld({ ctrlKey: false, metaKey: true, shiftKey: false }),
+    ).toBe(true);
+  });
+
+  it("accepts Shift for the built-in preview", () => {
+    expect(
+      linkModifierHeld({ ctrlKey: false, metaKey: false, shiftKey: true }),
+    ).toBe(true);
+  });
+
+  it("ignores an unmodified click", () => {
+    expect(
+      linkModifierHeld({ ctrlKey: false, metaKey: false, shiftKey: false }),
+    ).toBe(false);
+  });
+});
 
 describe("createTerminalLinkHandler", () => {
   afterEach(() => {

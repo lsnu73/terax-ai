@@ -7,6 +7,8 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { buildSearchRegExp, type SearchOptions } from "@/lib/searchOptions";
+import { currentLocale, t as tModule } from "@/modules/i18n";
 import {
   native,
   type GitCommitFileChange,
@@ -32,6 +34,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
 import { GraphRail, MAX_VISIBLE_LANES, railWidth } from "./GraphRail";
 import {
   EMPTY_GRAPH_STATE,
@@ -66,8 +69,9 @@ type CommitFileDiffOpenInput = {
 };
 
 export type GitHistorySearchHandle = {
-  setQuery: (query: string) => void;
+  setQuery: (query: string, options?: SearchOptions) => void;
   clearQuery: () => void;
+  matchCount: () => number;
 };
 
 type Props = {
@@ -102,12 +106,12 @@ function normalizeError(error: unknown): string {
     const message = (error as { message?: unknown }).message;
     if (typeof message === "string") return message;
   }
-  return "Unknown error";
+  return tModule("gitHistory.unknownError");
 }
 
 function absoluteTime(secs: number): string {
   if (!secs) return "";
-  return new Date(secs * 1000).toLocaleString(undefined, {
+  return new Date(secs * 1000).toLocaleString(currentLocale(), {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -148,7 +152,7 @@ function compactDate(secs: number): string {
   const d = new Date(secs * 1000);
   const now = new Date();
   const sameYear = d.getFullYear() === now.getFullYear();
-  const month = d.toLocaleString(undefined, { month: "short" });
+  const month = d.toLocaleString(currentLocale(), { month: "short" });
   const day = String(d.getDate()).padStart(2, "0");
   if (sameYear) {
     const hh = String(d.getHours()).padStart(2, "0");
@@ -194,20 +198,28 @@ export function GitHistoryPane({
   onOpenCommitFile,
   onSearchHandle,
 }: Props) {
+  const { t } = useTranslation();
   const [commits, setCommits] = useState<GitLogEntry[]>([]);
   const [loadStatus, setLoadStatus] = useState<LoadStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const [endReached, setEndReached] = useState(false);
   const [searchInput, setSearchInput] = useState("");
+  const [searchOptions, setSearchOptions] = useState<SearchOptions>({});
   const deferredSearch = useDeferredValue(searchInput.trim());
+  const deferredOptions = useDeferredValue(searchOptions);
   // Require at least 2 characters before filtering to avoid noisy single-char
   // matches and pointless full-list scans on every keystroke.
   const activeSearch = deferredSearch.length >= 2 ? deferredSearch : "";
+  const filteredCountRef = useRef(0);
 
   useEffect(() => {
     onSearchHandle?.({
-      setQuery: (query: string) => setSearchInput(query),
+      setQuery: (query: string, options?: SearchOptions) => {
+        setSearchInput(query);
+        if (options) setSearchOptions(options);
+      },
       clearQuery: () => setSearchInput(""),
+      matchCount: () => filteredCountRef.current,
     });
     return () => onSearchHandle?.(null);
   }, [onSearchHandle]);
@@ -291,20 +303,19 @@ export function GitHistoryPane({
   const gridTemplate = GRID_TEMPLATE;
 
   const filtered = useMemo(() => {
-    const q = activeSearch.toLowerCase();
-    if (!q) return commits;
-    return commits.filter((c) => {
-      const subject = c.subject.toLowerCase();
-      const author = c.author.toLowerCase();
-      const email = c.authorEmail.toLowerCase();
-      return (
-        subject.includes(q) ||
-        author.includes(q) ||
-        email.includes(q) ||
-        c.shortSha.includes(q)
-      );
-    });
-  }, [commits, activeSearch]);
+    if (!activeSearch) return commits;
+    const re = buildSearchRegExp(activeSearch, deferredOptions);
+    // 无效表达式按无匹配处理，与终端/编辑器搜索行为一致。
+    if (!re) return [];
+    return commits.filter(
+      (c) =>
+        re.test(c.subject) ||
+        re.test(c.author) ||
+        re.test(c.authorEmail) ||
+        re.test(c.shortSha),
+    );
+  }, [commits, activeSearch, deferredOptions]);
+  filteredCountRef.current = activeSearch ? filtered.length : 0;
 
   const virtualizer = useVirtualizer({
     count: filtered.length,
@@ -511,26 +522,28 @@ export function GitHistoryPane({
           <CenterPlaceholder>
             <Spinner className="size-4" />
             <span className="text-[11.5px] text-muted-foreground">
-              Loading commits…
+              {t("gitHistory.loadingCommits")}
             </span>
           </CenterPlaceholder>
         ) : loadStatus === "error" && commits.length === 0 ? (
           <CenterPlaceholder>
             <div className="text-[13px] font-medium">
-              Could not load history
+              {t("gitHistory.loadFailed")}
             </div>
             <div className="max-w-md text-[11px] leading-relaxed text-muted-foreground">
-              {error ?? "Unknown error"}
+              {error ?? t("gitHistory.unknownError")}
             </div>
             <Button size="sm" onClick={handleRefresh}>
-              Retry
+              {t("gitHistory.retry")}
             </Button>
           </CenterPlaceholder>
         ) : commits.length === 0 ? (
           <CenterPlaceholder>
-            <div className="text-[13px] font-medium">No commits yet</div>
+            <div className="text-[13px] font-medium">
+              {t("gitHistory.noCommits")}
+            </div>
             <div className="max-w-md text-[11px] leading-relaxed text-muted-foreground">
-              This branch has no commits.
+              {t("gitHistory.noCommitsDescription")}
             </div>
           </CenterPlaceholder>
         ) : (
@@ -543,12 +556,12 @@ export function GitHistoryPane({
               }}
             >
               <div />
-              <div className="pl-px">SHA</div>
-              <div className="min-w-0">Subject</div>
+              <div className="pl-px">{t("gitHistory.header.sha")}</div>
+              <div className="min-w-0">{t("gitHistory.header.subject")}</div>
               <div />
-              <div className="ml-2">Author</div>
-              <div className="text-right">Date</div>
-              <div className="text-right">Changes</div>
+              <div className="ml-2">{t("gitHistory.header.author")}</div>
+              <div className="text-right">{t("gitHistory.header.date")}</div>
+              <div className="text-right">{t("gitHistory.header.changes")}</div>
             </div>
             <div
               ref={scrollRef}
@@ -594,24 +607,24 @@ export function GitHistoryPane({
               {loadStatus === "more" ? (
                 <div className="flex items-center justify-center gap-2 py-3 text-[11px] text-muted-foreground">
                   <Spinner className="size-3" />
-                  Loading more…
+                  {t("gitHistory.loadingMore")}
                 </div>
               ) : null}
               {endReached && !activeSearch ? (
                 <div className="py-3 text-center text-[10.5px] text-muted-foreground/65">
-                  End of history
+                  {t("gitHistory.endOfHistory")}
                 </div>
               ) : null}
               {loadStatus === "error" && commits.length > 0 ? (
                 <div className="flex items-center justify-center gap-2 py-3 text-[11px] text-destructive">
-                  {error ?? "Failed to load more"}
+                  {error ?? t("gitHistory.failedToLoadMore")}
                   <Button
                     size="xs"
                     variant="ghost"
                     className="h-6 cursor-pointer text-[11px]"
                     onClick={() => void loadMore()}
                   >
-                    Retry
+                    {t("gitHistory.retry")}
                   </Button>
                 </div>
               ) : null}
@@ -703,6 +716,7 @@ const CommitRow = memo(function CommitRow({
   gridTemplate,
   onClick,
 }: CommitRowProps) {
+  const { t } = useTranslation();
   const date = compactDate(commit.timestampSecs);
   const initials = authorInitials(commit.author);
   const totalStat = commit.insertions + commit.deletions;
@@ -740,7 +754,9 @@ const CommitRow = memo(function CommitRow({
         {commit.subject ? (
           highlight(commit.subject, query)
         ) : (
-          <span className="text-muted-foreground">(no subject)</span>
+          <span className="text-muted-foreground">
+            {t("gitHistory.noSubject")}
+          </span>
         )}
       </span>
       <span aria-hidden />
@@ -757,7 +773,9 @@ const CommitRow = memo(function CommitRow({
           {initials}
         </span>
         <span className="min-w-0 truncate">
-          {commit.author ? highlight(commit.author, query) : "Unknown"}
+          {commit.author
+            ? highlight(commit.author, query)
+            : t("gitHistory.unknownAuthor")}
         </span>
       </span>
       <span className="text-right font-mono text-[10.5px] tabular-nums text-muted-foreground/75">
@@ -767,7 +785,9 @@ const CommitRow = memo(function CommitRow({
         {commit.filesChanged > 0 ? (
           <span
             className="inline-flex items-center gap-1 text-muted-foreground/75"
-            title={`${commit.filesChanged} ${commit.filesChanged === 1 ? "file" : "files"} changed`}
+            title={t("gitHistory.filesChanged", {
+              count: commit.filesChanged,
+            })}
           >
             <HugeiconsIcon
               icon={File02Icon}
@@ -825,6 +845,7 @@ function CommitDetail({
   onOpenFile,
   onRetryFiles,
 }: CommitDetailProps) {
+  const { t } = useTranslation();
   const absolute = absoluteTime(commit.timestampSecs);
   const webUrl = remoteWeb ? commitWebUrl(remoteWeb, commit.sha) : null;
   const [copied, setCopied] = useState(false);
@@ -844,12 +865,16 @@ function CommitDetail({
           </span>
           <div className="min-w-0 flex-1 text-[12.5px] font-semibold leading-snug text-foreground">
             {commit.subject || (
-              <span className="text-muted-foreground">(no subject)</span>
+              <span className="text-muted-foreground">
+                {t("gitHistory.noSubject")}
+              </span>
             )}
           </div>
         </div>
         <div className="mt-2 flex min-w-0 items-center gap-1.5 text-[10.5px] text-muted-foreground">
-          <span className="truncate">{commit.author || "Unknown"}</span>
+          <span className="truncate">
+            {commit.author || t("gitHistory.unknownAuthor")}
+          </span>
           {commit.authorEmail ? (
             <>
               <span className="text-muted-foreground/45">·</span>
@@ -873,7 +898,7 @@ function CommitDetail({
             }}
           >
             <HugeiconsIcon icon={Copy01Icon} size={11} strokeWidth={1.9} />
-            {copied ? "Copied" : "Copy SHA"}
+            {copied ? t("gitHistory.copied") : t("gitHistory.copySha")}
           </Button>
           {webUrl ? (
             <Button
@@ -919,11 +944,12 @@ function CommitFiles({
   ) => Promise<void> | void;
   onRetry: () => void;
 }) {
+  const { t } = useTranslation();
   if (!filesEntry || filesEntry.state === "loading") {
     return (
       <div className="flex items-center gap-2 px-3 py-3 text-[11px] text-muted-foreground">
         <Spinner className="size-3" />
-        Loading files…
+        {t("gitHistory.loadingFiles")}
       </div>
     );
   }
@@ -937,7 +963,7 @@ function CommitFiles({
           className="h-6 cursor-pointer text-[11px]"
           onClick={onRetry}
         >
-          Retry
+          {t("gitHistory.retry")}
         </Button>
       </div>
     );
@@ -945,14 +971,14 @@ function CommitFiles({
   if (filesEntry.files.length === 0) {
     return (
       <div className="px-3 py-3 text-[11px] text-muted-foreground">
-        No file changes.
+        {t("gitHistory.noFileChanges")}
       </div>
     );
   }
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex shrink-0 items-center justify-between px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/85">
-        <span>Files</span>
+        <span>{t("gitHistory.files")}</span>
         <span className="rounded-sm bg-muted/55 px-1 py-px text-[9.5px] tabular-nums text-muted-foreground/85 normal-case tracking-normal">
           {filesEntry.files.length}
         </span>
@@ -980,6 +1006,7 @@ const FileRow = memo(function FileRow({
   file: GitCommitFileChange;
   onOpen: () => void;
 }) {
+  const { t } = useTranslation();
   const fileName = basename(file.path);
   const dir = dirname(file.path);
   return (
@@ -1001,7 +1028,9 @@ const FileRow = memo(function FileRow({
       </div>
       <div className="flex shrink-0 items-center gap-1 text-[10px] tabular-nums">
         {file.isBinary ? (
-          <span className="text-muted-foreground/70">binary</span>
+          <span className="text-muted-foreground/70">
+            {t("gitHistory.binary")}
+          </span>
         ) : (
           <>
             {file.added > 0 ? (

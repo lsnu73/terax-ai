@@ -1,3 +1,4 @@
+import { t } from "@/modules/i18n";
 import { shortcutLabel } from "@/modules/shortcuts";
 import { toast } from "sonner";
 import { AgentIcon } from "../lib/agentIcon";
@@ -9,7 +10,12 @@ type AgentToastArgs = {
   onActivate: () => void;
 };
 
-export function showAgentToast({ agent, title, body, onActivate }: AgentToastArgs) {
+export function showAgentToast({
+  agent,
+  title,
+  body,
+  onActivate,
+}: AgentToastArgs) {
   const hint = shortcutLabel("agent.focusAttention");
   toast(title, {
     description: hint ? (
@@ -23,7 +29,7 @@ export function showAgentToast({ agent, title, body, onActivate }: AgentToastArg
       body
     ),
     icon: <AgentIcon agent={agent} size={18} />,
-    action: { label: "Open", onClick: onActivate },
+    action: { label: t("agents.toast.open"), onClick: onActivate },
     duration: 6000,
   });
 }

@@ -1,7 +1,8 @@
 import type { UIMessage } from "@ai-sdk/react";
 import { invoke } from "@tauri-apps/api/core";
 import { LazyStore } from "@tauri-apps/plugin-store";
-import { toast } from "sonner";
+import { runtimeToast as toast } from "@/modules/agents/lib/runtimeNotifications";
+import { t } from "@/modules/i18n";
 
 export type SessionMeta = {
   id: string;
@@ -119,9 +120,9 @@ function migrateMessages(): Promise<void> {
       console.warn("Could not finalize the chat history migration:", error);
     }
     if (failed.length > 0) {
-      toast.warning("Some chat history could not be migrated", {
+      toast.warning(t("ai.sessions.migrationFailed"), {
         id: "conversation-migration",
-        description: `${failed.length} conversation${failed.length === 1 ? "" : "s"} will be retried next launch.`,
+        description: t("ai.sessions.migrationRetry", { count: failed.length }),
       });
     }
   })().catch((error) => {
@@ -161,12 +162,12 @@ async function execute(id: string, op: WriteOp): Promise<void> {
 
 function reportFailure(id: string, error: unknown) {
   notices.add(id);
-  toast.error("Could not save conversation", {
+  toast.error(t("ai.sessions.saveFailed"), {
     id: `conversation-save:${id}`,
     duration: Number.POSITIVE_INFINITY,
     description: String(error),
     action: {
-      label: "Retry",
+      label: t("ai.sessions.retry"),
       onClick: () => {
         const latest = failedWrites.get(id);
         if (latest && !pendingWrites.has(id)) {
@@ -241,9 +242,9 @@ export async function loadMessages(id: string): Promise<UIMessage[] | null> {
     });
   } catch (error) {
     if (!String(error).includes("corrupt:")) throw error;
-    toast.error("A conversation file was damaged", {
+    toast.error(t("ai.sessions.damaged"), {
       id: `conversation-damaged:${id}`,
-      description: "It was set aside and the conversation starts empty.",
+      description: t("ai.sessions.damagedBody"),
     });
     return null;
   }

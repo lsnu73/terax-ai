@@ -61,10 +61,6 @@ export class GhosttyBlocks {
     return this.integrated && !this.blockInputDisabled ? this.phase : "plain";
   }
 
-  get hasAnyBlock(): boolean {
-    return this.entries.length > 0;
-  }
-
   /**
    * Bumps whenever the set of blocks or any block's metadata can have changed
    * (start, finish, clear). Lets callers skip `visibleBlocks` while it, the
@@ -105,10 +101,14 @@ export class GhosttyBlocks {
       this.phase = "running";
       if (!event.marker) return;
       if (this.live) this.finish(event.marker, null);
-      const command =
-        this.pendingCommand ||
-        decodeBlockCommand(event.command ?? "").slice(0, 8192);
-      const canRerun = !!this.pendingCommand && this.pendingCommandComplete;
+      const raw = event.command ?? "";
+      const oscCommand = decodeBlockCommand(raw);
+      const command = this.pendingCommand || oscCommand.slice(0, 8192);
+      // Shell-reported commands are truncated at 256 characters by the
+      // integration scripts; only a payload below that cap is safe to rerun.
+      const canRerun = this.pendingCommand
+        ? this.pendingCommandComplete
+        : !!oscCommand && raw.length < 256;
       this.pendingCommand = "";
       this.pendingCommandComplete = false;
       this.live = {
@@ -258,6 +258,38 @@ export class GhosttyBlocks {
     return { blocks, sticky, generation: this.clearGeneration };
   }
 
+  blockAtLine(line: number, cellHeight: number): PositionedBlock | null {
+    if (this.mode === "alt" || this.mode === "plain" || cellHeight <= 0)
+      return null;
+    const viewport = this.model.viewportOriginLine();
+    for (let index = this.entries.length - 1; index >= 0; index--) {
+      const entry = this.entries[index];
+      const range = this.range(entry);
+      if (!range) continue;
+      const running = entry.end === null;
+      // Both bounds reach past the block edges: the rows above cover the
+      // command line and the header gap, the row below covers the divider.
+      const firstLine = Math.max(0, range.start - 2);
+      const lastLine = running ? range.end : range.end + 1;
+      if (line < firstLine || line > lastLine) continue;
+      return {
+        id: entry.id,
+        command: entry.command,
+        canRerun: entry.canRerun,
+        cwd: entry.cwd,
+        exitCode: entry.exitCode,
+        running,
+        ok: entry.exitCode === null || entry.exitCode === 0,
+        startedAt: entry.startedAt,
+        finishedAt: entry.finishedAt,
+        top: (range.start - viewport) * cellHeight,
+        bottom: (range.end - viewport + 2) * cellHeight,
+        headerTop: (range.start - viewport - 1.9) * cellHeight,
+      };
+    }
+    return null;
+  }
+
   selectAtLine(line: number): boolean {
     if (this.mode === "alt" || this.model.modes().mouseTracking) return false;
     for (let index = this.entries.length - 1; index >= 0; index--) {
@@ -314,6 +346,7 @@ export class GhosttyBlocks {
     id: string,
     query: string,
     signal?: AbortSignal,
+    options?: { regex?: boolean },
   ): Promise<BlockMatch[]> {
     const entry = this.entries.find((entry) => entry.id === id);
     const range = entry && this.range(entry);
@@ -328,6 +361,14 @@ export class GhosttyBlocks {
       return [];
     const generation = this.clearGeneration;
     const cols = this.model.cols;
+    let expression: RegExp | null = null;
+    if (options?.regex) {
+      try {
+        expression = new RegExp(query, "gi");
+      } catch {
+        return [];
+      }
+    }
     const matches: BlockMatch[] = [];
     let sliceStart = performance.now();
     for (
@@ -362,7 +403,11 @@ export class GhosttyBlocks {
         )
           return [];
       }
-      for (const match of matchCellText(this.model.readCellLine(line), query)) {
+      const cells = this.model.readCellLine(line);
+      const lineMatches = expression
+        ? matchCellRegex(cells, expression)
+        : matchCellText(cells, query);
+      for (const match of lineMatches) {
         if (line === range.start && match.col < range.startCol) continue;
         if (line === range.end && match.col + match.len > range.endCol + 1)
           continue;
@@ -427,6 +472,33 @@ export function matchCellText(
     if (end < cells.length && cells[end] === "") end++;
     result.push({ col, len: end - col });
     from = index + needle.length;
+  }
+  return result;
+}
+
+function matchCellRegex(
+  cells: readonly string[],
+  expression: RegExp,
+): { col: number; len: number }[] {
+  let text = "";
+  const columns: number[] = [];
+  for (let col = 0; col < cells.length; col++) {
+    for (let i = 0; i < cells[col].length; i++) columns.push(col);
+    text += cells[col];
+  }
+  const result: { col: number; len: number }[] = [];
+  expression.lastIndex = 0;
+  while (result.length < 500) {
+    const match = expression.exec(text);
+    if (match === null) break;
+    if (!match[0].length) {
+      expression.lastIndex++;
+      continue;
+    }
+    const col = columns[match.index];
+    let end = columns[match.index + match[0].length - 1] + 1;
+    if (end < cells.length && cells[end] === "") end++;
+    result.push({ col, len: end - col });
   }
   return result;
 }

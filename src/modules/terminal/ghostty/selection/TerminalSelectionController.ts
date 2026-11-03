@@ -40,6 +40,12 @@ export class TerminalSelectionController {
   private lastClientY = 0;
   private autoScrollFrame: number | null = null;
   private disposed = false;
+  // pointerdown 的 detail 在部分 WebView 中恒为 0，多击（双击选词/三击选行）
+  // 只能靠自己按“间隔短、位置相邻”追踪；event.detail 只作下限参考。
+  private clickCount = 0;
+  private lastClickAt = 0;
+  private lastClickLine = -1;
+  private lastClickColumn = -1;
 
   constructor(private readonly options: TerminalSelectionControllerOptions) {
     this.selection = options.model.trackedSelection?.() ?? null;
@@ -153,8 +159,8 @@ export class TerminalSelectionController {
     this.lastClientY = event.clientY;
 
     const existingAnchor = event.shiftKey ? this.selection?.anchor : undefined;
-    this.mode =
-      event.detail >= 3 ? "line" : event.detail === 2 ? "word" : "character";
+    const clicks = this.trackClick(point, event.detail);
+    this.mode = clicks >= 3 ? "line" : clicks === 2 ? "word" : "character";
     const anchor = existingAnchor ?? point;
     this.anchorRange = this.rangeForPoint(anchor, this.mode);
     const focusRange = this.rangeForPoint(point, this.mode);
@@ -217,11 +223,27 @@ export class TerminalSelectionController {
     this.options.onChange();
   }
 
+  private trackClick(point: TerminalBufferPoint, detail: number): number {
+    const now = performance.now();
+    if (
+      now - this.lastClickAt <= 500 &&
+      point.line === this.lastClickLine &&
+      Math.abs(point.column - this.lastClickColumn) <= 1
+    ) {
+      this.clickCount = Math.min(this.clickCount + 1, 3);
+    } else {
+      this.clickCount = 1;
+    }
+    this.lastClickAt = now;
+    this.lastClickLine = point.line;
+    this.lastClickColumn = point.column;
+    return Math.max(this.clickCount, detail);
+  }
+
   private rangeForPoint(
     point: TerminalBufferPoint,
     mode: SelectionMode,
-  ): { readonly start: number; readonly end: number } {
-    if (mode === "word") return this.options.model.wordRangeAt(point);
+  ): { readonly start: number; readonly end: number } {    if (mode === "word") return this.options.model.wordRangeAt(point);
     if (mode === "line") {
       return {
         start: 0,
@@ -315,7 +337,12 @@ export class TerminalSelectionController {
 export function shouldStartTerminalSelection(
   event: Pick<
     PointerEvent,
-    "button" | "defaultPrevented" | "shiftKey" | "target"
+    | "button"
+    | "defaultPrevented"
+    | "shiftKey"
+    | "ctrlKey"
+    | "metaKey"
+    | "target"
   >,
   shouldIgnoreTarget: (target: EventTarget | null) => boolean,
   mouseTracking: boolean,
@@ -323,6 +350,9 @@ export function shouldStartTerminalSelection(
   return (
     !event.defaultPrevented &&
     event.button === 0 &&
+    // Ctrl/Cmd 留给链接点击（见各 Surface 的 handleLinkPointer*），不触发选区
+    !event.ctrlKey &&
+    !event.metaKey &&
     !shouldIgnoreTarget(event.target) &&
     (!mouseTracking || event.shiftKey)
   );

@@ -1,4 +1,5 @@
 import { isMarkdownPath } from "@/lib/utils";
+import type { SettingsTab as SettingsTabSection } from "@/modules/settings/openSettings";
 import {
   type AgentInstanceCount,
   createAgentPanePlan,
@@ -43,7 +44,6 @@ export type TerminalTab = TabBase & {
   cwd?: string;
   paneTree: PaneNode;
   activeLeafId: number;
-  blocks?: boolean;
   /** AI agent cannot read buffer / context of this terminal. */
   private?: boolean;
   /** User-set label that overrides the cwd-derived name. Survives cd. */
@@ -125,6 +125,14 @@ export type GitCommitFileDiffTab = TabBase & {
   originalPath: string | null;
 };
 
+export type SettingsTabState = TabBase & {
+  id: number;
+  kind: "settings";
+  title: string;
+  /** 最近一次打开设置时指定的分区；面板内部切换会同步回来。 */
+  section: SettingsTabSection;
+};
+
 export type Tab =
   | TerminalTab
   | EditorTab
@@ -133,7 +141,8 @@ export type Tab =
   | AiDiffTab
   | GitDiffTab
   | GitHistoryTab
-  | GitCommitFileDiffTab;
+  | GitCommitFileDiffTab
+  | SettingsTabState;
 
 export type TabPatch = Partial<{
   title: string;
@@ -594,6 +603,9 @@ export function useTabs(initial?: Partial<TerminalTab>) {
   const activeSpaceIdRef = useRef(DEFAULT_SPACE_ID);
   const tabsRef = useRef(tabs);
   const activeIdRef = useRef(activeId);
+  const splitHistoryRef = useRef<
+    Map<number, { newLeafId: number; previousActiveLeafId: number }[]>
+  >(new Map());
 
   useLayoutEffect(() => {
     tabsRef.current = tabs;
@@ -623,6 +635,7 @@ export function useTabs(initial?: Partial<TerminalTab>) {
 
   const replaceTabs = useCallback((next: Tab[], nextActiveId: number) => {
     if (next.length === 0) return;
+    splitHistoryRef.current.clear();
     tabsRef.current = next;
     activeIdRef.current = nextActiveId;
     setTabs(next);
@@ -720,6 +733,10 @@ export function useTabs(initial?: Partial<TerminalTab>) {
         );
         if (!plan) return curr;
         toDispose = plan.disposeLeafIds;
+        const remainingTabIds = new Set(plan.tabs.map((t) => t.id));
+        for (const tabId of splitHistoryRef.current.keys()) {
+          if (!remainingTabIds.has(tabId)) splitHistoryRef.current.delete(tabId);
+        }
         setActiveId(plan.activeId);
         return plan.tabs;
       });
@@ -746,33 +763,6 @@ export function useTabs(initial?: Partial<TerminalTab>) {
     setActiveId(tabId);
     return tabId;
   }, []);
-
-  const newBlockTab = useCallback((cwd?: string) => {
-    const tabId = nextIdRef.current++;
-    const leafId = nextIdRef.current++;
-    setTabs((t) => [
-      ...t,
-      {
-        id: tabId,
-        kind: "terminal",
-        spaceId: activeSpaceIdRef.current,
-        title: "blocks",
-        cwd,
-        paneTree: { kind: "leaf", id: leafId, cwd },
-        activeLeafId: leafId,
-        blocks: true,
-      },
-    ]);
-    setActiveId(tabId);
-    return tabId;
-  }, []);
-
-  useEffect(() => {
-    if (!import.meta.env?.DEV || typeof window === "undefined") return;
-    (
-      window as unknown as { __teraxNewBlockTab?: (cwd?: string) => number }
-    ).__teraxNewBlockTab = newBlockTab;
-  }, [newBlockTab]);
 
   const newAgentGroupTab = useCallback(
     (cwd: string | undefined, title: string, instances: AgentInstanceCount) => {
@@ -1130,6 +1120,53 @@ export function useTabs(initial?: Partial<TerminalTab>) {
     [],
   );
 
+  // 设置页是全局单例 tab：已存在时只激活并按需切换分区，不重复开。
+  const openSettingsTab = useCallback((section?: SettingsTabSection) => {
+    const curr = tabsRef.current;
+    const existing = curr.find((t) => t.kind === "settings");
+    if (existing) {
+      const nextTabs = section
+        ? curr.map((t) =>
+            t.kind === "settings" && t.id === existing.id
+              ? { ...t, section }
+              : t,
+          )
+        : curr;
+      if (nextTabs !== curr) {
+        tabsRef.current = nextTabs;
+        setTabs(nextTabs);
+      }
+      setActiveId(existing.id);
+      return existing.id;
+    }
+    const id = nextIdRef.current++;
+    const nextTabs: Tab[] = [
+      ...curr,
+      {
+        id,
+        kind: "settings",
+        spaceId: activeSpaceIdRef.current,
+        title: "Settings",
+        section: section ?? "general",
+      },
+    ];
+    tabsRef.current = nextTabs;
+    setTabs(nextTabs);
+    setActiveId(id);
+    return id;
+  }, []);
+
+  const setSettingsSection = useCallback(
+    (id: number, section: SettingsTabSection) => {
+      setTabs((curr) =>
+        curr.map((t) =>
+          t.kind === "settings" && t.id === id ? { ...t, section } : t,
+        ),
+      );
+    },
+    [],
+  );
+
   const closeTab = useCallback((id: number) => {
     let toDispose: number[] = [];
     setTabs((curr) => {
@@ -1143,6 +1180,7 @@ export function useTabs(initial?: Partial<TerminalTab>) {
       setActiveId((active) => (id === active ? fallback : active));
       return next;
     });
+    if (toDispose.length > 0) splitHistoryRef.current.delete(id);
     for (const lid of toDispose) disposeSession(lid);
   }, []);
 
@@ -1154,6 +1192,7 @@ export function useTabs(initial?: Partial<TerminalTab>) {
       activeIdRef.current = result.nextActiveId;
       setTabs(result.tabs);
       setActiveId(result.nextActiveId);
+      for (const tabId of result.closeIds) splitHistoryRef.current.delete(tabId);
       for (const leafId of result.disposeLeafIds) disposeSession(leafId);
       return result.closeIds;
     },
@@ -1279,6 +1318,7 @@ export function useTabs(initial?: Partial<TerminalTab>) {
             direction,
             bounds,
           );
+          if (paneTree !== t.paneTree) splitHistoryRef.current.delete(tabId);
           return paneTree === t.paneTree ? t : { ...t, paneTree };
         }),
       );
@@ -1292,7 +1332,7 @@ export function useTabs(initial?: Partial<TerminalTab>) {
       let newLeafId: number | null = null;
       setTabs((curr) =>
         curr.map((t) => {
-          if (t.id !== tabId || t.kind !== "terminal" || t.blocks) return t;
+          if (t.id !== tabId || t.kind !== "terminal") return t;
           if (leafIds(t.paneTree).length >= MAX_PANES_PER_TAB) return t;
           const splitId = nextIdRef.current++;
           const leafId = nextIdRef.current++;
@@ -1305,6 +1345,14 @@ export function useTabs(initial?: Partial<TerminalTab>) {
             dir,
             t.cwd,
           );
+          const history = splitHistoryRef.current.get(tabId) ?? [];
+          splitHistoryRef.current.set(tabId, [
+            ...history,
+            {
+              newLeafId: leafId,
+              previousActiveLeafId: t.activeLeafId,
+            },
+          ]);
           return { ...t, paneTree, activeLeafId: leafId };
         }),
       );
@@ -1313,13 +1361,46 @@ export function useTabs(initial?: Partial<TerminalTab>) {
     [],
   );
 
+  const undoLastSplit = useCallback((tabId: number): boolean => {
+    const history = splitHistoryRef.current.get(tabId);
+    const lastSplit = history?.[history.length - 1];
+    if (!history || !lastSplit) return false;
+    if (history.length === 1) splitHistoryRef.current.delete(tabId);
+    else splitHistoryRef.current.set(tabId, history.slice(0, -1));
+    let removedLeaf: number | null = null;
+    setTabs((curr) =>
+      curr.map((t) => {
+        if (t.id !== tabId || t.kind !== "terminal") return t;
+        if (
+          !hasLeaf(t.paneTree, lastSplit.newLeafId) ||
+          !hasLeaf(t.paneTree, lastSplit.previousActiveLeafId)
+        ) {
+          return t;
+        }
+        const paneTree = removeLeaf(t.paneTree, lastSplit.newLeafId);
+        if (!paneTree) return t;
+        removedLeaf = lastSplit.newLeafId;
+        return {
+          ...t,
+          paneTree,
+          activeLeafId: lastSplit.previousActiveLeafId,
+          cwd: findLeafCwd(paneTree, lastSplit.previousActiveLeafId),
+        };
+      }),
+    );
+    if (removedLeaf !== null) disposeSession(removedLeaf);
+    return removedLeaf !== null;
+  }, []);
+
   const closePaneByLeaf = useCallback((leafId: number): void => {
     let didRemove = false;
+    let closedTabId: number | null = null;
     setTabs((curr) => {
       const tab = curr.find(
         (t) => t.kind === "terminal" && hasLeaf(t.paneTree, leafId),
       );
       if (tab?.kind !== "terminal") return curr;
+      closedTabId = tab.id;
       const newTree = removeLeaf(tab.paneTree, leafId);
       if (newTree === null) {
         const fallback = nextActiveInSpace(curr, tab.id);
@@ -1342,7 +1423,10 @@ export function useTabs(initial?: Partial<TerminalTab>) {
           : x,
       );
     });
-    if (didRemove) disposeSession(leafId);
+    if (didRemove) {
+      if (closedTabId !== null) splitHistoryRef.current.delete(closedTabId);
+      disposeSession(leafId);
+    }
   }, []);
 
   const closeActivePane = useCallback((tabId: number): boolean => {
@@ -1372,11 +1456,15 @@ export function useTabs(initial?: Partial<TerminalTab>) {
           : x,
       );
     });
-    if (removedLeaf !== null) disposeSession(removedLeaf);
+    if (removedLeaf !== null) {
+      splitHistoryRef.current.delete(tabId);
+      disposeSession(removedLeaf);
+    }
     return closedTab;
   }, []);
 
   const resetWorkspace = useCallback((cwd?: string) => {
+    splitHistoryRef.current.clear();
     const tabId = nextIdRef.current++;
     const leafId = nextIdRef.current++;
     let toDispose: number[] = [];
@@ -1420,7 +1508,6 @@ export function useTabs(initial?: Partial<TerminalTab>) {
     setActiveSpaceForNewTabs,
     setOverrideLanguage,
     newTab,
-    newBlockTab,
     newAgentTab,
     newAgentGroupTab,
     newPrivateTab,
@@ -1433,6 +1520,8 @@ export function useTabs(initial?: Partial<TerminalTab>) {
     openGitDiffTab,
     openCommitHistoryTab,
     openCommitFileDiffTab,
+    openSettingsTab,
+    setSettingsSection,
     setAiDiffStatus,
     closeAiDiffTab,
     closeTab,
@@ -1444,6 +1533,7 @@ export function useTabs(initial?: Partial<TerminalTab>) {
     focusNextPaneInTab,
     swapActivePaneInDirection,
     splitActivePane,
+    undoLastSplit,
     closeActivePane,
     closePaneByLeaf,
     resetWorkspace,

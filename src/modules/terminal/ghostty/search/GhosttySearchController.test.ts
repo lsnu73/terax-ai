@@ -230,4 +230,44 @@ describe("GhosttySearchController", () => {
     expect(cancel).toHaveBeenCalledWith(42);
     expect(model.clearSearch).toHaveBeenCalledOnce();
   });
+
+  describe("custom engine (regex / case / whole word)", () => {
+    function makeModel(lines: string[]) {
+      return {
+        cols: 20,
+        rows: lines.length,
+        readCellLine: (l: number) => (lines[l] ?? "").split(""),
+        scrollPosition: () => ({ offset: 0, history: 0 }),
+        viewportOriginLine: () => 0,
+        scrollTo: vi.fn(),
+        clearSearch: vi.fn(),
+      } as unknown as GhosttyTerminalModelApi;
+    }
+
+    it("regex search finds matches and selects the first", () => {
+      const c = new GhosttySearchController(
+        makeModel(["hello world"]),
+        vi.fn(),
+      );
+      expect(c.findNext("w.rld", { regex: true })).toBe(true);
+      expect(c.matchAt(0, 6)).toBe(2);
+      expect(c.matchAt(0, 7)).toBe(2);
+      expect(c.matchAt(0, 0)).toBe(0);
+      expect(c.matchStats()).toEqual({ total: 1, selected: 0 });
+    });
+
+    it("whole word excludes substrings; case sensitive respects case", () => {
+      const c = new GhosttySearchController(
+        makeModel(["Foo food foo"]),
+        vi.fn(),
+      );
+      expect(c.findNext("foo", { wholeWord: true })).toBe(true);
+      // Case-insensitive whole-word matches hit Foo and foo, but not food.
+      expect(c.matchStats()?.total).toBe(2);
+      expect(c.matchAt(0, 4)).toBe(0);
+      expect(c.findNext("Foo", { caseSensitive: true })).toBe(true);
+      expect(c.matchAt(0, 0)).toBe(2);
+      expect(c.matchStats()?.total).toBe(1);
+    });
+  });
 });

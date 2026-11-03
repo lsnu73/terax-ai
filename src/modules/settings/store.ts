@@ -1,35 +1,43 @@
-import {
-  type AutocompleteProviderId,
-  type CustomEndpoint,
-  DEFAULT_AUTOCOMPLETE_MODEL,
-  DEFAULT_MODEL_ID,
-  DEFAULT_STT_PROVIDER,
-  isKnownModelId,
-  LMSTUDIO_DEFAULT_BASE_URL,
-  MLX_DEFAULT_BASE_URL,
-  type ModelId,
-  migrateLegacyCompatEndpoint,
-  OLLAMA_DEFAULT_BASE_URL,
-  OPENAI_COMPATIBLE_DEFAULT_BASE_URL,
-  type SttProvider,
-  WHISPERCPP_DEFAULT_BASE_URL,
-} from "@/modules/ai/config";
+import type { AutocompleteProviderId } from "@/modules/ai/config";
 import {
   type AgentLaunchCommands,
   DEFAULT_AGENT_LAUNCH_COMMANDS,
   normalizeAgentLaunchCommands,
 } from "@/modules/agents/lib/launcher";
+import {
+  DEFAULT_PREVIEW_PORT_PRESETS,
+  normalizePreviewPortPresets,
+  type PreviewPortPreset,
+} from "@/modules/preview/lib/portPresets";
 import type { KeyBinding, ShortcutId } from "@/modules/shortcuts/shortcuts";
+import {
+  PATH_HISTORY_LIMIT_DEFAULT,
+  PATH_HISTORY_LIMIT_MAX,
+  PATH_HISTORY_LIMIT_MIN,
+} from "@/modules/terminal/lib/pathHistory";
 import { emit, listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { LazyStore } from "@tauri-apps/plugin-store";
 
 export type ThemePref = "system" | "light" | "dark";
+
+/** UI 语言。"system" 跟随操作系统语言（zh-* → 中文，其余 → 英文）。 */
+export type LanguagePref = "system" | "en" | "zh";
 
 export const DEFAULT_THEME_ID = "terax-default";
 
 export type BackgroundKind = "none" | "image";
 
 export type TerminalCursorStyle = "bar" | "block" | "underline";
+export type NotificationDisplayMode = "toast" | "badge";
+
+export function coerceNotificationDisplayMode(
+  value: unknown,
+): NotificationDisplayMode {
+  return value === "badge" ? "badge" : "toast";
+}
+
+/** AI 工具调用（命令/文件编辑等）的审批模式。 */
+export type AiApprovalMode = "review" | "auto";
 
 export const EDITOR_THEMES = [
   "kanagawa",
@@ -58,7 +66,7 @@ export const EDITOR_THEMES = [
 
 export type EditorThemeId = (typeof EDITOR_THEMES)[number];
 
-/** "auto" follows the active app theme's editorTheme pairing (resolved live). */
+/** "auto" 跟随当前应用主题的 editorTheme 配对（运行时解析）。 */
 export const EDITOR_THEME_AUTO = "auto" as const;
 export type EditorThemePref = typeof EDITOR_THEME_AUTO | EditorThemeId;
 
@@ -118,15 +126,19 @@ export const EDITOR_THEME_LABELS: Record<EditorThemeId, string> = {
   "xcode-light": "Xcode Light",
 };
 
+// 【导览 9】非密钥配置的持久化。这里没有任何 apiKey 字段 —— 密钥全在钥匙串。
+// 模型相关的配置本身不在这个文件里：providers / models / 请求参数都在
+// terax-ai-models.json（src/modules/ai/config/persist.ts）。
+// 这里只保存 UI 选择：补全模型、每个模型上次的思考档位。
 export type Preferences = {
   theme: ThemePref;
   themeId: string;
+  language: LanguagePref;
   backgroundKind: BackgroundKind;
   backgroundImageId: string | null;
   backgroundOpacity: number;
   backgroundBlur: number;
   windowVibrancy: boolean;
-  defaultModelId: ModelId;
   editorTheme: EditorThemePref;
   editorFontSize: number;
   customInstructions: string;
@@ -136,22 +148,14 @@ export type Preferences = {
   autocompleteTrigger: AutocompleteTrigger;
   autocompleteProvider: AutocompleteProviderId;
   autocompleteModelId: string;
-  lmstudioBaseURL: string;
-  lmstudioModelId: string;
-  mlxBaseURL: string;
-  mlxModelId: string;
-  ollamaBaseURL: string;
-  ollamaModelId: string;
-  openaiCompatibleBaseURL: string;
-  openaiCompatibleModelId: string;
-  openaiCompatibleContextLimit: number;
-  customEndpoints: CustomEndpoint[];
-  openrouterModelId: string;
-  sttProvider: SttProvider;
-  groqSttModel: string;
-  whispercppBaseURL: string;
+  /** 每个模型的思考强度滑块位置（档位 id）。缺省时使用模型默认档位。 */
+  effortLevelByModel: Record<string, string>;
   favoriteModelIds: string[];
   recentModelIds: string[];
+  /** 终端目录历史（最近离开过的工作目录，最新在前）。 */
+  pathHistory: string[];
+  /** 历史保留条数。 */
+  pathHistoryLimit: number;
   vimMode: boolean;
   editorWordWrap: boolean;
   editorWordWrapColumn: number;
@@ -172,6 +176,9 @@ export type Preferences = {
   zoomLevel: number;
   agentNotifications: boolean;
   agentNotificationSound: boolean;
+  notificationDisplayMode: NotificationDisplayMode;
+  /** AI 工具调用审批模式："review" 逐次确认；"auto" 直接执行。 */
+  aiApprovalMode: AiApprovalMode;
   agentLaunchCommands: AgentLaunchCommands;
   defaultWorkspaceEnv: string;
   shortcuts: Record<ShortcutId, KeyBinding[]>;
@@ -179,13 +186,55 @@ export type Preferences = {
   editorAutoSaveDelay: number;
   editorFormatOnSave: boolean;
   editorFormatter: EditorFormatter;
-  /** languageResolver id -> formatter, overriding the global default. */
+  /** languageResolver id -> 格式化器，用于覆盖全局默认值。 */
   editorFormatterByLang: Record<string, EditorFormatter>;
-  /** Shell template for the "custom" formatter; {file} is the quoted path. */
+  /** "custom" 格式化器的 shell 模板；{file} 是已加引号的路径。 */
   editorCustomFormatCommand: string;
   lspActivation: Record<string, LspActivation>;
   lspCustomServers: LspCustomServer[];
+  previewPortPresets: PreviewPortPreset[];
+  proxy: ProxySettings;
 };
+
+export type ProxySettings = {
+  host: string;
+  port: string;
+  /** 新建终端 PTY 注入 HTTP(S)_PROXY 环境变量。 */
+  terminal: boolean;
+  /** AI 会话的原生请求桥走代理。 */
+  ai: boolean;
+  /** 更新检查与下载走代理。 */
+  updater: boolean;
+  /** 代理软件可执行文件路径，供自动启动使用。 */
+  appPath: string;
+  /** 代理已配置且至少一个场景启用时，自动启动代理软件。 */
+  autoLaunch: boolean;
+};
+
+export const DEFAULT_PROXY_SETTINGS: ProxySettings = {
+  host: "localhost",
+  port: "7890",
+  terminal: false,
+  ai: false,
+  updater: false,
+  appPath: "",
+  autoLaunch: false,
+};
+
+function normalizeProxySettings(raw: unknown): ProxySettings {
+  const d = DEFAULT_PROXY_SETTINGS;
+  if (!raw || typeof raw !== "object") return d;
+  const p = raw as Partial<ProxySettings>;
+  return {
+    host: typeof p.host === "string" ? p.host : d.host,
+    port: typeof p.port === "string" ? p.port : d.port,
+    terminal: p.terminal === true,
+    ai: p.ai === true,
+    updater: p.updater === true,
+    appPath: typeof p.appPath === "string" ? p.appPath : d.appPath,
+    autoLaunch: p.autoLaunch === true,
+  };
+}
 
 export type EditorFormatter =
   | "lsp"
@@ -206,7 +255,7 @@ export type LspCustomServer = {
   name: string;
   command: string;
   args: string[];
-  /** languageResolver id -> LSP languageId */
+  /** languageResolver id -> LSP languageId 映射。 */
   languages: Record<string, string>;
   rootMarkers: string[];
 };
@@ -214,12 +263,12 @@ export type LspCustomServer = {
 const STORE_PATH = "terax-settings.json";
 const KEY_THEME = "theme";
 const KEY_THEME_ID = "themeId";
+const KEY_LANGUAGE = "language";
 const KEY_BG_KIND = "backgroundKind";
 const KEY_BG_IMAGE_ID = "backgroundImageId";
 const KEY_BG_OPACITY = "backgroundOpacity";
 const KEY_BG_BLUR = "backgroundBlur";
 const KEY_WINDOW_VIBRANCY = "windowVibrancy";
-const KEY_DEFAULT_MODEL = "defaultModelId";
 const KEY_EDITOR_THEME = "editorTheme";
 const KEY_EDITOR_FONT_SIZE = "editorFontSize";
 const KEY_CUSTOM_INSTRUCTIONS = "customInstructions";
@@ -231,22 +280,12 @@ const KEY_AUTOCOMPLETE_ENABLED = "autocompleteEnabled";
 const KEY_AUTOCOMPLETE_TRIGGER = "autocompleteTrigger";
 const KEY_AUTOCOMPLETE_PROVIDER = "autocompleteProvider";
 const KEY_AUTOCOMPLETE_MODEL = "autocompleteModelId";
-const KEY_LMSTUDIO_BASE_URL = "lmstudioBaseURL";
-const KEY_LMSTUDIO_MODEL_ID = "lmstudioModelId";
-const KEY_MLX_BASE_URL = "mlxBaseURL";
-const KEY_MLX_MODEL_ID = "mlxModelId";
-const KEY_OLLAMA_BASE_URL = "ollamaBaseURL";
-const KEY_OLLAMA_MODEL_ID = "ollamaModelId";
-const KEY_OPENAI_COMPAT_BASE_URL = "openaiCompatibleBaseURL";
-const KEY_OPENAI_COMPAT_MODEL_ID = "openaiCompatibleModelId";
-const KEY_OPENAI_COMPAT_CONTEXT_LIMIT = "openaiCompatibleContextLimit";
-const KEY_CUSTOM_ENDPOINTS = "customEndpoints";
-const KEY_OPENROUTER_MODEL_ID = "openrouterModelId";
-const KEY_STT_PROVIDER = "sttProvider";
-const KEY_GROQ_STT_MODEL = "groqSttModel";
-const KEY_WHISPERCPP_BASE_URL = "whispercppBaseURL";
+// 存储键沿用旧名，避免已保存的档位选择丢失；字段与函数均已更名为 effort。
+const KEY_EFFORT_LEVELS = "thinkingLevelByModel";
 const KEY_FAVORITE_MODELS = "favoriteModelIds";
 const KEY_RECENT_MODELS = "recentModelIds";
+const KEY_PATH_HISTORY = "pathHistory";
+const KEY_PATH_HISTORY_LIMIT = "pathHistoryLimit";
 const KEY_VIM_MODE = "vimMode";
 const KEY_EDITOR_WORD_WRAP = "editorWordWrap";
 const KEY_EDITOR_WORD_WRAP_COLUMN = "editorWordWrapColumn";
@@ -268,6 +307,8 @@ const KEY_LAST_WSL_DISTRO = "lastWslDistro";
 const KEY_ZOOM_LEVEL = "zoomLevel";
 const KEY_AGENT_NOTIFICATIONS = "agentNotifications";
 const KEY_AGENT_NOTIFICATION_SOUND = "agentNotificationSound";
+const KEY_NOTIFICATION_DISPLAY_MODE = "notificationDisplayMode";
+const KEY_AI_APPROVAL_MODE = "aiApprovalMode";
 const KEY_AGENT_LAUNCH_COMMANDS = "agentLaunchCommands";
 const KEY_DEFAULT_WORKSPACE_ENV = "defaultWorkspaceEnv";
 const KEY_SHORTCUTS = "shortcuts";
@@ -279,6 +320,8 @@ const KEY_EDITOR_FORMATTER_BY_LANG = "editorFormatterByLang";
 const KEY_EDITOR_CUSTOM_FORMAT_COMMAND = "editorCustomFormatCommand";
 const KEY_LSP_ACTIVATION = "lspActivation";
 const KEY_LSP_CUSTOM_SERVERS = "lspCustomServers";
+const KEY_PREVIEW_PORT_PRESETS = "previewPortPresets";
+const KEY_PROXY = "proxy";
 
 const TERMINAL_FONT_SIZE_DEFAULT = 14;
 const TERMINAL_FONT_SIZE_MIN = 8;
@@ -309,40 +352,28 @@ export const TERMINAL_SCROLLBACK_PRESETS = [
 export const DEFAULT_PREFERENCES: Preferences = {
   theme: "system",
   themeId: DEFAULT_THEME_ID,
+  language: "system",
   backgroundKind: "none",
   backgroundImageId: null,
   backgroundOpacity: 0.5,
   backgroundBlur: 0,
-  defaultModelId: DEFAULT_MODEL_ID,
   editorTheme: EDITOR_THEME_AUTO,
   editorFontSize: EDITOR_FONT_SIZE_DEFAULT,
   customInstructions: "",
   autostart: false,
-  // Off by default: a translucent window keeps the compositor blending the
-  // whole frame every present. An explicitly stored choice (either value)
-  // always wins; only an absent key falls back to this.
+  // 默认关闭：半透明窗口会让合成器在每次呈现时混合整帧。
+  // 显式保存过的取值（无论 true/false）始终优先；只有键不存在时才回落到这里。
   windowVibrancy: false,
   restoreWindowState: true,
   autocompleteEnabled: false,
   autocompleteTrigger: "auto",
-  autocompleteProvider: "cerebras",
-  autocompleteModelId: DEFAULT_AUTOCOMPLETE_MODEL.cerebras ?? "",
-  lmstudioBaseURL: LMSTUDIO_DEFAULT_BASE_URL,
-  lmstudioModelId: "",
-  mlxBaseURL: MLX_DEFAULT_BASE_URL,
-  mlxModelId: "",
-  ollamaBaseURL: OLLAMA_DEFAULT_BASE_URL,
-  ollamaModelId: "",
-  openaiCompatibleBaseURL: OPENAI_COMPATIBLE_DEFAULT_BASE_URL,
-  openaiCompatibleModelId: "",
-  openaiCompatibleContextLimit: 128_000,
-  customEndpoints: [],
-  openrouterModelId: "",
-  sttProvider: DEFAULT_STT_PROVIDER,
-  groqSttModel: "whisper-large-v3-turbo",
-  whispercppBaseURL: WHISPERCPP_DEFAULT_BASE_URL,
+  autocompleteProvider: "",
+  autocompleteModelId: "",
+  effortLevelByModel: {},
   favoriteModelIds: [],
   recentModelIds: [],
+  pathHistory: [],
+  pathHistoryLimit: PATH_HISTORY_LIMIT_DEFAULT,
   vimMode: false,
   editorWordWrap: false,
   editorWordWrapColumn: EDITOR_WORD_WRAP_COLUMN_DEFAULT,
@@ -363,6 +394,8 @@ export const DEFAULT_PREFERENCES: Preferences = {
   zoomLevel: 1.0,
   agentNotifications: true,
   agentNotificationSound: true,
+  notificationDisplayMode: "toast",
+  aiApprovalMode: "review",
   agentLaunchCommands: DEFAULT_AGENT_LAUNCH_COMMANDS,
   defaultWorkspaceEnv: "local",
   shortcuts: {} as Record<ShortcutId, KeyBinding[]>,
@@ -374,14 +407,15 @@ export const DEFAULT_PREFERENCES: Preferences = {
   editorCustomFormatCommand: "",
   lspActivation: {},
   lspCustomServers: [],
+  previewPortPresets: DEFAULT_PREVIEW_PORT_PRESETS,
+  proxy: DEFAULT_PROXY_SETTINGS,
 };
 
 const store = new LazyStore(STORE_PATH, { defaults: {}, autoSave: 200 });
 
-// LazyStore.onChange only fires within the writing process. The settings
-// page lives in a separate webview, so writes there never reach the main
-// window's subscribers. Mirror every setter through a Tauri event so any
-// window can listen.
+// LazyStore.onChange 只在写入进程内触发。设置页运行在独立的 webview 中，
+// 那里的写入永远到不了主窗口的订阅者。因此每个 setter 都通过 Tauri
+// 事件广播一次，让任意窗口都能监听。
 const PREFS_CHANGED_EVENT = "terax://prefs-changed";
 
 async function writePref<T>(key: string, value: T): Promise<void> {
@@ -391,13 +425,14 @@ async function writePref<T>(key: string, value: T): Promise<void> {
 }
 
 export async function loadPreferences(): Promise<Preferences> {
-  // Single IPC roundtrip — fetching keys individually fans out to one
-  // `plugin:store|get` per setting and is the dominant boot cost.
+  // 单次 IPC 往返——逐键读取会为每个设置扇出一次
+  // `plugin:store|get`，是启动阶段的主要开销。
   const entries = await store.entries();
   const map = new Map<string, unknown>(entries);
   const get = <T>(k: string): T | undefined => map.get(k) as T | undefined;
   return {
     theme: get<ThemePref>(KEY_THEME) ?? DEFAULT_PREFERENCES.theme,
+    language: coerceLanguage(get<unknown>(KEY_LANGUAGE)),
     themeId: get<string>(KEY_THEME_ID) ?? DEFAULT_PREFERENCES.themeId,
     backgroundKind:
       get<BackgroundKind>(KEY_BG_KIND) ?? DEFAULT_PREFERENCES.backgroundKind,
@@ -410,12 +445,6 @@ export async function loadPreferences(): Promise<Preferences> {
     backgroundBlur: clampBlur(
       get<number>(KEY_BG_BLUR) ?? DEFAULT_PREFERENCES.backgroundBlur,
     ),
-    defaultModelId: ((): ModelId => {
-      const stored = get<string>(KEY_DEFAULT_MODEL);
-      return stored && isKnownModelId(stored)
-        ? stored
-        : DEFAULT_PREFERENCES.defaultModelId;
-    })(),
     editorTheme: ((): EditorThemePref => {
       const stored = get<string>(KEY_EDITOR_THEME);
       if (stored === EDITOR_THEME_AUTO || isEditorThemeId(stored))
@@ -446,51 +475,28 @@ export async function loadPreferences(): Promise<Preferences> {
     autocompleteModelId:
       get<string>(KEY_AUTOCOMPLETE_MODEL) ??
       DEFAULT_PREFERENCES.autocompleteModelId,
-    lmstudioBaseURL:
-      get<string>(KEY_LMSTUDIO_BASE_URL) ?? DEFAULT_PREFERENCES.lmstudioBaseURL,
-    lmstudioModelId:
-      get<string>(KEY_LMSTUDIO_MODEL_ID) ?? DEFAULT_PREFERENCES.lmstudioModelId,
-    mlxBaseURL: get<string>(KEY_MLX_BASE_URL) ?? DEFAULT_PREFERENCES.mlxBaseURL,
-    mlxModelId: get<string>(KEY_MLX_MODEL_ID) ?? DEFAULT_PREFERENCES.mlxModelId,
-    ollamaBaseURL:
-      get<string>(KEY_OLLAMA_BASE_URL) ?? DEFAULT_PREFERENCES.ollamaBaseURL,
-    ollamaModelId:
-      get<string>(KEY_OLLAMA_MODEL_ID) ?? DEFAULT_PREFERENCES.ollamaModelId,
-    openaiCompatibleBaseURL:
-      get<string>(KEY_OPENAI_COMPAT_BASE_URL) ??
-      DEFAULT_PREFERENCES.openaiCompatibleBaseURL,
-    openaiCompatibleModelId:
-      get<string>(KEY_OPENAI_COMPAT_MODEL_ID) ??
-      DEFAULT_PREFERENCES.openaiCompatibleModelId,
-    openaiCompatibleContextLimit:
-      get<number>(KEY_OPENAI_COMPAT_CONTEXT_LIMIT) ??
-      DEFAULT_PREFERENCES.openaiCompatibleContextLimit,
-    customEndpoints: (() => {
-      const stored = get<CustomEndpoint[]>(KEY_CUSTOM_ENDPOINTS);
-      if (stored && stored.length > 0) return stored;
-      return migrateLegacyCompatEndpoint(
-        get<string>(KEY_OPENAI_COMPAT_BASE_URL) ?? "",
-        get<string>(KEY_OPENAI_COMPAT_MODEL_ID) ?? "",
-        get<number>(KEY_OPENAI_COMPAT_CONTEXT_LIMIT) ?? 128_000,
-        crypto.randomUUID().slice(0, 8),
-      );
-    })(),
-    openrouterModelId:
-      get<string>(KEY_OPENROUTER_MODEL_ID) ??
-      DEFAULT_PREFERENCES.openrouterModelId,
-    sttProvider:
-      get<SttProvider>(KEY_STT_PROVIDER) ?? DEFAULT_PREFERENCES.sttProvider,
-    groqSttModel:
-      get<string>(KEY_GROQ_STT_MODEL) ?? DEFAULT_PREFERENCES.groqSttModel,
-    whispercppBaseURL:
-      get<string>(KEY_WHISPERCPP_BASE_URL) ??
-      DEFAULT_PREFERENCES.whispercppBaseURL,
+    effortLevelByModel:
+      get<Record<string, string>>(KEY_EFFORT_LEVELS) ??
+      DEFAULT_PREFERENCES.effortLevelByModel,
     favoriteModelIds: (
       get<string[]>(KEY_FAVORITE_MODELS) ?? DEFAULT_PREFERENCES.favoriteModelIds
-    ).filter(isKnownModelId),
+    ).filter((id): id is string => typeof id === "string"),
     recentModelIds: (
       get<string[]>(KEY_RECENT_MODELS) ?? DEFAULT_PREFERENCES.recentModelIds
-    ).filter(isKnownModelId),
+    ).filter((id): id is string => typeof id === "string"),
+    pathHistory: (
+      get<string[]>(KEY_PATH_HISTORY) ?? DEFAULT_PREFERENCES.pathHistory
+    ).filter((id): id is string => typeof id === "string"),
+    pathHistoryLimit: (() => {
+      const raw = get<number>(KEY_PATH_HISTORY_LIMIT);
+      if (typeof raw !== "number" || !Number.isFinite(raw)) {
+        return DEFAULT_PREFERENCES.pathHistoryLimit;
+      }
+      return Math.min(
+        Math.max(Math.round(raw), PATH_HISTORY_LIMIT_MIN),
+        PATH_HISTORY_LIMIT_MAX,
+      );
+    })(),
     vimMode: get<boolean>(KEY_VIM_MODE) ?? DEFAULT_PREFERENCES.vimMode,
     editorWordWrap:
       get<boolean>(KEY_EDITOR_WORD_WRAP) ?? DEFAULT_PREFERENCES.editorWordWrap,
@@ -546,6 +552,10 @@ export async function loadPreferences(): Promise<Preferences> {
     agentNotificationSound:
       get<boolean>(KEY_AGENT_NOTIFICATION_SOUND) ??
       DEFAULT_PREFERENCES.agentNotificationSound,
+    notificationDisplayMode: coerceNotificationDisplayMode(
+      get<unknown>(KEY_NOTIFICATION_DISPLAY_MODE),
+    ),
+    aiApprovalMode: coerceAiApprovalMode(get<unknown>(KEY_AI_APPROVAL_MODE)),
     agentLaunchCommands: normalizeAgentLaunchCommands(
       get<unknown>(KEY_AGENT_LAUNCH_COMMANDS),
     ),
@@ -579,6 +589,10 @@ export async function loadPreferences(): Promise<Preferences> {
     lspCustomServers:
       get<LspCustomServer[]>(KEY_LSP_CUSTOM_SERVERS) ??
       DEFAULT_PREFERENCES.lspCustomServers,
+    previewPortPresets: normalizePreviewPortPresets(
+      get<unknown>(KEY_PREVIEW_PORT_PRESETS),
+    ),
+    proxy: normalizeProxySettings(get<unknown>(KEY_PROXY)),
   };
 }
 
@@ -605,12 +619,22 @@ export async function setTheme(value: ThemePref): Promise<void> {
   await writePref(KEY_THEME, value);
 }
 
+export function coerceLanguage(value: unknown): LanguagePref {
+  return value === "en" || value === "zh" || value === "system"
+    ? value
+    : DEFAULT_PREFERENCES.language;
+}
+
+export async function setLanguage(value: unknown): Promise<void> {
+  await writePref(KEY_LANGUAGE, coerceLanguage(value));
+}
+
 export async function setThemeId(value: string): Promise<void> {
   await writePref(KEY_THEME_ID, value);
 }
 
-/** Slider stores 0..1. Actual rendered opacity is halved in SurfaceLayer
- *  so the image never exceeds 50% — keeps UI/terminal readable at any setting. */
+/** 滑块保存 0..1。SurfaceLayer 渲染时会再减半，
+ *  保证图片不透明度不超过 50%，任何设置下 UI/终端都保持可读。 */
 export const BG_OPACITY_RENDER_FACTOR = 0.5;
 
 function clampBgOpacity(v: number): number {
@@ -639,10 +663,6 @@ export async function setBackgroundOpacity(value: number): Promise<void> {
 
 export async function setBackgroundBlur(value: number): Promise<void> {
   await writePref(KEY_BG_BLUR, clampBlur(value));
-}
-
-export async function setDefaultModel(value: ModelId): Promise<void> {
-  await writePref(KEY_DEFAULT_MODEL, value);
 }
 
 export async function setEditorTheme(value: EditorThemePref): Promise<void> {
@@ -697,67 +717,23 @@ export async function setAutocompleteModelId(value: string): Promise<void> {
   await writePref(KEY_AUTOCOMPLETE_MODEL, value);
 }
 
-export async function setLmstudioBaseURL(value: string): Promise<void> {
-  await writePref(KEY_LMSTUDIO_BASE_URL, value);
-}
-
-export async function setLmstudioModelId(value: string): Promise<void> {
-  await writePref(KEY_LMSTUDIO_MODEL_ID, value);
-}
-
-export async function setMlxBaseURL(value: string): Promise<void> {
-  await writePref(KEY_MLX_BASE_URL, value);
-}
-
-export async function setMlxModelId(value: string): Promise<void> {
-  await writePref(KEY_MLX_MODEL_ID, value);
-}
-
-export async function setOllamaBaseURL(value: string): Promise<void> {
-  await writePref(KEY_OLLAMA_BASE_URL, value);
-}
-
-export async function setOllamaModelId(value: string): Promise<void> {
-  await writePref(KEY_OLLAMA_MODEL_ID, value);
-}
-
-export async function setOpenaiCompatibleBaseURL(value: string): Promise<void> {
-  await writePref(KEY_OPENAI_COMPAT_BASE_URL, value);
-}
-
-export async function setOpenaiCompatibleModelId(value: string): Promise<void> {
-  await writePref(KEY_OPENAI_COMPAT_MODEL_ID, value);
-}
-
-export async function setOpenaiCompatibleContextLimit(
-  value: number,
+export async function setEffortLevelByModel(
+  value: Record<string, string>,
 ): Promise<void> {
-  const clamped = Number.isFinite(value)
-    ? Math.max(1_000, Math.round(value))
-    : DEFAULT_PREFERENCES.openaiCompatibleContextLimit;
-  await writePref(KEY_OPENAI_COMPAT_CONTEXT_LIMIT, clamped);
+  await writePref(KEY_EFFORT_LEVELS, value);
 }
 
-export async function setCustomEndpoints(
-  value: CustomEndpoint[],
+export async function setEffortLevel(
+  modelId: string,
+  levelId: string | null,
 ): Promise<void> {
-  await writePref(KEY_CUSTOM_ENDPOINTS, value);
-}
-
-export async function setOpenrouterModelId(value: string): Promise<void> {
-  await writePref(KEY_OPENROUTER_MODEL_ID, value);
-}
-
-export async function setSttProvider(value: SttProvider): Promise<void> {
-  await writePref(KEY_STT_PROVIDER, value);
-}
-
-export async function setGroqSttModel(value: string): Promise<void> {
-  await writePref(KEY_GROQ_STT_MODEL, value.trim());
-}
-
-export async function setWhispercppBaseURL(value: string): Promise<void> {
-  await writePref(KEY_WHISPERCPP_BASE_URL, value.trim());
+  const current = (await store
+    .get(KEY_EFFORT_LEVELS)
+    .catch(() => null)) as Record<string, string> | null;
+  const next = { ...(current ?? {}) };
+  if (levelId) next[modelId] = levelId;
+  else delete next[modelId];
+  await writePref(KEY_EFFORT_LEVELS, next);
 }
 
 export async function setFavoriteModelIds(value: string[]): Promise<void> {
@@ -766,6 +742,14 @@ export async function setFavoriteModelIds(value: string[]): Promise<void> {
 
 export async function setRecentModelIds(value: string[]): Promise<void> {
   await writePref(KEY_RECENT_MODELS, value);
+}
+
+export async function setPathHistory(value: string[]): Promise<void> {
+  await writePref(KEY_PATH_HISTORY, value);
+}
+
+export async function setPathHistoryLimit(value: number): Promise<void> {
+  await writePref(KEY_PATH_HISTORY_LIMIT, value);
 }
 
 export async function setVimMode(value: boolean): Promise<void> {
@@ -821,6 +805,14 @@ export function coerceTerminalCursorStyle(value: unknown): TerminalCursorStyle {
 
 export async function setTerminalCursorStyle(value: unknown): Promise<void> {
   await writePref(KEY_TERMINAL_CURSOR_STYLE, coerceTerminalCursorStyle(value));
+}
+
+export function coerceAiApprovalMode(value: unknown): AiApprovalMode {
+  return value === "auto" ? "auto" : "review";
+}
+
+export async function setAiApprovalMode(value: unknown): Promise<void> {
+  await writePref(KEY_AI_APPROVAL_MODE, coerceAiApprovalMode(value));
 }
 
 export async function setTerminalFontFamily(value: string): Promise<void> {
@@ -934,6 +926,12 @@ export async function setAgentNotificationSound(value: boolean): Promise<void> {
   await writePref(KEY_AGENT_NOTIFICATION_SOUND, value);
 }
 
+export async function setNotificationDisplayMode(
+  value: NotificationDisplayMode,
+): Promise<void> {
+  await writePref(KEY_NOTIFICATION_DISPLAY_MODE, value);
+}
+
 export async function setAgentLaunchCommands(
   value: AgentLaunchCommands,
 ): Promise<void> {
@@ -953,21 +951,32 @@ export async function setShortcuts(
   await writePref(KEY_SHORTCUTS, value);
 }
 
+export async function setPreviewPortPresets(
+  value: PreviewPortPreset[],
+): Promise<void> {
+  await writePref(KEY_PREVIEW_PORT_PRESETS, normalizePreviewPortPresets(value));
+}
+
+export async function setProxySettings(value: ProxySettings): Promise<void> {
+  await writePref(KEY_PROXY, normalizeProxySettings(value));
+}
+
 export type PrefKey = keyof Preferences;
 
-/** Subscribe to changes from any window (settings → main). */
+/** 订阅任意窗口的变更（设置页 → 主窗口）。 */
 export async function onPreferencesChange(
   cb: (key: PrefKey, value: unknown) => void,
 ): Promise<UnlistenFn> {
   const map: Record<string, PrefKey> = {
     [KEY_THEME]: "theme",
     [KEY_THEME_ID]: "themeId",
+    [KEY_LANGUAGE]: "language",
     [KEY_BG_KIND]: "backgroundKind",
     [KEY_BG_IMAGE_ID]: "backgroundImageId",
     [KEY_BG_OPACITY]: "backgroundOpacity",
     [KEY_BG_BLUR]: "backgroundBlur",
     [KEY_WINDOW_VIBRANCY]: "windowVibrancy",
-    [KEY_DEFAULT_MODEL]: "defaultModelId",
+    [KEY_EFFORT_LEVELS]: "effortLevelByModel",
     [KEY_EDITOR_THEME]: "editorTheme",
     [KEY_EDITOR_FONT_SIZE]: "editorFontSize",
     [KEY_CUSTOM_INSTRUCTIONS]: "customInstructions",
@@ -977,22 +986,10 @@ export async function onPreferencesChange(
     [KEY_AUTOCOMPLETE_TRIGGER]: "autocompleteTrigger",
     [KEY_AUTOCOMPLETE_PROVIDER]: "autocompleteProvider",
     [KEY_AUTOCOMPLETE_MODEL]: "autocompleteModelId",
-    [KEY_LMSTUDIO_BASE_URL]: "lmstudioBaseURL",
-    [KEY_LMSTUDIO_MODEL_ID]: "lmstudioModelId",
-    [KEY_MLX_BASE_URL]: "mlxBaseURL",
-    [KEY_MLX_MODEL_ID]: "mlxModelId",
-    [KEY_OLLAMA_BASE_URL]: "ollamaBaseURL",
-    [KEY_OLLAMA_MODEL_ID]: "ollamaModelId",
-    [KEY_OPENAI_COMPAT_BASE_URL]: "openaiCompatibleBaseURL",
-    [KEY_OPENAI_COMPAT_MODEL_ID]: "openaiCompatibleModelId",
-    [KEY_OPENAI_COMPAT_CONTEXT_LIMIT]: "openaiCompatibleContextLimit",
-    [KEY_CUSTOM_ENDPOINTS]: "customEndpoints",
-    [KEY_OPENROUTER_MODEL_ID]: "openrouterModelId",
-    [KEY_STT_PROVIDER]: "sttProvider",
-    [KEY_GROQ_STT_MODEL]: "groqSttModel",
-    [KEY_WHISPERCPP_BASE_URL]: "whispercppBaseURL",
     [KEY_FAVORITE_MODELS]: "favoriteModelIds",
     [KEY_RECENT_MODELS]: "recentModelIds",
+    [KEY_PATH_HISTORY]: "pathHistory",
+    [KEY_PATH_HISTORY_LIMIT]: "pathHistoryLimit",
     [KEY_VIM_MODE]: "vimMode",
     [KEY_EDITOR_WORD_WRAP]: "editorWordWrap",
     [KEY_EDITOR_WORD_WRAP_COLUMN]: "editorWordWrapColumn",
@@ -1013,6 +1010,8 @@ export async function onPreferencesChange(
     [KEY_ZOOM_LEVEL]: "zoomLevel",
     [KEY_AGENT_NOTIFICATIONS]: "agentNotifications",
     [KEY_AGENT_NOTIFICATION_SOUND]: "agentNotificationSound",
+    [KEY_NOTIFICATION_DISPLAY_MODE]: "notificationDisplayMode",
+    [KEY_AI_APPROVAL_MODE]: "aiApprovalMode",
     [KEY_AGENT_LAUNCH_COMMANDS]: "agentLaunchCommands",
     [KEY_DEFAULT_WORKSPACE_ENV]: "defaultWorkspaceEnv",
     [KEY_SHORTCUTS]: "shortcuts",
@@ -1024,9 +1023,11 @@ export async function onPreferencesChange(
     [KEY_EDITOR_CUSTOM_FORMAT_COMMAND]: "editorCustomFormatCommand",
     [KEY_LSP_ACTIVATION]: "lspActivation",
     [KEY_LSP_CUSTOM_SERVERS]: "lspCustomServers",
+    [KEY_PREVIEW_PORT_PRESETS]: "previewPortPresets",
+    [KEY_PROXY]: "proxy",
   };
-  // Same-process writes still fire onChange immediately; cross-window writes
-  // arrive via the Tauri event emitted by writePref().
+  // 同进程写入仍会立即触发 onChange；跨窗口写入则通过
+  // writePref() 发出的 Tauri 事件送达。
   const unsubLocal = await store.onChange<unknown>((key, value) => {
     const mapped = map[key];
     if (mapped) cb(mapped, value);
@@ -1044,8 +1045,8 @@ export async function onPreferencesChange(
   };
 }
 
-// API key changes are stored in OS keychain (not the prefs store),
-// so we broadcast via a Tauri event for cross-window listeners.
+// API Key 变更保存在操作系统钥匙串（而非偏好存储），
+// 因此通过 Tauri 事件广播给跨窗口监听者。
 const KEYS_CHANGED_EVENT = "terax://ai-keys-changed";
 
 export async function emitKeysChanged(): Promise<void> {

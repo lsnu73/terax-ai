@@ -3,6 +3,7 @@ import {
   requestPermission,
   sendNotification,
 } from "@tauri-apps/plugin-notification";
+import { t } from "@/modules/i18n";
 import { playAgentNotificationSound } from "./sound";
 
 export type OsNotificationResult = "requested" | "denied" | "failed";
@@ -37,8 +38,8 @@ export async function testAgentOsNotification(
   withSound = true,
 ): Promise<OsNotificationResult> {
   const result = await osNotify(
-    "Terax notifications are working",
-    "You will be notified when an agent needs your attention.",
+    t("agents.notifyTest.title"),
+    t("agents.notifyTest.body"),
   );
   if (result === "requested" && withSound) playAgentNotificationSound();
   return result;

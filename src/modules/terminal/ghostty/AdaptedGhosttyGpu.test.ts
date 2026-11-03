@@ -949,7 +949,10 @@ describe.each([
   });
 
   describe("periodic render-state renewal", () => {
-    it("re-uploads once and stays correct across the 100,000-update renewal", () => {
+    // 10 万次真实 WASM 更新是压测量级，负载高的机器会超过默认 5s 超时。
+    it("re-uploads once and stays correct across the 100,000-update renewal", {
+      timeout: 30_000,
+    }, () => {
       const harness = gpu(20, 4);
       try {
         harness.write("\x1b[2;1Hstable row");

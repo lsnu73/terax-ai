@@ -10,7 +10,13 @@ const { invoke, toast } = vi.hoisted(() => ({
   toast: { message: vi.fn(), error: vi.fn() },
 }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke }));
-vi.mock("sonner", () => ({ toast }));
+vi.mock("@/modules/agents/lib/runtimeNotifications", () => ({
+  runtimeToast: toast,
+}));
+// i18next is not initialized in tests; t() resolves to the key name.
+vi.mock("@/modules/i18n", () => ({
+  t: (key: string) => key,
+}));
 
 beforeEach(() => vi.resetAllMocks());
 
@@ -139,7 +145,7 @@ describe("pasteClipboardFiles", () => {
     const opts = options();
     expect(await pasteClipboardFiles("/repo", opts)).toEqual(["/repo/a"]);
     expect(opts.refresh).toHaveBeenCalledOnce();
-    expect(toast.error).toHaveBeenCalledWith("Could not copy 1 item", {
+    expect(toast.error).toHaveBeenCalledWith("explorer.toast.copyFailed", {
       description: "C:/missing: not found",
     });
   });
@@ -156,12 +162,14 @@ describe("pasteClipboardFiles", () => {
     invoke.mockRejectedValueOnce("clipboard is busy");
     const opts = options();
     expect(await pasteClipboardFiles("/repo", opts)).toEqual([]);
-    expect(toast.error).toHaveBeenCalledWith("Paste failed: clipboard is busy");
+    expect(toast.error).toHaveBeenCalledWith("explorer.toast.pasteFailed");
     expect(toast.message).not.toHaveBeenCalled();
     expect(opts.refresh).not.toHaveBeenCalled();
     invoke.mockResolvedValueOnce([]);
     await pasteClipboardFiles("/repo", opts);
-    expect(toast.message).toHaveBeenCalledWith("No files on the clipboard");
+    expect(toast.message).toHaveBeenCalledWith(
+      "explorer.toast.noFilesOnClipboard",
+    );
   });
 });
 

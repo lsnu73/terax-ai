@@ -29,7 +29,6 @@ function baseContext(
     spaces: [],
     activeSpaceId: null,
     openNewTab: noop,
-    openNewBlock: noop,
     openNewPrivate: noop,
     openNewEditor: noop,
     openNewPreview: noop,
@@ -56,7 +55,7 @@ function baseContext(
 function reasonById(over: Partial<CommandPaletteActionContext>, id: string) {
   const item = createCommandItems(baseContext(over)).find((i) => i.id === id);
   if (!item) throw new Error(`no command item ${id}`);
-  return item.disabledReason;
+  return item.disabledReasonKey;
 }
 
 describe("createCommandItems", () => {
@@ -68,12 +67,12 @@ describe("createCommandItems", () => {
   it("disables split when there is no terminal tab", () => {
     const editorTab = { ...terminalTab(1), kind: "editor" } as unknown as Tab;
     expect(reasonById({ tabs: [editorTab] }, "pane.splitRight")).toBe(
-      "No terminal tab",
+      "commands.disabled.noTerminalTab",
     );
   });
 
   it("disables close on the last tab with a single pane", () => {
-    expect(reasonById({}, "tab.close")).toBe("Last tab");
+    expect(reasonById({}, "tab.close")).toBe("commands.disabled.lastTab");
   });
 
   it("enables close when more than one tab is open", () => {
@@ -84,13 +83,13 @@ describe("createCommandItems", () => {
 
   it("disables content search when there is no searchable view", () => {
     expect(reasonById({ searchTarget: null as never }, "search.focus")).toBe(
-      "No searchable view",
+      "commands.disabled.noSearchableView",
     );
   });
 
   it("disables explorer search when there is no workspace root", () => {
     expect(reasonById({ explorerRoot: null }, "explorer.search")).toBe(
-      "No workspace root",
+      "commands.disabled.noWorkspaceRoot",
     );
   });
 
@@ -99,6 +98,6 @@ describe("createCommandItems", () => {
       { spaces: [{ id: "sp1", name: "One" }], activeSpaceId: "sp1" },
       "spaces.switch.sp1",
     );
-    expect(reason).toBe("Current space");
+    expect(reason).toBe("commands.disabled.currentSpace");
   });
 });

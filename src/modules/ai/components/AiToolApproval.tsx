@@ -13,6 +13,7 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { ToolUIPart } from "ai";
 import { memo } from "react";
+import { useTranslation } from "react-i18next";
 
 type Props = {
   part: Extract<ToolUIPart, { state: "approval-requested" }>;
@@ -20,19 +21,28 @@ type Props = {
   onRespond: (approved: boolean) => void;
 };
 
-const TOOL_META: Record<string, { label: string; icon: typeof FilePlusIcon }> =
-  {
-    write_file: { label: "Write file", icon: FilePlusIcon },
-    edit: { label: "Edit file", icon: FileEditIcon },
-    multi_edit: { label: "Edit file (batch)", icon: Edit02Icon },
-    create_directory: { label: "Create directory", icon: FolderAddIcon },
-    bash_run: { label: "Run shell command", icon: TerminalIcon },
-    bash_background: { label: "Spawn background process", icon: TerminalIcon },
-  };
+const TOOL_META: Record<
+  string,
+  { labelKey: string; icon: typeof FilePlusIcon }
+> = {
+  write_file: { labelKey: "ai.approval.tools.writeFile", icon: FilePlusIcon },
+  edit: { labelKey: "ai.approval.tools.edit", icon: FileEditIcon },
+  multi_edit: { labelKey: "ai.approval.tools.multiEdit", icon: Edit02Icon },
+  create_directory: {
+    labelKey: "ai.approval.tools.createDirectory",
+    icon: FolderAddIcon,
+  },
+  bash_run: { labelKey: "ai.approval.tools.bashRun", icon: TerminalIcon },
+  bash_background: {
+    labelKey: "ai.approval.tools.bashBackground",
+    icon: TerminalIcon,
+  },
+};
 
 function AiToolApprovalImpl({ part, toolName, onRespond }: Props) {
+  const { t } = useTranslation();
   const meta = TOOL_META[toolName];
-  const label = meta?.label ?? toolName;
+  const label = meta ? t(meta.labelKey) : toolName;
   const Icon = meta?.icon ?? ToolsIcon;
   const input = part.input as Record<string, unknown>;
 
@@ -46,11 +56,9 @@ function AiToolApprovalImpl({ part, toolName, onRespond }: Props) {
           strokeWidth={1.75}
           className="shrink-0 text-muted-foreground"
         />
-        <span className="text-[12px] font-medium text-foreground">
-          {label}
-        </span>
+        <span className="text-[12px] font-medium text-foreground">{label}</span>
         <span className="ml-auto text-[10px] text-muted-foreground">
-          needs approval
+          {t("ai.approval.needsApproval")}
         </span>
       </div>
 
@@ -66,7 +74,7 @@ function AiToolApprovalImpl({ part, toolName, onRespond }: Props) {
           className="h-7 gap-1.5 text-[11px]"
         >
           <HugeiconsIcon icon={Cancel01Icon} size={12} strokeWidth={2} />
-          Deny
+          {t("ai.approval.deny")}
         </Button>
         <Button
           size="sm"
@@ -75,7 +83,7 @@ function AiToolApprovalImpl({ part, toolName, onRespond }: Props) {
           className="h-7 gap-1.5 text-[11px]"
         >
           <HugeiconsIcon icon={Tick02Icon} size={12} strokeWidth={2} />
-          Approve
+          {t("ai.approval.approve")}
         </Button>
       </div>
     </div>
@@ -100,6 +108,7 @@ function PreviewBlock({
   toolName: string;
   input: Record<string, unknown>;
 }) {
+  const { t } = useTranslation();
   if (toolName === "bash_run" || toolName === "bash_background") {
     const cwd = typeof input.cwd === "string" ? input.cwd : null;
     return (
@@ -130,7 +139,7 @@ function PreviewBlock({
       <div className="space-y-0.5 font-mono text-[11px]">
         <div className="text-muted-foreground">{String(input.path ?? "")}</div>
         <div className="text-[10.5px] text-muted-foreground/80">
-          {lines} line{lines === 1 ? "" : "s"} · review in the diff tab
+          {t("ai.approval.writeFileLines", { lines, count: lines })}
         </div>
       </div>
     );
@@ -144,11 +153,14 @@ function PreviewBlock({
       <div className="space-y-0.5 font-mono text-[11px]">
         <div className="text-muted-foreground">
           {String(input.path ?? "")}
-          {input.replace_all ? " · replace all" : ""}
+          {input.replace_all ? t("ai.approval.replaceAll") : ""}
         </div>
         <div className="text-[10.5px] text-muted-foreground/80">
-          −{removed} / +{added} line{added === 1 && removed === 1 ? "" : "s"} ·
-          review in the diff tab
+          {t("ai.approval.editLines", {
+            removed,
+            added,
+            count: added === 1 && removed === 1 ? 1 : 2,
+          })}
         </div>
       </div>
     );
@@ -161,8 +173,7 @@ function PreviewBlock({
       <div className="space-y-0.5 font-mono text-[11px]">
         <div className="text-muted-foreground">{String(input.path ?? "")}</div>
         <div className="text-[10.5px] text-muted-foreground/80">
-          {edits.length} edit{edits.length === 1 ? "" : "s"} · review in the
-          diff tab
+          {t("ai.approval.multiEditCount", { count: edits.length })}
         </div>
       </div>
     );
@@ -180,4 +191,3 @@ function PreviewBlock({
     </pre>
   );
 }
-

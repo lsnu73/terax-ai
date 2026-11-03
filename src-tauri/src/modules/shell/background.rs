@@ -113,6 +113,7 @@ pub fn spawn(
     command: String,
     cwd: Option<String>,
     workspace: WorkspaceEnv,
+    proxy: Option<String>,
 ) -> Result<Arc<BackgroundProc>, String> {
     let trimmed = command.trim().to_string();
     if trimmed.is_empty() {
@@ -125,6 +126,7 @@ pub fn spawn(
     }
 
     let mut cmd = super::build_oneshot_command(&trimmed, &workspace, cwd.as_deref())?;
+    super::apply_shell_proxy_env(&mut cmd, &workspace, proxy.as_deref());
     if let (WorkspaceEnv::Local, Some(ref dir)) = (&workspace, &cwd) {
         cmd.current_dir(dir);
     }

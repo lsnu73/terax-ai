@@ -6,7 +6,7 @@ Terax loads `TERAX.md` from the workspace root as agent memory (similar to AGENT
 
 **Terax**: open-source AI-native terminal emulator. Tauri 2 + Rust (`portable-pty`) backend, React 19 + TypeScript + libghostty-vt WASM client (WebGPU, Terax WebGL fallback), BYOK AI via Vercel AI SDK v6.
 
-- Bundle id: `app.crynta.terax`
+- Bundle id: `app.wang.terax`
 - Package manager: **pnpm**
 - Platforms: macOS, Linux, Windows
 - Frontend checks: `pnpm lint`, `pnpm check-types`, `pnpm test`
@@ -153,38 +153,41 @@ closed, restarted, or replaced session.
 xterm, its addons, CSS, snapshots, session pool, and dormant byte ring are removed.
 Unsupported graphics produce a visible error with retry instead of changing models.
 
-Command blocks use parser-time Ghostty tracked pins, including endpoint columns,
-so command ranges survive reflow and exclude following prompts and commands.
-The native marker ring is capped at 2,048 pins; JavaScript history is capped at
-1,000 blocks and 512 KiB of estimated UTF-16 command/cwd text. Block implementation
-and UI load only for block sessions, and hidden/occluded block presentation stops.
-Block search yields after 128 rows or four milliseconds, retains at most 500
-matches, and cancels obsolete queries. Block copy, search, sticky headers, navigation, Ask AI, rerun, shared shell input,
-and selection all use the same persistent Ghostty model.
+Every terminal session uses command and result blocks; there is no separate
+command-block tab kind. Blocks use parser-time Ghostty tracked pins, including
+endpoint columns, so command ranges survive reflow and exclude following prompts
+and commands. The native marker ring is capped at 2,048 pins; JavaScript history
+is capped at 1,000 blocks and 512 KiB of estimated UTF-16 command/cwd text.
+Hidden/occluded block presentation stops. Block search yields after 128 rows or
+four milliseconds, retains at most 500 matches, and cancels obsolete queries.
+Block copy, search, sticky headers, Ask AI, rerun, and selection all use the
+same persistent Ghostty model. Terminals keep their native shell prompt and
+direct grid input; blocks are an overlay on top, never an input replacement.
+Block operations open from a context menu on the command, output, or block
+chrome; a nonempty text selection keeps the selection Ask AI UI instead.
 Block chrome commits with its matching renderer frame; it is recomputed only when
 the viewport origin, scrollback, size, cell height, block mode or block set
 (`GhosttyBlocks.revision`) changed, so frames that only repaint cells cost no
 block work and no React commit. The per-frame path reads cached cell metrics, never
-layout, and the shell/prompt input switch runs on block-mode changes, not per PTY
-chunk. Command-editor focus does
-not lower active-pane cadence. Divider padding is presentation-only and does not
+layout. Divider padding is presentation-only and does not
 change copied command boundaries. Scrollbars preserve native fractional positions
 and ignore delayed programmatic scroll events. Hidden output does no surface DOM
 or search-mask work until presentation resumes.
 
 Terminal clipboard shortcuts use the native text clipboard plugin on all desktop
-platforms. Context clicks expose the selected text through the input element to
-restore the webview's native text menu; no persistent DOM scrollback is maintained.
+platforms. Context clicks with selected text preserve the selection workflow;
+without a selection, viewport rows are mapped to native buffer lines for block
+hit testing. No persistent DOM scrollback is maintained.
 On macOS the input `<textarea>` always holds one selected placeholder character
 (`TerminalInputProxy`; elsewhere it stays empty, a selection could take X11 PRIMARY): a focused editable with a collapsed selection keeps
 WebKit's caret animation (a display link at display rate) running at ~3 % CPU and
 ~250 wakeups/s while idle, a non-collapsed selection paints no caret (0.2 %, ~10/s).
 It re-arms after input, key release and focus, never during IME composition, and
 native Copy/Cut without terminal text must not copy the placeholder.
-Unclaimed macOS Command shortcuts reach the native menu after explicit clipboard,
-block-editor, and readline bindings, including when Kitty keyboard mode is active.
-The block prompt retains an enabled terminal input proxy for native menus and
-routes editing keys, composed text and paste back to its command editor.
+Unclaimed macOS Command shortcuts reach the native menu after explicit clipboard
+and readline bindings, including when Kitty keyboard mode is active.
+The terminal input proxy stays enabled for native menus; editing keys, composed
+text and paste go straight to the shell.
 Character drags retain a native selection pin from pointerdown, including before
 the first pointermove. Unmoved clicks and lost captures discard provisional pins.
 Key encoding supplies the base character required by Kitty keyboard mode; plain
@@ -192,17 +195,23 @@ keys and key releases also use Ghostty encoding when the application requests it
 Terminal text uses the configured font, an installed Nerd Font when detected,
 or bundled JetBrains Mono. Private-use prompt symbols require an installed font
 that supplies them; Terax does not ship a separate symbol font. Native color
-emoji remain on the system fallback path. Rerun requires the complete command
-submitted through Terax; truncated shell labels are never executed.
+emoji remain on the system fallback path. Rerun requires the complete command:
+either one submitted through Terax or a shell-reported command line below the
+256-character truncation cap; truncated shell labels are never executed.
 Primary-screen full erase, scrollback erase, and terminal reset invalidate block
 pins at parse time and clear block chrome, selection, and search. Commands after
 an erase in the same output chunk retain their new pins. Alternate-screen erases
 preserve primary block history. Block scrollbar status dots are removed along
 with their timers and history scans.
 
-The shared command bar activates after shell integration confirms prompt input.
-Bare shells keep direct terminal input. Bash before 4.4 reports
-`OSC 133;B;terax_blocks=0` and keeps its native prompt because it lacks PS0.
+Every PTY requests block integration. The shell prompt stays visible and
+directly usable in every mode; `TERAX_BLOCKS=1` only reserves blank gap rows
+above each prompt for block chrome. Bash before 4.4 reports
+`OSC 133;B;terax_blocks=0` because it lacks PS0, so it never enters block mode
+and gets no gap rows. Ctrl/Cmd+Shift+T creates a private terminal. Ctrl+R is
+reserved for the shell's own reverse history search: global shortcut dispatch
+never claims it, and Settings rejects attempts to assign it with a conflict
+warning.
 
 Settings offer Automatic or WebGL for new terminals, plus opt-in screen reader
 output. Accessible text is limited to 256 rows / 64 KiB and refreshes at most four
@@ -354,11 +363,11 @@ ConPTY on Windows requires `CONPTY_LIFECYCLE_LOCK` (Mutex) around `openpty + spa
 
 Each ConPTY child is also assigned to a per-session **Job Object** with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` (`pty/job.rs`). When the Job HANDLE drops - clean shutdown, panic, or even SIGKILL'd Terax process - the kernel kills every descendant of the shell (e.g. `npm run dev` spawned from inside pwsh). Without this Windows orphans the entire process subtree because `TerminateProcess` only kills the immediate child. macOS/Linux rely on `Drop for Session → killer.kill()`; on dev-`Ctrl-C` of `cargo run` destructors don't fire and orphans are possible there too - acceptable for now since dev only.
 
-`AiComposerProvider` is mounted unconditionally at the App.tsx root: a conditional wrapper would change the parent element type when keys load, remounting the entire tree (and re-spawning every PTY) the moment `getAllKeys()` resolves. Production happened to dodge this because keychain reads can land in the same paint frame; dev didn't. Keep the unconditional wrap.
+`AiComposerProvider` is mounted inside the independent AI window, not at the App.tsx root. The main window keeps the only chat engine and mirrors snapshots to the AI webview, so Composer mounts and keychain reads never remount the main terminal tree.
 
 ### Frontend (`src/`)
 
-Single-window React app. Path alias `@/*` → `src/*`. Tabs are a tagged union (`kind`: `terminal` | `editor` | `preview` | `markdown` | `ai-diff` | `git-diff` | `git-history` | `git-commit-file`) and **not** unmounted on switch - they're hidden via `invisible pointer-events-none` so PTYs and dev servers keep streaming in the background.
+Multi-window React app with main, settings, and native AI entry points. Path alias `@/*` → `src/*`. Main-window tabs are a tagged union (`kind`: `terminal` | `editor` | `preview` | `markdown` | `ai-diff` | `git-diff` | `git-history` | `git-commit-file`) and **not** unmounted on switch - they're hidden via `invisible pointer-events-none` so PTYs and dev servers keep streaming in the background.
 
 `App.tsx` wires modules together - keep it a coordinator. New features go inside the appropriate `modules/<area>/`.
 
@@ -391,15 +400,15 @@ Each module is self-contained, exports a thin barrel via `index.ts`, and owns it
 
 ### AI subsystem (`src/modules/ai/`)
 
-BYOK. Cloud providers via `@ai-sdk/*`: **OpenAI, Anthropic, Google, xAI, Cerebras, Groq, DeepSeek, Mistral, OpenRouter**, plus **OpenAI-compatible** for any custom base URL. Local / offline providers (key-optional, model id supplied at runtime): **LM Studio, MLX, Ollama**. Provider list in `config.ts` (`PROVIDERS`); model registry includes `DEFAULT_MODEL_ID` + `DEFAULT_AUTOCOMPLETE_MODEL`.
+BYOK. Providers and models are **data-driven**, not compiled in: `terax-ai-models.json` in the app data directory is the source of truth, hand-editable and mirrored by Settings → Models. The built-in catalog seeds domestic providers (智谱 GLM, DeepSeek, 阿里云百炼 Qwen, 月之暗面 Kimi, 火山方舟 豆包, 硅基流动, MiniMax, 阶跃星辰, 腾讯混元, 百度千帆) plus a generic OpenAI-compatible entry. Adding a vendor is a JSON operation; the only code-level switch is the closed `protocol` enum (`openai-compatible` / `anthropic` / `google`) in `src/modules/ai/lib/agent.ts`. Each model carries its context/output limits, declarative request parameters, and its own thinking ladder; `src/modules/ai/config/` owns schema, normalisation, persistence, registry and the parameter engine. See `docs/architecture/model-configuration.md`.
 
 - **Key storage**: OS keychain via `keyring` (Rust). Frontend reads/writes through `secrets_*` commands. Service `KEYRING_SERVICE = "terax-ai"`. Never persist keys to disk, settings store, or `localStorage`.
-- **Agent** (`lib/agent.ts`): `Experimental_Agent` with `stopWhen: stepCountIs(MAX_AGENT_STEPS)` and the system prompt from `config.ts`. Provider branching happens here - keep the `Agent` / `DirectChatTransport` shape; the rest of the system depends on AI SDK v6 chat semantics.
+- **Agent** (`lib/agent.ts`): `streamText` with `stopWhen: stepCountIs(MAX_AGENT_STEPS)` and the system prompt selected from the model's `systemPrompt` field. Transport adapters live here; request parameters (including the thinking level) are merged into the JSON body/headers by a vendor-agnostic fetch wrapper. Keep the `Chat` / transport shape; the rest of the system depends on AI SDK v6 chat semantics.
 - **Sub-agents** (`agents/registry.ts`, `agents/runSubagent.ts`): named sub-agents with their own system prompts and tool subsets, invoked by the main agent via `run_subagent` tool.
 - **Sessions** (`lib/sessions.ts` + `store/chatStore.ts`): conversations are organized into named sessions. `terax-ai-sessions.json` retains only metadata and `activeId`; message arrays live in atomically replaced `conversations/session-<id>.json` files owned by Rust. Messages cross IPC as raw JSON bytes (validated by a streaming pass, never rebuilt as a document tree); every save flushes the new file (plain `fsync`) before the rename and keeps the replaced version as `session-<id>.json.bak`; mid-stream saves are scheduled at most every 2 s and at least every 4 s, while turn end, session switch and window close save durably (full flush, `F_FULLFSYNC` on Apple, plus a directory sync). A queued write for a session is replaced by a newer one, and a damaged file is set aside as `session-<id>.json.corrupt` and the load falls back to the `.bak` before the conversation reads as empty, so one bad conversation never breaks the rest. Legacy migration is per session: it removes a legacy key only after its message file is safe, never overwrites a newer file on retry, skips and reports a failing key, and deletes `terax-ai-sessions.before-message-files.json` once every conversation that copy holds, not only the ids the caller lists, reads back as a valid file (a leftover copy older than seven days with nothing to migrate is pruned at startup, and deleting a session scrubs it from the copy). Window close flushes with a timeout and never traps: a failed flush shows a "Close anyway" error once. Per-session queues and a native I/O gate serialize storage operations across page reloads; failed latest writes remain retryable, and window close flushes pending storage. `chatStore.ts` keeps a module-scoped `Map<sessionId, Chat<UIMessage>>`; `getOrCreateChat(sessionId)` lazily constructs a `Chat`, seeded with messages from a hydration map populated by `hydrateSessions()` (called once from `App.tsx`). `AgentRunBridge` mirrors active-session messages to disk on every change and auto-derives titles from the first user message. Switching the API key wipes the chat map; sessions persist.
-- **Composer** (`lib/composer.tsx`): React context providing shared input state (text, attachments, voice) for both the docked `AiInputBar` and any other surface. Attachments include image, text-file, and `selection` kinds - selections come from `useChatStore.attachSelection(text, source)` (drained into chips, not pasted into the textarea) and are wrapped as `<selection source="terminal|editor">…</selection>` blocks at submit. Composer derives `isBusy` from `agentMeta.status` so it can mount safely before sessions hydrate.
+- **AI panel** (`components/AiPanel.tsx`, `store/aiPanelStore.ts`, `lib/aiPanel.ts`): Ctrl/Cmd+I toggles a resizable right-side panel inside the main window (no native window since 2026-10-31; the panel cannot leave the main window). The panel and `AgentRunBridge` subscribe to the same Chat instance via `getOrCreateChat` + `useChat`; there is no snapshot/command bridge. Pending approvals auto-open the panel. API keys never leave the keyring path.
+- **Composer** (`lib/composer.tsx`, `components/AiPanelComposer.tsx`, `lib/composerMessage.ts`): the complete Composer lives at the bottom of the AI panel. It preserves images, text files, `@` picks, snippets, slash commands, and `selection` chips from the terminal or editor. Selections are wrapped as `<selection source="terminal|editor">…</selection>` blocks at submit. `buildComposerMessage` performs the pure conversion before the unique Chat sends it. The old docked AI input, DOM mini window and independent AI window are gone; the terminal keeps its own native prompt input.
 - **AI HTTP transport**: binary request bodies and response packets avoid JSON byte arrays. Native requests are owned by their calling window, explicitly cancelled on abort, page reload, or window destruction, and bounded to 16 concurrent requests. A 128 KiB byte window (at most 256 packets) carries at most 64 KiB per packet and coalesces ready network chunks; the webview acknowledges validated cumulative byte boundaries once half a window has arrived, so small SSE chunks cost no per-chunk IPC, and a consumer that grants no credit for two minutes is abandoned and its request cancelled. The frontend consumer queue is capped at 192 KiB, request bodies at 64 MiB, and request metadata at 64 KiB. Consumer cancellation during startup is repeated after native registration completes. SSRF validation and DNS pinning remain in Rust.
-- **Voice input**: streamed transcription pipeline. Toggled from the composer.
 - **Live context bridge**: `App.tsx` calls `setLive({ getCwd, getTerminalContext, … })` so tools can read the *currently active* terminal's cwd + last 300 lines of buffer. Lazy by design - don't pre-snapshot.
 - **Tools** (`tools/tools.ts`): `read_file`, `list_directory`, `fs_search`, `fs_grep` auto-execute. `write_file`, `create_directory`, `rename`, `delete`, `run_command`, `shell_session_run`, `shell_bg_spawn` set `needsApproval: true` and the AI SDK pauses for an in-UI confirmation card. Auto-send after approval uses `lastAssistantMessageIsCompleteWithApprovalResponses`. `lib/security.ts` is a deny-list refusing obvious secret paths (`.env*`, `.ssh/`, credentials, keychain dirs) - apply on **both** read and write paths and don't bypass it.
 - **Edit diffs**: AI-proposed edits open in a side-by-side diff tab (`ai-diff` tab kind); user accepts/rejects per hunk before the write tool actually runs.
@@ -413,7 +422,7 @@ BYOK. Cloud providers via `@ai-sdk/*`: **OpenAI, Anthropic, Google, xAI, Cerebra
 - Animation: `motion` (Framer Motion successor). Resizable layout: `react-resizable-panels`.
 - **Animation cost**: nothing animates forever at display rate. Tailwind `animate-spin`/`animate-pulse` are redefined in `globals.css` with `steps()` (12 and ~4 fps), the text shimmer uses 40 steps per sweep, recording indicators use `.terax-blink`, a pending tool approval uses the finite `.terax-attention-pulse`, and persisted history (`bash_background`) never animates. `modules/theme/windowActivity.ts` sets `html[data-window-inactive]` while the window is unfocused, hidden or occluded (DOM focus, document visibility and the terminal's shared native presentation feed, no extra native listener); that attribute pauses every CSS animation and an animated background image freezes on a still frame (`surfaceFrame.ts`). `prefers-reduced-motion` still removes the rest.
 - **Compositing budget**: every composited layer costs a backing store, and WebKit allocates a new one per window-resize step for each layer that follows the window. At rest the shell has three layers with contents (page tile, terminal canvas, the terminal's hidden textarea); everything else is clip layers without backing. Do not add `will-change`, 3D transforms (`translateZ`, `transform-gpu`), `backdrop-filter`/`backdrop-blur` or blur filters to anything mounted by default; popovers, HUDs and chips use an opaque `bg-popover`/`bg-card` instead of a translucent blurred one. Only the allowlist in `src/styles/compositingBudget.test.ts` (modal scrims, the background-image overlay, ...) may, each with a reason. A static background image gets no layer (`surfaceOwnsLayer`). While a window drag is live, `html[data-live-resize]` (`modules/theme/livePageResize`, macOS only) gives the document an invisible size rounded up to 512 px so WebKit keeps one page tile size across the drag instead of one per step (`docs/architecture/app-lab.md`, "Compositing layers").
-- **Startup graph**: neither window may preload the AI SDK, zod, Streamdown, CodeMirror or the icon set. `vite.config.ts` splits chunks with two prioritised `codeSplitting` groups (eager `react`/`radix`/`ghostty-vt` outrank lazy features, because a lazy chunk's recursive dependency capture once swallowed React's CJS entry and made the eager `react` chunk import every AI provider). `src/app/dist-budget.test.ts` builds into a temp dir with sourcemaps and fails if any forbidden package or chunk is reachable from `index.html`/`settings.html`; `pnpm check:dist` runs the same check on `dist/`. `eager-budget.test.ts` keeps the source-graph check.
+- **Startup graph**: main and settings entry points may not preload the AI SDK, zod, Streamdown, CodeMirror or the icon set. The AI entry loads chat rendering but must not import `chatRuntime`, Provider adapters or the agent transport. `vite.config.ts` splits chunks with two prioritised `codeSplitting` groups (eager `react`/`radix`/`ghostty-vt` outrank lazy features, because a lazy chunk's recursive dependency capture once swallowed React's CJS entry and made the eager `react` chunk import every AI provider). `src/app/dist-budget.test.ts` builds into a temp dir with sourcemaps and fails if any forbidden package or chunk is reachable from `index.html` (the only window entry since the settings/AI windows merged into the main window); `pnpm check:dist` runs the same check on `dist/`. `eager-budget.test.ts` keeps the source-graph check.
 - **Long AI chats**: messages older than the newest two get `content-visibility: auto` with an estimated `contain-intrinsic-size` (`messageHeightEstimate.ts`), so layout and paint cost tracks what is near the viewport.
 - **Window vibrancy**: the `windowVibrancy` pref drives `WindowVibrancyBridge` (main window only - `window_set_backdrop` targets its caller). `html[data-vibrancy="on"]` (off by default; an explicitly stored choice always wins) makes `<html>`/`<body>` transparent and redefines `--frame` with alpha, so only the chrome frosts; panes keep `--background` so terminal text stays on a solid surface and the terminal canvas still matches its container. The opaque colour the pre-paint script parks on `<html>` would cover the backdrop, so `applyVibrancy` clears it while the effect is on; there is deliberately no localStorage fast path, since pre-declaring the effect would show a see-through window on any launch where the native call has not landed yet. Repeat applications are deduped, and only Mica is rebuilt on a light/dark flip (NSVisualEffectView adapts on its own).
 - **Floating panes**: header and status bar are window chrome painted on `--frame` (derived from `--card`, so no theme declares it); the sidebar and the tab surface are `.terax-pane` cards on `--background` - same tone as the terminal canvas. Panes meet the chrome flush and are inset only horizontally, because the header centers its content and any vertical gutter would stack onto that padding and read as asymmetric. `.terax-pane` carries no drop shadow: `react-resizable-panels` clips panel content at the panel box, so a shadow would only render on the gutter sides.
@@ -446,7 +455,7 @@ BYOK. Cloud providers via `@ai-sdk/*`: **OpenAI, Anthropic, Google, xAI, Cerebra
   - **macOS**: `minimumSystemVersion: 13.0`.
   - **Linux**: deb depends `libwebkit2gtk-4.1-0`, `libgtk-3-0`; rpm `webkit2gtk4.1`, `gtk3`; AppImage bundles its media framework.
   - **Windows**: NSIS installer in `currentUser` mode (no admin required), WebView2 via `downloadBootstrapper`. Installing a missing WebView2 runtime requires internet access; there is no bundled offline runtime. Packaged and offline-install validation remains in the release-readiness gates.
-- Auto-updater configured with a public minisign key; release artifacts at `https://github.com/crynta/terax-ai/releases/latest/download/latest.json`.
+- Auto-updater configured with a public minisign key; release artifacts at `https://github.com/lsnu73/terax-ai/releases/latest/download/latest.json`.
 - `bundle.resources` includes the upstream Ghostty, Restty, ghostty-web, and xterm.js license notices under `licenses/terminal/`. Repository documentation and test-only reference WASM cores are not packaged; the frontend includes only the adapted SIMD and scalar cores.
 
 ### Known gotchas
@@ -464,6 +473,7 @@ Long-form contributor guides live under `docs/`. These guides elaborate on `TERA
 - `docs/architecture/pty-shell-integration.md` - PTY, shell init scripts, OSC, ConPTY, Job Object
 - `docs/architecture/pty-transport-v2.md` - multiplexed PTY output stream: hub, wire format, presentation classes, credit; `scripts/pty-smoke/` drives it in a real debug app (`python3 scripts/pty-smoke/run.py`)
 - `docs/architecture/security-model.md` - consolidated security model and boundaries
-- `docs/architecture/ai-subsystem.md` - AI stack, sessions, tools, adding a provider
+- `docs/architecture/ai-subsystem.md` - AI stack, sessions, tools
+- `docs/architecture/model-configuration.md` - JSON model configuration, parameter engine, thinking ladder
 - `docs/architecture/terminal-renderer-pool.md` - model ownership and presentation pool invariants
 - `docs/contributing/testing.md` - testing contract and core-subsystem invariants

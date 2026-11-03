@@ -14,8 +14,8 @@ export {
   disposeSession,
   leafHasForegroundProcess,
   leafIdForPty,
-  navigateFocusedBlocks,
   ptyIdForLeaf,
+  restartSession,
   whenSessionReady,
   writeToSession,
 } from "./lib/terminalSessionApi";

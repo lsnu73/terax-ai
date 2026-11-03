@@ -1,0 +1,81 @@
+/** 命令面板的命令标题、分组名与 UI 文案。 */
+export const commands = {
+  groups: {
+    general: "General",
+    spaces: "Spaces",
+    tabs: "Tabs",
+    panes: "Panes",
+    git: "Git",
+    search: "Search",
+    view: "View",
+    ai: "AI",
+  },
+  general: {
+    openSettings: "Open settings",
+    changeTheme: "Change theme...",
+    keyboardShortcuts: "Keyboard shortcuts",
+  },
+  spaces: {
+    overview: "Spaces: Overview",
+    new: "New Space",
+    switchTo: "Switch to {{name}}",
+  },
+  tabs: {
+    newTerminal: "New terminal",
+    newPrivateTerminal: "New private terminal",
+    newEditorTab: "New editor tab",
+    newWebPreview: "New web preview",
+    closeTabOrPane: "Close tab or pane",
+  },
+  panes: {
+    splitRight: "Split pane right",
+    splitDown: "Split pane down",
+  },
+  git: {
+    openGraph: "Open git graph",
+    toggleSourceControl: "Toggle source control",
+  },
+  search: {
+    findContent: "Find content in files",
+    findInTab: "Find in current tab",
+    searchFiles: "Search files by name",
+  },
+  view: {
+    toggleFileExplorer: "Toggle file explorer",
+    toggleHiddenFiles: "Toggle hidden files",
+  },
+  ai: {
+    toggleAgent: "Toggle AI role",
+    askAboutSelection: "Ask AI about selection",
+  },
+  disabled: {
+    noTerminalTab: "No terminal tab",
+    paneLimit: "Pane limit",
+    lastTab: "Last tab",
+    noWorkspaceRoot: "No workspace root",
+    currentSpace: "Current space",
+    noSearchableView: "No searchable view",
+  },
+  palette: {
+    title: "Command Palette",
+    description: "Run a command, switch theme, or search your workspace.",
+    placeholderCommands:
+      "Type a command, > for path history, # to find in files",
+    placeholderContent: "Find text in files...",
+    placeholderThemes: "Search themes...",
+    placeholderPaths: "Search recent paths...",
+    themesHeading: "Themes",
+    noThemes: "No themes",
+    contentsHeading: "Contents",
+    pathsHeading: "Recent terminal paths",
+    noPaths: "No recent paths yet. Change directory in a terminal to record one.",
+    typeMinChars: "Type at least 2 characters",
+    noMatches: "No matches",
+    searchModesHeading: "Search modes",
+    searchFailed: "Search failed",
+    searching: "Searching...",
+    emptyHint: "No commands found. Type ? to see search modes.",
+    modeContent: "Find text in files",
+    modePaths: "Recent terminal paths",
+  },
+};

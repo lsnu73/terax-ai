@@ -38,3 +38,9 @@ __pycache__/
 .mcp.json
 
 .zcode/
+.cargo/
+.claude/
+
+# Tauri updater signing keys (never commit the private key)
+*.key
+*.key.pub

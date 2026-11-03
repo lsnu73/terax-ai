@@ -4,32 +4,74 @@ This guide elaborates on `TERAX.md`. If anything here conflicts with `TERAX.md`,
 
 ## Overview
 
-The AI subsystem is BYOK (bring your own key). It supports cloud providers via `@ai-sdk/*` and local / offline providers via OpenAI-compatible endpoints. The agent layer is built on Vercel AI SDK v6 chat semantics: `streamText`, tool definitions, and `stopWhen` step limits.
+The AI subsystem is BYOK (bring your own key). Providers and models are declared in a hand-editable JSON file, so vendor support is data rather than code (see `model-configuration.md`). The agent layer is built on Vercel AI SDK v6 chat semantics: `streamText`, tool definitions, and `stopWhen` step limits.
 
 Main entry point: `runAgentStream` in `src/modules/ai/lib/agent.ts`.
 
 ## Providers
 
-Cloud providers are defined in `src/modules/ai/config.ts`:
+Providers and models are configuration, not code. The source of truth is
+`terax-ai-models.json` in the app data directory (`%APPDATA%/...` on Windows,
+`~/Library/Application Support/...` on macOS). Settings → Models edits the same
+document; both routes produce identical results.
 
-- OpenAI, Anthropic, Google, xAI, Cerebras, Groq, DeepSeek, Mistral, OpenRouter
-- `openai-compatible` for any custom base URL
-- Local: LM Studio, MLX, Ollama
+- Built-in catalog (seeded on first launch, no models): 智谱 GLM, DeepSeek,
+  阿里云百炼 Qwen, 月之暗面 Kimi, 火山方舟 豆包, 硅基流动, MiniMax, 阶跃星辰,
+  腾讯混元, 百度千帆, plus a generic OpenAI-compatible entry.
+- Model rows are always user-created, either by fetching the provider's
+  `/models` endpoint or by entering a model id manually.
+- Each provider declares `protocol` (transport adapter), `baseURL`, auth mode,
+  optional model-list API, shared parameters, and a fallback thinking ladder.
+- Each model declares its wire id, label, input/output token limits, its own
+  parameters, an optional thinking ladder, and a raw `extra` JSON overlay.
 
-`buildLanguageModel` in `src/modules/ai/lib/agent.ts:76` branches on `provider` to construct the correct AI SDK provider instance. Local providers use `createOpenAICompatible` with a `localProxyFetch` that allows private-network access, while cloud providers use their dedicated SDK constructors.
-
-Model metadata (context limits, costs, reasoning behavior) lives in the model registry in `config.ts`. `resolveModel` maps a model id to its provider and defaults.
+`buildLanguageModel` (`src/modules/ai/lib/agent.ts`) switches only on
+`protocol` (`openai-compatible`, `anthropic`, `google`). Parameters are merged
+into the outgoing JSON body/headers by a fetch wrapper, so vendor-specific key
+names never appear in source code.
 
 ### Adding a new provider
 
-1. Add a `ProviderInfo` entry to `PROVIDERS` in `src/modules/ai/config.ts`.
-2. Add model ids and metadata to the model registry in the same file.
-3. Add a branch in `buildLanguageModel` (`src/modules/ai/lib/agent.ts:99`) that constructs the provider instance. For OpenAI-compatible APIs you can often reuse `createOpenAICompatible`.
-4. If the provider requires an API key, update `providerNeedsKey` in `config.ts` and the keyring service mapping.
-5. If it needs a dedicated `@ai-sdk/*` package, add it to `package.json` and justify the bundle cost (see `CONTRIBUTING.md`).
-6. New built-ins must justify unique value beyond `openai-compatible` and OpenRouter; `CONTRIBUTING.md` calls this out explicitly.
+Add an entry in Settings → Models (or directly in the JSON file):
 
-Keys are never persisted outside the OS keychain / Linux secrets file.
+```json
+{
+  "id": "my-vendor",
+  "label": "My Vendor",
+  "protocol": "openai-compatible",
+  "baseURL": "https://api.my-vendor.example/v1",
+  "keyringAccount": "my-vendor-api-key",
+  "auth": { "mode": "bearer", "required": true },
+  "modelsApi": { "path": "/models", "itemsPath": "data", "idPath": "id" },
+  "params": [],
+  "thinking": null,
+  "models": []
+}
+```
+
+No TypeScript changes are required. If the vendor speaks a protocol other than
+OpenAI-compatible, add a transport adapter to `ADAPTERS` in `agent.ts`; that is
+the only code extension point.
+
+### Keys
+
+Keys are never persisted outside the OS keychain / Linux secrets file. The
+provider's `keyringAccount` names the keychain entry; the JSON file stores only
+that name. Normalisation strips secret-looking static headers
+(`Authorization`, `x-api-key`, …) found in the file and reports a warning.
+
+### Request parameters and thinking
+
+A parameter is declared with a logical `key`, a location (`body`/`header`), a
+wire `path` (dots create nested objects), a type, an optional default/enum, and
+an optional `map` from logical level value to wire value. `null` in a map means
+"omit the key", which is how thinking is disabled for vendors that reject a
+value rather than accepting `"none"`.
+
+Thinking levels are an ordered ladder; index 0 is always off. The model picker
+in the terminal renders the selected model's ladder as a slider and stores the
+chosen level id per model. See `model-configuration.md` for the schema and the
+GLM mapping examples.
 
 ## Agent run loop
 
@@ -57,11 +99,15 @@ Conversations are organized into sessions. Persistence lives in `terax-ai-sessio
 
 `AgentRunBridge` mirrors active-session messages to disk on every change and auto-derives titles from the first user message.
 
-## Composer
+## Independent AI window and Composer
 
-`AiComposerProvider` (`src/modules/ai/lib/composer.tsx`) is a React context that holds shared input state (text, attachments, voice) for the docked input bar and any other surface. Attachments can be images, text files, or `selection` chips from the terminal or editor. Selections are wrapped as `<selection source="terminal|editor">…</selection>` blocks at submit time and are not pasted into the textarea.
+The native `ai` window is created by the async commands in `src-tauri/src/modules/ai_window.rs`, loads `ai.html` and `src/ai/main.tsx`, and has no parent or main-window coordinate clamp. Ctrl/Cmd+I toggles it through `src/modules/ai/lib/aiWindow.ts`. Native position and size restoration belongs to `tauri-plugin-window-state`.
 
-The composer derives `isBusy` from `agentMeta.status` so it can mount safely before sessions hydrate.
+The main webview owns the only Chat engine. `AgentRunBridge` sends targeted snapshots to `ai` and receives structured commands from the AI webview. The independent window never creates another Chat or agent transport. Snapshots contain UI state only, never API keys.
+
+`AiComposerProvider` (`src/modules/ai/lib/composer.tsx`) holds the complete Composer state inside the AI window. Attachments can be images, text files, or `selection` chips from the terminal or editor. Selections are wrapped as `<selection source="terminal|editor">…</selection>` blocks at submit time and are not pasted into the textarea. `buildComposerMessage` is the shared pure conversion used by the main-window command bridge, so snippets, slash commands, files and images keep the same wire format.
+
+The main workspace no longer mounts a docked AI input bar. Terminals keep their own native shell prompt, which is a separate terminal feature.
 
 ## Tools and approval
 

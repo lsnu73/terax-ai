@@ -1,0 +1,36 @@
+/** LSP：状态栏胶囊（启用/安装/错误/运行中）、会话管理 toast、定义/引用结果面板标题。服务器名与命令不翻译。 */
+export const lsp = {
+  pill: {
+    enable: "Enable {{name}} LSP",
+    install: "Install {{name}} LSP",
+    startForWorkspace: "Start {{command}} for this workspace",
+    stoppedTitle: "Language server stopped",
+    stoppedHeading: "{{name}} language server stopped",
+    heading: "{{name}} language server",
+    restart: "Restart",
+    disable: "Disable",
+    dismiss: "Dismiss (you can re-enable from Settings)",
+    installHintPre: "Terax found no ",
+    installHintPost: " on your PATH. Install it, then check again:",
+    copyCommand: "Copy command",
+    documentation: "Documentation",
+    checking: "Checking...",
+    checkAgain: "Check again",
+    startingTitle: "Language server starting",
+    activeTitle: "Language server active",
+    startingDescription: "{{command}} is starting for this workspace.",
+    runningDescription: "{{command}} is running for this workspace.",
+  },
+  toast: {
+    failedToStart: "{{name}} language server failed to start",
+    stopped: "{{name}} language server stopped",
+    keepsCrashing: "{{name}} language server keeps crashing",
+    exited: "{{name}} language server exited",
+    serverKeptCrashing: "The server kept crashing.",
+    givingUp: "Giving up for this workspace.",
+  },
+  panel: {
+    definitions: "Definitions",
+    references: "References",
+  },
+};

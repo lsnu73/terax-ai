@@ -1,10 +1,18 @@
 import { terminalWindowFocused } from "@/modules/terminal/ghostty/renderScheduling";
+import { t } from "@/modules/i18n";
 import { bindTerminalInteraction } from "@/modules/terminal/ghostty/input/terminalInteraction";
-import { isClampedScrollEcho, TerminalScrollbarSync } from "@/modules/terminal/ghostty/gpu/terminalScrollbar";
+import {
+  isClampedScrollEcho,
+  TerminalScrollbarSync,
+} from "@/modules/terminal/ghostty/gpu/terminalScrollbar";
 import { terminalWindowPresentation } from "@/modules/terminal/ghostty/windowPresentation";
 import type { TerminalSurface } from "@/modules/terminal/backend/contracts";
 import { smoothHooks } from "@/bench/smoothHooks";
 import { noteTerminalHostResize } from "@/modules/terminal/lib/terminalResizeGesture";
+import {
+  linkModifierHeld,
+  type TerminalLinkModifiers,
+} from "@/modules/terminal/lib/terminalLinks";
 import {
   subscribeTerminalResizeInteraction,
   terminalResizeInteractionActive,
@@ -82,7 +90,10 @@ export type WebGpuTerminalSurfaceOptions = {
   readonly onFirstFrame?: () => void;
   readonly onFrame?: () => void;
   readonly onRequestFocus?: () => void;
-  readonly onOpenLink?: (uri: string) => void;
+  readonly onOpenLink?: (
+    uri: string,
+    modifiers: TerminalLinkModifiers,
+  ) => void;
 };
 
 export type WebGpuTerminalSurfaceStats = {
@@ -235,13 +246,13 @@ export class WebGpuTerminalSurface
     this.updateRootBackground();
     this.root.setAttribute("data-terax-ghostty-surface", "webgpu");
     this.root.setAttribute("data-terax-terminal-surface", "");
-    this.input.setAttribute("aria-label", "Terminal input");
+    this.input.setAttribute("aria-label", t("terminal.a11y.input"));
     this.input.setAttribute("autocapitalize", "off");
     this.input.setAttribute("autocomplete", "off");
     this.input.setAttribute("spellcheck", "false");
     this.input.style.cssText =
       "position:absolute;left:0;top:0;width:1px;height:1px;opacity:0;resize:none;pointer-events:none;";
-    this.scrollbar.setAttribute("aria-label", "Terminal scrollback");
+    this.scrollbar.setAttribute("aria-label", t("terminal.a11y.scrollback"));
     this.scrollbar.setAttribute("role", "scrollbar");
     this.scrollbar.style.cssText =
       "position:absolute;inset:0 0 0 auto;z-index:10;width:11px;overflow-x:hidden;overflow-y:scroll;overscroll-behavior:contain;visibility:hidden;";
@@ -300,9 +311,13 @@ export class WebGpuTerminalSurface
     );
     this.root.addEventListener("pointerdown", this.handlePointerDown);
     this.root.addEventListener("mousemove", this.handleLinkMouseMove);
-    this.root.addEventListener("mousedown", this.handleLinkMouseDown);
-    this.root.addEventListener("mouseup", this.handleLinkMouseUp);
+    // 链接点击必须走 pointer 事件：选区控制器会 preventDefault pointerdown，
+    // 这会抑制兼容性 mousedown/mouseup，挂在 mouse 事件上永远收不到。
+    this.root.addEventListener("pointerdown", this.handleLinkPointerDown);
+    this.root.addEventListener("pointerup", this.handleLinkPointerUp);
     this.root.addEventListener("mouseleave", this.handleLinkMouseLeave);
+    window.addEventListener("keydown", this.handleLinkModifierKey);
+    window.addEventListener("keyup", this.handleLinkModifierKey);
     this.scrollbar.addEventListener("scroll", this.handleScroll);
   }
 
@@ -448,6 +463,24 @@ export class WebGpuTerminalSurface
    */
   gridShiftY(): number {
     return (this.lastScreenState?.shiftY ?? 0) / this.metrics.scale;
+  }
+
+  /**
+   * Moves the hidden input to the cursor cell so the IME composition window
+   * anchors at the caret instead of parking in the pane's top-left corner.
+   * `cursor` is viewport-relative, like the rect the shader draws.
+   */
+  private syncInputCaret(
+    cursor: ReturnType<GhosttyTerminalModelApi["cursor"]>,
+  ): void {
+    const cell = this.cellSize();
+    if (cell.width <= 0 || cell.height <= 0) return;
+    const col = Math.min(Math.max(cursor.x, 0), this.options.model.cols - 1);
+    const row = Math.min(Math.max(cursor.y, 0), this.options.model.rows - 1);
+    const left = `${col * cell.width}px`;
+    const top = `${row * cell.height + this.gridShiftY()}px`;
+    if (this.input.style.left !== left) this.input.style.left = left;
+    if (this.input.style.top !== top) this.input.style.top = top;
   }
 
   setCursorEnabled(enabled: boolean): void {
@@ -616,6 +649,7 @@ export class WebGpuTerminalSurface
 
     const cursor = model.cursor();
     const viewportOrigin = model.viewportOriginLine();
+    this.syncInputCaret(cursor);
     this.syncTextBlink();
     const searchChanged = this.updateSearchMask(device);
     const uniformChanged = this.updateScreenUniform(
@@ -796,9 +830,11 @@ export class WebGpuTerminalSurface
     this.unsubscribeInteraction();
     this.root.removeEventListener("pointerdown", this.handlePointerDown);
     this.root.removeEventListener("mousemove", this.handleLinkMouseMove);
-    this.root.removeEventListener("mousedown", this.handleLinkMouseDown);
-    this.root.removeEventListener("mouseup", this.handleLinkMouseUp);
+    this.root.removeEventListener("pointerdown", this.handleLinkPointerDown);
+    this.root.removeEventListener("pointerup", this.handleLinkPointerUp);
     this.root.removeEventListener("mouseleave", this.handleLinkMouseLeave);
+    window.removeEventListener("keydown", this.handleLinkModifierKey);
+    window.removeEventListener("keyup", this.handleLinkModifierKey);
     this.scrollbar.removeEventListener("scroll", this.handleScroll);
   }
 
@@ -811,22 +847,41 @@ export class WebGpuTerminalSurface
     this.updateHoveredLink(event);
   };
 
-  private readonly handleLinkMouseDown = (event: MouseEvent): void => {
-    if (event.button !== 0) return;
+  private readonly handleLinkPointerDown = (event: PointerEvent): void => {
+    if (event.button !== 0 || !linkModifierHeld(event)) return;
     this.updateHoveredLink(event);
     this.mouseDownLink = this.hoveredLink;
   };
 
-  private readonly handleLinkMouseUp = (event: MouseEvent): void => {
+  private readonly handleLinkPointerUp = (event: PointerEvent): void => {
     if (event.button !== 0) return;
-    this.updateHoveredLink(event);
+    if (linkModifierHeld(event)) this.updateHoveredLink(event);
     const uri = this.hoveredLink;
-    const activate = uri !== null && uri === this.mouseDownLink;
+    const activate =
+      linkModifierHeld(event) && uri !== null && uri === this.mouseDownLink;
     this.mouseDownLink = null;
     if (!activate) return;
     event.preventDefault();
-    this.options.onOpenLink?.(uri);
+    this.options.onOpenLink?.(uri, {
+      shiftKey: event.shiftKey,
+      ctrlKey: event.ctrlKey,
+      metaKey: event.metaKey,
+    });
   };
+
+  // 按住 Ctrl/Cmd/Shift 时给链接手型光标；松开立即还原，无需等待鼠标移动。
+  private linkModifierActive = false;
+  private readonly handleLinkModifierKey = (event: KeyboardEvent): void => {
+    const held = linkModifierHeld(event);
+    if (held === this.linkModifierActive) return;
+    this.linkModifierActive = held;
+    this.applyLinkCursor();
+  };
+
+  private applyLinkCursor(): void {
+    this.root.style.cursor =
+      this.hoveredLink && this.linkModifierActive ? "pointer" : "text";
+  }
 
   private readonly handleLinkMouseLeave = (): void => {
     this.mouseDownLink = null;
@@ -880,6 +935,7 @@ export class WebGpuTerminalSurface
       this.clearHoveredLink();
       return;
     }
+    this.linkModifierActive = linkModifierHeld(event);
     const rect = this.root.getBoundingClientRect();
     const column = Math.floor(
       (event.clientX - rect.left) / this.metrics.cellWidth,
@@ -900,13 +956,13 @@ export class WebGpuTerminalSurface
     if (cell === this.hoveredCell) return;
     this.hoveredCell = cell;
     this.hoveredLink = this.options.model.hyperlinkAtViewportCell(row, column);
-    this.root.style.cursor = this.hoveredLink ? "pointer" : "text";
+    this.applyLinkCursor();
   }
 
   private clearHoveredLink(): void {
     this.hoveredCell = -1;
     this.hoveredLink = null;
-    this.root.style.cursor = "text";
+    this.applyLinkCursor();
   }
 
   private initializeGpuResources(resources: WebGpuSharedResources): void {

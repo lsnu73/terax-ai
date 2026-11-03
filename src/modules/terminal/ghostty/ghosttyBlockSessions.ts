@@ -7,24 +7,11 @@ import {
   sameBlockViewport,
 } from "@/modules/terminal/block/lib/viewportSignature";
 
-export type WatermarkState = "visible" | "hidden" | "dead";
-
 export class GhosttyBlockSession {
   controller: GhosttyBlocks | null = null;
   model: GhosttyTerminalModelApi | null = null;
-  focus: (() => void) | null = null;
-  paste: ((text: string) => void) | null = null;
-  keyDown: ((event: KeyboardEvent) => boolean) | null = null;
   /** Current cell height in CSS px, supplied by the surface owner. */
   cellHeight: () => number = () => 0;
-  /**
-   * Runs once per block-mode change (never per output chunk). The terminal
-   * session uses it to switch the input element between shell and prompt mode.
-   */
-  modeEffect: (() => void) | null = null;
-  draft = "";
-  inputActive = false;
-  everSubmitted = false;
   private generation = 0;
   private mode: BlockMode = "plain";
   private visible = false;
@@ -35,7 +22,6 @@ export class GhosttyBlockSession {
   private unsubscribeDamage: (() => void) | null = null;
   private presentedSignature: BlockViewportSignature | null = null;
   private readonly viewportListeners = new Set<() => void>();
-  private readonly contentListeners = new Set<() => void>();
   private readonly modeListeners = new Set<() => void>();
 
   async attach(
@@ -84,22 +70,20 @@ export class GhosttyBlockSession {
     if (mode !== this.mode) {
       this.mode = mode;
       for (const listener of this.modeListeners) listener();
-      this.modeEffect?.();
     }
     this.dirty = true;
     if (this.visible && this.presented) this.requestFrame?.();
   }
 
   /**
-   * Called once per presented renderer frame. Content subscribers (watermark)
-   * hear about every dirty frame; viewport subscribers (block chrome) only when
-   * something that positions blocks changed, so frames that merely repaint
-   * cells cost no block recomputation and no React commit.
+   * Called once per presented renderer frame. Viewport subscribers (block
+   * chrome) are notified only when something that positions blocks changed, so
+   * frames that merely repaint cells cost no block recomputation and no React
+   * commit.
    */
   present(): void {
     if (!this.dirty || !this.visible || !this.presented) return;
     this.dirty = false;
-    for (const listener of this.contentListeners) listener();
     const signature = this.readSignature();
     if (
       signature &&
@@ -128,36 +112,11 @@ export class GhosttyBlockSession {
       this.viewportListeners.delete(listener);
     };
   };
-  /** Anything derived from screen contents: notified on every dirty frame. */
-  readonly subscribeContent = (listener: () => void): (() => void) => {
-    this.contentListeners.add(listener);
-    this.changed();
-    return () => {
-      this.contentListeners.delete(listener);
-    };
-  };
-
-  watermark(): WatermarkState {
-    if (this.everSubmitted || this.controller?.hasAnyBlock) return "dead";
-    if (!this.model || this.inputActive) return "hidden";
-    if (
-      this.model.scrollPosition().history > 0 ||
-      this.model.readText(this.model.rows).trim()
-    )
-      return "dead";
-    return "visible";
-  }
 
   dispose(): void {
     this.detach();
-    this.focus = null;
-    this.paste = null;
-    this.keyDown = null;
-    this.draft = "";
-    this.modeEffect = null;
     this.modeListeners.clear();
     this.viewportListeners.clear();
-    this.contentListeners.clear();
   }
 
   private invalidateViewport(): void {

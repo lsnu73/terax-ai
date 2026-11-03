@@ -1,5 +1,6 @@
 import { changedTerminalText } from "@/modules/terminal/ghostty/core/accessibleTerminalText";
 import { useEffect, useEffectEvent, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { GhosttyTerminalModelApi } from "@/modules/terminal/ghostty/GhosttyTerminalModel";
 import { subscribeWindowPresentation } from "@/modules/terminal/ghostty/windowPresentation";
 
@@ -14,6 +15,7 @@ export default function TerminalAccessibleOutput({
   focused: boolean;
   onExit: () => void;
 }) {
+  const { t } = useTranslation();
   const [text, setText] = useState("");
   const [announcement, setAnnouncement] = useState("");
   const announce = useEffectEvent((previous: string, next: string) => {
@@ -63,7 +65,7 @@ export default function TerminalAccessibleOutput({
       <pre
         role="document"
         tabIndex={visible ? 0 : -1}
-        aria-label="Terminal output. Page Up and Page Down browse history."
+        aria-label={t("terminal.a11y.output")}
         className="sr-only focus:not-sr-only focus:absolute focus:inset-0 focus:z-20 focus:overflow-auto focus:bg-background focus:p-3 focus:text-foreground"
         onKeyDown={(event) => {
           if (event.key === "Escape") {

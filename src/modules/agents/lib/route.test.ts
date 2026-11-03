@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const preferences = vi.hoisted(() => ({
   agentNotifications: true,
   agentNotificationSound: true,
+  notificationDisplayMode: "toast" as "toast" | "badge",
 }));
 const notifications = vi.hoisted(() => ({
   pushNotification: vi.fn(),
@@ -31,6 +32,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   preferences.agentNotifications = true;
   preferences.agentNotificationSound = true;
+  preferences.notificationDisplayMode = "toast";
 });
 
 describe("routeAgentNotification sound preference", () => {
@@ -49,7 +51,9 @@ describe("routeAgentNotification sound preference", () => {
       leafId: 201,
       onActivate: vi.fn(),
     });
-    await vi.waitFor(() => expect(notifications.osNotify).toHaveBeenCalledOnce());
+    await vi.waitFor(() =>
+      expect(notifications.osNotify).toHaveBeenCalledOnce(),
+    );
 
     expect(notifications.playSound).toHaveBeenCalledOnce();
   });
@@ -70,7 +74,9 @@ describe("routeAgentNotification sound preference", () => {
       leafId: 202,
       onActivate: vi.fn(),
     });
-    await vi.waitFor(() => expect(notifications.osNotify).toHaveBeenCalledOnce());
+    await vi.waitFor(() =>
+      expect(notifications.osNotify).toHaveBeenCalledOnce(),
+    );
 
     expect(notifications.pushNotification).toHaveBeenCalledOnce();
     expect(notifications.playSound).not.toHaveBeenCalled();
@@ -94,6 +100,32 @@ describe("routeAgentNotification sound preference", () => {
     });
 
     expect(notifications.showToast).toHaveBeenCalledOnce();
+    expect(notifications.playSound).not.toHaveBeenCalled();
+  });
+
+  it("keeps the full notification in history when only badges are enabled", async () => {
+    preferences.notificationDisplayMode = "badge";
+    const { routeAgentNotification } = await import("./route");
+
+    routeAgentNotification({
+      source: "local",
+      agent: "terax",
+      kind: "error",
+      title: "Terax failed",
+      body: "Request failed",
+      focused: true,
+      visible: false,
+      allowToast: true,
+      onActivate: vi.fn(),
+    });
+
+    expect(notifications.pushNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Terax failed",
+        body: "Request failed",
+      }),
+    );
+    expect(notifications.showToast).not.toHaveBeenCalled();
     expect(notifications.playSound).not.toHaveBeenCalled();
   });
 });

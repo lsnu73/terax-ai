@@ -1,0 +1,22 @@
+# 术语 ↔ 代码实体对照
+
+- **设置页 / Settings**：主窗口内的 Settings tab（`src/settings/SettingsView.tsx`，经 `src/modules/settings/openSettings.ts` 注册表打开；2026-10-31 起不再有独立设置窗口）。易与「设置 store」（`src/modules/settings/store.ts`，偏好存取层）混淆——前者是页面，后者是数据层。
+- **主窗口**：label 为 `"main"` 的 webview 窗口，前端入口 `src/main.tsx` + `src/app/App.tsx`。
+- **sidecar**：随主程序分发的辅助可执行文件。本项目指 `terax-cli-<target-triple>(.exe)`，构建期由 `scripts/build-cli.mjs` 产出到 `src-tauri/binaries/`。
+- **beforeBuildCommand**：`tauri.conf.json` 中 `pnpm tauri build` 正式编译前执行的命令，本项目为 `pnpm build:cli && pnpm build`。
+- **terax-control-protocol**：`src-tauri/crates/terax-control-protocol/`，CLI 与主程序共用的控制协议 crate。
+- **Provider**：一家模型服务商（含自建/本地 OpenAI 兼容端点）的配置条目，对应 `config/types.ts` 的 `ProviderEntry`。易与「协议 adapter」混淆——Provider 是数据，adapter 是代码。
+- **模型配置（models config）**：`terax-ai-models.json` 的简称，存放 `version/defaults/providers`，是 Provider 与模型的唯一事实来源；不是 `terax-settings.json`（偏好设置）。
+- **ParamDef（参数声明）**：`config/types.ts` 中描述一个请求参数的元数据（逻辑 key、body/header 位置、发送路径、类型、默认值、枚举、取值映射）。思考档位通过 `key` 引用它。
+- **思考档位（thinking level）**：`ThinkingConfig.levels` 中的一项，滑块的一格；索引 0 恒为关闭。`values` 是参数 key → 逻辑值，`null` 表示该档位省略此参数。
+- **取值映射（map）**：`ParamDef.map`，把逻辑档位值翻译成厂商真实取值；`null` 表示整键不发送。智谱的 `medium → high`、`xhigh → max` 都在这里表达。
+- **协议 adapter（protocol）**：`agent.ts` 中按 `protocol` 枚举构造 AI SDK 模型的函数；目前有 `openai-compatible` / `anthropic` / `google`。新增国内厂商默认不需要新增 adapter。
+- **钥匙串账户（keyringAccount）**：Provider 配置里唯一的密钥相关字段，只是操作系统钥匙串中的账户名，绝不包含密钥本身。
+- **模型 ID 全局唯一**：当前 `ModelEntry.id` 在全配置内唯一，选择器/收藏/默认模型都以单字符串为键；同名模型需靠 `label` 区分。
+- **双模式字段（StructuredJsonField）**：`src/settings/sections/models/StructuredFields.tsx` 的通用组件，给结构化 JSON 字段提供「表单 / JSON」切换；默认表单，两种视图共享同一份文本。易与普通 JSON 文本域混淆——它额外负责空值 placeholder、切换时 pretty-print 与保存前校验。
+- **emptyValue**：`StructuredJsonField` 的「视为空」基准值（如 `[]` / `null` / `{}`）；值等于它时序列化为空字符串，JSON 模式显示格式化示例 placeholder。改某个字段的空值语义时先改这里。
+- **InfoHint**：`StructuredFields.tsx` 的信息图标组件（自带 TooltipProvider），`ModelsSection` 的 `FieldRow` 通过 `info` 参数挂载；INV-008 要求每个配置项都有它。
+- **labelKey 模式**：结构化配置表（快捷键表 `shortcuts.ts`、命令表 `commands.ts`、设置页选项表等）不存文案原文，存 i18n 键名（`labelKey`/`titleKey`/`descriptionKey`），渲染处再 `t()`。改动文案只动字典，不碰配置表。
+- **模块级 `t()`**：`src/modules/i18n/index.ts` 导出的非 React 翻译函数，供 toast、校验函数、原生通知等组件外上下文使用；组件内一律用 `react-i18next` 的 `useTranslation()`。注意测试环境 i18next 未初始化时它返回 `undefined`，相关测试需 `vi.mock("@/modules/i18n")` 或在 `beforeAll` 初始化。
+- **双字典同构**：`locales/zh/*.ts` 用 `: typeof <en导出>` 声明，键结构被 `tsc` 强制与英文一致；en 是唯一基准语言，加键先加 en。
+- **语言偏好（language）**：`terax-settings.json` 的 `language` 键（`"system" | "en" | "zh"`），`system` 由 `resolveLanguage()` 按 `navigator.language` 判定；切换经 prefs-changed 事件跨窗口即时生效，无需重启。

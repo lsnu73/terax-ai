@@ -37,7 +37,7 @@ serde_json = "1"
 
 [dependencies]
 # macos-private-api backs the transparent window NSVisualEffectView needs.
-tauri = { version = "2", features = ["macos-private-api", "protocol-asset"] }
+tauri = { version = "2", features = ["devtools", "macos-private-api", "protocol-asset"] }
 tauri-plugin-opener = "2"
 tauri-plugin-clipboard-manager = "2"
 serde = { version = "1", features = ["derive"] }
@@ -103,6 +103,7 @@ window-vibrancy = "0.6"
 keyring = { version = "3.6", default-features = false, features = [
 	"windows-native",
 ] }
+winreg = "0.55"
 window-vibrancy = "0.6"
 # The OS-level proxy setting (registry) is read by reqwest only with this
 # feature, and the previous reqwest honoured it unconditionally on Windows.
@@ -121,6 +122,7 @@ windows-sys = { version = "0.61", features = [
 	"Win32_System_Threading",
 	"Win32_System_Diagnostics_ToolHelp",
 	"Win32_UI_Shell",
+	"Win32_UI_WindowsAndMessaging",
 ] }
 
 [target.'cfg(target_os = "linux")'.dependencies]

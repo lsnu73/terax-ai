@@ -44,7 +44,8 @@ Use grep/glob/list_directory/read_file to explore. Cap TERAX.md under 200 lines.
 export type SlashCommandMeta = {
   name: string;
   invocation: string;
-  label: string;
+  /** 界面展示名走 i18n（ai.slashCommands.*）；命令名本身不翻译。 */
+  labelKey: string;
   icon: typeof SparklesIcon;
 };
 
@@ -52,19 +53,19 @@ export const SLASH_COMMANDS: Record<string, SlashCommandMeta> = {
   init: {
     name: "init",
     invocation: "/init",
-    label: "Initialize workspace",
+    labelKey: "ai.slashCommands.init",
     icon: SparklesIcon,
   },
   plan: {
     name: "plan",
     invocation: "/plan",
-    label: "Plan mode",
+    labelKey: "ai.slashCommands.plan",
     icon: CheckListIcon,
   },
   "claude-code": {
     name: "claude-code",
     invocation: "/claude-code",
-    label: "Delegate to Claude Code",
+    labelKey: "ai.slashCommands.claudeCode",
     icon: ClaudeIcon,
   },
 };

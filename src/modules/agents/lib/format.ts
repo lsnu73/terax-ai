@@ -1,3 +1,5 @@
+import { t } from "@/modules/i18n";
+
 const LABELS: Record<string, string> = {
   claude: "Claude Code",
   codex: "Codex",
@@ -9,7 +11,7 @@ const LABELS: Record<string, string> = {
 };
 
 export function displayAgent(agent: string): string {
-  if (!agent) return "Agent";
+  if (!agent) return t("agents.defaultName");
   return (
     LABELS[agent.toLowerCase()] ??
     agent.charAt(0).toUpperCase() + agent.slice(1)

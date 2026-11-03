@@ -6,11 +6,19 @@ type Props = {
   description?: string;
   children: React.ReactNode;
   className?: string;
+  searchId?: string;
 };
 
-export function SettingRow({ title, description, children, className }: Props) {
+export function SettingRow({
+  title,
+  description,
+  children,
+  className,
+  searchId,
+}: Props) {
   return (
     <div
+      data-setting-id={searchId}
       className={cn(
         "flex items-start justify-between gap-4 rounded-lg border border-border/60 bg-card/60 px-3 py-2.5",
         className,

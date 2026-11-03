@@ -16,7 +16,7 @@ import { dirname, join, posix, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 /** Window entry documents emitted by `vite build` (see vite.config.ts input). */
-export const WINDOW_HTML = ["index.html", "settings.html"];
+export const WINDOW_HTML = ["index.html"];
 
 /**
  * Chunk-name stems that must never be reachable at startup. Names come from

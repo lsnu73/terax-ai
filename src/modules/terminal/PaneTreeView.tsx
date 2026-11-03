@@ -5,6 +5,7 @@ import {
 } from "@/components/ui/resizable";
 import type { TerminalSearchController } from "@/modules/terminal/search/TerminalSearchController";
 import { Fragment, useCallback, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { useTerminalDropStore } from "./lib/dropStore";
 import { firstLeafSlotId, type PaneNode } from "./lib/panes";
 import {
@@ -16,15 +17,17 @@ import { TerminalPane, type TerminalPaneHandle } from "./TerminalPane";
 type LeafBundle = {
   setRef: (h: TerminalPaneHandle | null) => void;
   onSearchReady: (leafId: number, addon: TerminalSearchController) => void;
+  onBlockSearch: (leafId: number, addon: TerminalSearchController) => void;
+  onBlockSearchClose: (leafId: number) => void;
   onCwd: (leafId: number, cwd: string) => void;
   onExit: (leafId: number, code: number) => void;
+  onOpenPreviewUrl: (url: string) => void;
 };
 
 type Props = {
   node: PaneNode;
   tabVisible: boolean;
   activeLeafId: number;
-  blocks: boolean;
   onFocusLeaf: (leafId: number) => void;
   getBundle: (leafId: number) => LeafBundle;
 };
@@ -32,7 +35,7 @@ type Props = {
 export function PaneTreeView(props: Props) {
   const { node } = props;
   if (node.kind === "leaf") {
-    const { tabVisible, activeLeafId, blocks, onFocusLeaf, getBundle } = props;
+    const { tabVisible, activeLeafId, onFocusLeaf, getBundle } = props;
     const focused = node.id === activeLeafId;
     const b = getBundle(node.id);
     return (
@@ -53,11 +56,13 @@ export function PaneTreeView(props: Props) {
           visible={tabVisible}
           focused={focused}
           initialCwd={node.cwd}
-          blocks={blocks}
           ref={b.setRef}
           onSearchReady={b.onSearchReady}
+          onBlockSearch={b.onBlockSearch}
+          onBlockSearchClose={b.onBlockSearchClose}
           onCwd={b.onCwd}
           onExit={b.onExit}
+          onOpenPreviewUrl={b.onOpenPreviewUrl}
         />
         <DropOverlay leafId={node.id} />
       </div>
@@ -136,11 +141,12 @@ function TerminalResizableHandle() {
 }
 
 function DropOverlay({ leafId }: { leafId: number }) {
+  const { t } = useTranslation();
   const active = useTerminalDropStore((s) => s.targetLeafId === leafId);
   if (!active) return null;
   return (
     <div className="pointer-events-none absolute inset-2 grid place-items-center rounded-lg border border-primary/45 bg-background/70 text-xs font-medium text-foreground shadow-lg backdrop-blur-sm">
-      Drop file path here
+      {t("terminal.drop.overlay")}
     </div>
   );
 }

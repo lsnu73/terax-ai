@@ -173,7 +173,7 @@ describe("built startup graph", () => {
     if (outDir) rmSync(outDir, { recursive: true, force: true });
   });
 
-  for (const html of ["index.html", "settings.html"]) {
+  for (const html of ["index.html"]) {
     it(`${html}: no AI SDK, zod, Streamdown, CodeMirror or icon-set code is preloaded`, () => {
       const result = analyzeDist(outDir, [html])[html];
       expect(result.trace.missing).toEqual([]);
@@ -193,7 +193,7 @@ describe("built startup graph", () => {
       chunks.map((f) => [f, readFileSync(join(assets, f), "utf8")]),
     );
     const startup = new Set(
-      ["index.html", "settings.html"].flatMap((html) => [
+      ["index.html"].flatMap((html) => [
         ...analyzeDist(outDir, [html])[html].trace.files.keys(),
       ]),
     );
@@ -253,7 +253,7 @@ describe("built startup graph", () => {
     expect(failure({ TERAX_BENCH_IDENTIFIER: "" })).toContain(
       "TERAX_BENCH_IDENTIFIER",
     );
-    expect(failure({ TERAX_BENCH_IDENTIFIER: "app.crynta.terax" })).toContain(
+    expect(failure({ TERAX_BENCH_IDENTIFIER: "app.wang.terax" })).toContain(
       "not the product identifier",
     );
     // Nothing was emitted by either attempt.

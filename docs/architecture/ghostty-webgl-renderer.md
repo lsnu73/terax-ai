@@ -152,7 +152,8 @@ not both the legacy and adapted WASM binaries.
 
 Block terminals use the same persistent Ghostty model. Native pins anchor
 command ranges through reflow and pruning; lazy block UI owns headers, status
-marks, search, rerun, and shared input. Accessibility also loads on demand.
+marks, search, and rerun while the native prompt keeps grid input.
+Accessibility also loads on demand.
 Regression tests reject xterm dependencies in the manifest and lockfile.
 
 Ghostty's incremental search API owns query matching and scrollback traversal.

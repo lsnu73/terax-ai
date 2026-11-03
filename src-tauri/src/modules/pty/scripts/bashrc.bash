@@ -52,19 +52,22 @@ if [ -z "$__TERAX_HOOKS_LOADED" ]; then
     local _terax_ret=$?
     printf '\e]133;D;%s\e\\' "$_terax_ret"
     printf '\e]7;file://%s%s\e\\' "${HOSTNAME:-$(uname -n 2>/dev/null)}" "$(_terax_urlencode "$PWD")"
-    if [ -n "$TERAX_BLOCKS" ]; then
-      # Host renders its own input bar: suppress the shell prompt (B marker
-      # only) and reserve header/gap rows, mirroring the zsh integration.
-      if [ -n "$_terax_block_seen" ]; then
-        PS1='\n\n\[\e]133;B\e\\\]'
-      else
-        PS1='\n\[\e]133;B\e\\\]'
-      fi
-    elif [ -z "$__TERAX_PS1_INJECTED" ]; then
-      PS1="${_terax_prompt_end}${PS1}"
-      __TERAX_PS1_INJECTED=1
-    fi
     printf '\e]133;A\e\\'
+    # Block mode reserves blank rows above the prompt for the host-drawn block
+    # header, mirroring the zsh integration. The shell prompt itself stays
+    # visible so the terminal keeps its native direct input flow.
+    if [ -n "$TERAX_BLOCKS" ]; then
+      if [ -n "$_terax_block_seen" ]; then
+        printf '\n\n'
+      else
+        printf '\n'
+      fi
+    fi
+    case "$PS1" in
+      *'133;B'*) ;;
+      # Re-inject prompt-end marker in case the prompt was rebuilt (starship).
+      *) PS1="${_terax_prompt_end}${PS1}" ;;
+    esac
   }
 
   case ":${PROMPT_COMMAND:-}:" in

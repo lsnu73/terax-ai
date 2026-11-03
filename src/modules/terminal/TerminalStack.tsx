@@ -12,16 +12,22 @@ type Props = {
   /** Register/unregister handle by leaf id (not tab id). */
   registerHandle: (leafId: number, handle: TerminalPaneHandle | null) => void;
   onSearchReady: (leafId: number, addon: TerminalSearchController) => void;
+  onBlockSearch: (leafId: number, addon: TerminalSearchController) => void;
+  onBlockSearchClose: (leafId: number) => void;
   onCwd: (leafId: number, cwd: string) => void;
   onExit: (leafId: number, code: number) => void;
+  onOpenPreviewUrl: (url: string) => void;
   onFocusLeaf: (tabId: number, leafId: number) => void;
 };
 
 type Bundle = {
   setRef: (h: TerminalPaneHandle | null) => void;
   onSearchReady: (leafId: number, addon: TerminalSearchController) => void;
+  onBlockSearch: (leafId: number, addon: TerminalSearchController) => void;
+  onBlockSearchClose: (leafId: number) => void;
   onCwd: (leafId: number, cwd: string) => void;
   onExit: (leafId: number, code: number) => void;
+  onOpenPreviewUrl: (url: string) => void;
 };
 
 export function TerminalStack({
@@ -29,22 +35,35 @@ export function TerminalStack({
   activeId,
   registerHandle,
   onSearchReady,
+  onBlockSearch,
+  onBlockSearchClose,
   onCwd,
   onExit,
+  onOpenPreviewUrl,
   onFocusLeaf,
 }: Props) {
   const terminals = useMemo(() => selectLiveTerminals(tabs), [tabs]);
 
   const registerRef = useRef(registerHandle);
   const searchReadyRef = useRef(onSearchReady);
+  const blockSearchRef = useRef(onBlockSearch);
+  const blockSearchCloseRef = useRef(onBlockSearchClose);
   const cwdRef = useRef(onCwd);
   const exitRef = useRef(onExit);
+  const openPreviewRef = useRef(onOpenPreviewUrl);
   useEffect(() => {
     registerRef.current = registerHandle;
   }, [registerHandle]);
   useEffect(() => {
+    openPreviewRef.current = onOpenPreviewUrl;
+  }, [onOpenPreviewUrl]);
+  useEffect(() => {
     searchReadyRef.current = onSearchReady;
   }, [onSearchReady]);
+  useEffect(() => {
+    blockSearchRef.current = onBlockSearch;
+    blockSearchCloseRef.current = onBlockSearchClose;
+  }, [onBlockSearch, onBlockSearchClose]);
   useEffect(() => {
     cwdRef.current = onCwd;
   }, [onCwd]);
@@ -59,8 +78,11 @@ export function TerminalStack({
       b = {
         setRef: (h) => registerRef.current(leafId, h),
         onSearchReady: (id, addon) => searchReadyRef.current(id, addon),
+        onBlockSearch: (id, addon) => blockSearchRef.current(id, addon),
+        onBlockSearchClose: (id) => blockSearchCloseRef.current(id),
         onCwd: (id, cwd) => cwdRef.current(id, cwd),
         onExit: (id, code) => exitRef.current(id, code),
+        onOpenPreviewUrl: (url) => openPreviewRef.current(url),
       };
       bundles.current.set(leafId, b);
     }
@@ -105,7 +127,6 @@ export function TerminalStack({
               node={t.paneTree}
               tabVisible={tabVisible}
               activeLeafId={t.activeLeafId}
-              blocks={t.blocks ?? false}
               onFocusLeaf={(leafId) => onFocusLeaf(t.id, leafId)}
               getBundle={getBundle}
             />

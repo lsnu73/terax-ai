@@ -5,6 +5,7 @@ pub mod app_menu;
 #[cfg(feature = "bench")]
 pub mod bench;
 pub mod control;
+pub mod file_manager;
 pub mod fs;
 pub mod git;
 pub mod history;
@@ -12,6 +13,7 @@ pub mod ipc_body;
 pub mod lsp;
 pub mod net;
 pub mod proc;
+pub mod proxy;
 pub mod pty;
 pub mod runtime;
 pub mod secrets;

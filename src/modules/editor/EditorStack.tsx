@@ -3,6 +3,7 @@ import { MarkdownViewToggle } from "@/modules/markdown";
 import { useWindowInactive } from "@/modules/theme/WindowActivityBridge";
 import type { EditorTab, Tab } from "@/modules/tabs";
 import { useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { EditorPane, type EditorPaneHandle } from "./EditorPane";
 
 type Props = {
@@ -22,6 +23,7 @@ export function EditorStack({
   onCloseTab,
   onSetMarkdownView,
 }: Props) {
+  const { t: tEditor } = useTranslation();
   const editors = tabs.filter(
     (t): t is EditorTab => t.kind === "editor" && !t.cold,
   );
@@ -111,7 +113,7 @@ export function EditorStack({
                   mode="raw"
                   onChange={(mode) => onSetMarkdownView(t.id, mode)}
                   renderedDisabled={t.dirty}
-                  renderedHint="Save to preview"
+                  renderedHint={tEditor("editor.markdown.saveToPreview")}
                 />
               )}
               <EditorPane

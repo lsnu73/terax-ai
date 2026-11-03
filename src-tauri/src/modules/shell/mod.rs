@@ -44,6 +44,7 @@ pub async fn shell_run_command(
     cwd: Option<String>,
     timeout_secs: Option<u64>,
     workspace: Option<WorkspaceEnv>,
+    proxy: Option<String>,
 ) -> Result<CommandOutput, String> {
     let trimmed = command.trim().to_string();
     if trimmed.is_empty() {
@@ -65,7 +66,7 @@ pub async fn shell_run_command(
             .map(str::trim)
             .filter(|s| !s.is_empty())
             .map(str::to_string);
-        run_blocking(trimmed, cwd_path, workspace, dur)
+        run_blocking(trimmed, cwd_path, workspace, dur, proxy)
     })
     .await
     .map_err(|e| e.to_string())?
@@ -84,8 +85,47 @@ pub(crate) fn run_blocking_inner(
     cwd: Option<String>,
     workspace: WorkspaceEnv,
     dur: Duration,
+    proxy: Option<String>,
 ) -> Result<CommandOutput, String> {
-    run_blocking(command, cwd, workspace, dur)
+    run_blocking(command, cwd, workspace, dur, proxy)
+}
+
+const PROXY_ENV_KEYS: [&str; 6] = [
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "ALL_PROXY",
+    "http_proxy",
+    "https_proxy",
+    "all_proxy",
+];
+
+/// AI 执行的命令跟随「终端代理」设置，与交互式 PTY 一致：开启时注入代理
+/// 环境变量，关闭时清除（避免继承应用父进程里的代理）。每条命令都是新
+/// 进程，所以设置变化后下一条命令即生效。
+pub(crate) fn apply_shell_proxy_env(
+    cmd: &mut Command,
+    workspace: &WorkspaceEnv,
+    proxy: Option<&str>,
+) {
+    for key in PROXY_ENV_KEYS {
+        match proxy {
+            Some(url) => {
+                cmd.env(key, url);
+            }
+            None => {
+                cmd.env_remove(key);
+            }
+        }
+    }
+    #[cfg(windows)]
+    if proxy.is_some() && workspace.is_wsl() {
+        cmd.env(
+            "WSLENV",
+            "HTTP_PROXY/u:HTTPS_PROXY/u:ALL_PROXY/u:http_proxy/u:https_proxy/u:all_proxy/u",
+        );
+    }
+    #[cfg(not(windows))]
+    let _ = workspace;
 }
 
 fn run_blocking(
@@ -93,8 +133,10 @@ fn run_blocking(
     cwd: Option<String>,
     workspace: WorkspaceEnv,
     dur: Duration,
+    proxy: Option<String>,
 ) -> Result<CommandOutput, String> {
     let mut cmd = build_oneshot_command(&command, &workspace, cwd.as_deref())?;
+    apply_shell_proxy_env(&mut cmd, &workspace, proxy.as_deref());
     if let (WorkspaceEnv::Local, Some(dir)) = (&workspace, cwd) {
         cmd.current_dir(dir);
     }
@@ -198,6 +240,7 @@ pub async fn shell_session_run(
     cwd: Option<String>,
     timeout_secs: Option<u64>,
     workspace: Option<WorkspaceEnv>,
+    proxy: Option<String>,
 ) -> Result<SessionRunOutput, String> {
     let session = app
         .state::<ShellState>()
@@ -217,7 +260,7 @@ pub async fn shell_session_run(
             cwd.as_deref(),
             &effective_workspace,
         )?;
-        session.run(command, cwd, workspace, dur)
+        session.run(command, cwd, workspace, dur, proxy)
     })
     .await
     .map_err(|e| e.to_string())?
@@ -235,6 +278,7 @@ pub async fn shell_bg_spawn(
     command: String,
     cwd: Option<String>,
     workspace: Option<WorkspaceEnv>,
+    proxy: Option<String>,
 ) -> Result<u32, String> {
     let workspace = WorkspaceEnv::from_option(workspace);
     tauri::async_runtime::spawn_blocking(move || {
@@ -243,7 +287,7 @@ pub async fn shell_bg_spawn(
             cwd.as_deref(),
             &workspace,
         )?;
-        let proc = background::spawn(command, cwd, workspace)?;
+        let proc = background::spawn(command, cwd, workspace, proxy)?;
         let state = app.state::<ShellState>();
         let id = state.next_bg_id.fetch_add(1, Ordering::Relaxed);
         state.bg.write().unwrap().insert(id, proc);
@@ -348,6 +392,7 @@ mod tests {
             None,
             WorkspaceEnv::Local,
             Duration::from_secs(timeout_secs),
+            None,
         )
         .expect("run")
     }

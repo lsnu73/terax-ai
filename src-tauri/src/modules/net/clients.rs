@@ -33,10 +33,18 @@ pub struct ClientKey {
     host: String,
     ips: Vec<IpAddr>,
     allow_private: bool,
+    /// `None` 表示该场景未启用代理：同时禁用系统代理，保证直连。
+    proxy: Option<String>,
 }
 
 impl ClientKey {
-    pub fn new(profile: Profile, host: &str, ips: &[IpAddr], allow_private: bool) -> Self {
+    pub fn new(
+        profile: Profile,
+        host: &str,
+        ips: &[IpAddr],
+        allow_private: bool,
+        proxy: Option<&str>,
+    ) -> Self {
         let mut ips = ips.to_vec();
         ips.sort_unstable();
         ips.dedup();
@@ -45,6 +53,7 @@ impl ClientKey {
             host: host.to_ascii_lowercase(),
             ips,
             allow_private,
+            proxy: proxy.map(|p| p.to_string()),
         }
     }
 }
@@ -190,6 +199,11 @@ fn redirect_policy(allow_private: bool) -> reqwest::redirect::Policy {
 fn build_client(key: &ClientKey) -> Result<reqwest::Client, String> {
     ensure_crypto_provider();
     let mut builder = reqwest::Client::builder().connect_timeout(Duration::from_secs(10));
+    if let Some(proxy) = &key.proxy {
+        builder = builder.proxy(reqwest::Proxy::all(proxy).map_err(|e| e.to_string())?);
+    } else {
+        builder = builder.no_proxy();
+    }
     // Pin the resolver to the addresses that passed classification. Without
     // this, reqwest's own lookup could return a different (private or
     // metadata) address between classify and connect. The port is filled in
@@ -221,8 +235,9 @@ pub fn client_for(
     host: &str,
     ips: &[IpAddr],
     allow_private: bool,
+    proxy: Option<&str>,
 ) -> Result<reqwest::Client, String> {
-    let key = ClientKey::new(profile, host, ips, allow_private);
+    let key = ClientKey::new(profile, host, ips, allow_private, proxy);
     let cache = CLIENTS.get_or_init(|| Mutex::new(ClientCache::default()));
     let mut cache = cache.lock().unwrap_or_else(|e| e.into_inner());
     cache.get_or_insert_with(key.clone(), Instant::now(), || build_client(&key))
@@ -238,7 +253,7 @@ mod tests {
 
     fn key(host: &str, ips: &[&str], allow_private: bool) -> ClientKey {
         let ips: Vec<IpAddr> = ips.iter().map(|s| ip(s)).collect();
-        ClientKey::new(Profile::Stream, host, &ips, allow_private)
+        ClientKey::new(Profile::Stream, host, &ips, allow_private, None)
     }
 
     #[test]
@@ -287,8 +302,18 @@ mod tests {
         );
         let ips = [ip("127.0.0.1")];
         assert_ne!(
-            ClientKey::new(Profile::Stream, "localhost", &ips, true),
-            ClientKey::new(Profile::Ping, "localhost", &ips, true)
+            ClientKey::new(Profile::Stream, "localhost", &ips, true, None),
+            ClientKey::new(Profile::Ping, "localhost", &ips, true, None)
+        );
+        assert_ne!(
+            ClientKey::new(Profile::Stream, "localhost", &ips, true, None),
+            ClientKey::new(
+                Profile::Stream,
+                "localhost",
+                &ips,
+                true,
+                Some("http://localhost:7890")
+            )
         );
     }
 
@@ -481,7 +506,7 @@ mod tests {
             false,
         );
         build_client(&k).expect("stream client");
-        let ping = ClientKey::new(Profile::Ping, "localhost", &[ip("127.0.0.1")], true);
+        let ping = ClientKey::new(Profile::Ping, "localhost", &[ip("127.0.0.1")], true, None);
         build_client(&ping).expect("ping client");
     }
 }

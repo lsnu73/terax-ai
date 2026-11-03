@@ -28,6 +28,8 @@
  *    into a protected directory.
  */
 
+import { t } from "@/modules/i18n";
+
 const SECRET_BASENAME_PATTERNS: RegExp[] = [
   // Match `.env` and `.env.<suffix>` with no required tail anchor — Windows
   // strips trailing dots/spaces at open time and NTFS exposes alternate data
@@ -197,12 +199,12 @@ function describeProtected(dir: string): string {
 
 export function checkReadable(path: string): SafetyResult {
   if (typeof path !== "string" || path.length === 0) {
-    return { ok: false, reason: "Refused: empty path." };
+    return { ok: false, reason: t("ai.security.emptyPath") };
   }
   // Reject NUL and control bytes in paths — these are never legitimate and
   // are a classic truncation/injection vector.
   if (/[\x00-\x1f]/.test(path)) {
-    return { ok: false, reason: "Refused: path contains control bytes." };
+    return { ok: false, reason: t("ai.security.controlBytesInPath") };
   }
 
   const base = basename(path);
@@ -210,7 +212,7 @@ export function checkReadable(path: string): SafetyResult {
     if (re.test(base)) {
       return {
         ok: false,
-        reason: `Refused: "${base}" matches a sensitive-file pattern.`,
+        reason: t("ai.security.sensitiveFile", { name: base }),
       };
     }
   }
@@ -220,7 +222,7 @@ export function checkReadable(path: string): SafetyResult {
     if (isUnderProtected(cmp, dir)) {
       return {
         ok: false,
-        reason: `Refused: path is inside a protected directory (${describeProtected(dir)}).`,
+        reason: t("ai.security.protectedDir", { dir: describeProtected(dir) }),
       };
     }
   }
@@ -237,10 +239,15 @@ export function checkWritable(path: string): SafetyResult {
   // Ensure the comparison surface has a leading separator for prefix matching.
   const cmpForPrefix = cmp.startsWith("/") ? cmp : `/${cmp}`;
   for (const prefix of WRITE_DENY_PREFIXES) {
-    if (cmpForPrefix.startsWith(prefix) || `${cmpForPrefix}/`.startsWith(prefix)) {
+    if (
+      cmpForPrefix.startsWith(prefix) ||
+      `${cmpForPrefix}/`.startsWith(prefix)
+    ) {
       return {
         ok: false,
-        reason: `Refused: writes under "${prefix.replace(/\/$/, "")}" are not allowed.`,
+        reason: t("ai.security.writeDenied", {
+          prefix: prefix.replace(/\/$/, ""),
+        }),
       };
     }
   }
@@ -324,15 +331,14 @@ export async function checkWritableCanonical(
 export function checkShellCommand(cmd: string): SafetyResult {
   const c = cmd.trim();
   if (c.length === 0) {
-    return { ok: false, reason: "Refused: empty command." };
+    return { ok: false, reason: t("ai.security.emptyCommand") };
   }
   // Block C0 controls. CR/LF would let a second statement smuggle past the
   // approval UI, which shows the command as one logical line.
   if (/[\x00-\x1f]/.test(c)) {
     return {
       ok: false,
-      reason:
-        "Refused: command contains control characters (including CR/LF). Commands must be single-line.",
+      reason: t("ai.security.controlCharsInCommand"),
     };
   }
   // Block Unicode bidi-override and invisible directional marks. These let an
@@ -342,7 +348,7 @@ export function checkShellCommand(cmd: string): SafetyResult {
   if (/[\u202A-\u202E\u2066-\u2069\u200E\u200F\u061C]/.test(c)) {
     return {
       ok: false,
-      reason: "Refused: command contains Unicode bidirectional override characters.",
+      reason: t("ai.security.bidiOverride"),
     };
   }
   // rm -rf / (and variants with quoted /, --no-preserve-root, etc.)
@@ -353,8 +359,7 @@ export function checkShellCommand(cmd: string): SafetyResult {
   ) {
     return {
       ok: false,
-      reason:
-        "Refused: command attempts to recursively delete the filesystem root.",
+      reason: t("ai.security.deleteRoot"),
     };
   }
   // rm -rf ~ / $HOME / ${HOME}, with or without a trailing path — wiping the user's home dir
@@ -365,15 +370,15 @@ export function checkShellCommand(cmd: string): SafetyResult {
   ) {
     return {
       ok: false,
-      reason: "Refused: command attempts to recursively delete the home directory.",
+      reason: t("ai.security.deleteHome"),
     };
   }
   if (/--no-preserve-root/.test(c)) {
-    return { ok: false, reason: "Refused: --no-preserve-root is not allowed." };
+    return { ok: false, reason: t("ai.security.noPreserveRoot") };
   }
   // dd to a raw disk device
   if (/\bdd\b[^|]*\bof=\/dev\/(disk|sd|nvme|hd)/i.test(c)) {
-    return { ok: false, reason: "Refused: dd to a block device is not allowed." };
+    return { ok: false, reason: t("ai.security.ddBlockDevice") };
   }
   // mkfs / fdisk / diskutil eraseDisk / parted
   if (
@@ -382,20 +387,19 @@ export function checkShellCommand(cmd: string): SafetyResult {
   ) {
     return {
       ok: false,
-      reason: "Refused: disk-formatting commands are not allowed.",
+      reason: t("ai.security.diskFormat"),
     };
   }
   // Fork bomb
   if (/:\s*\(\s*\)\s*\{\s*:\s*\|\s*:\s*&\s*\}\s*;/.test(c)) {
-    return { ok: false, reason: "Refused: fork-bomb pattern detected." };
+    return { ok: false, reason: t("ai.security.forkBomb") };
   }
   // Pipe-to-shell from network. The user already approves the command, but
   // this combo is overwhelmingly malicious-payload-shaped and worth flagging.
   if (/\b(curl|wget)\b[^|;&]*\|\s*(ba|z|k|d|fi|c)?sh\b/.test(c)) {
     return {
       ok: false,
-      reason:
-        "Refused: piping a network download directly into a shell is blocked. Download first, inspect, then run.",
+      reason: t("ai.security.pipeToShell"),
     };
   }
   return { ok: true };

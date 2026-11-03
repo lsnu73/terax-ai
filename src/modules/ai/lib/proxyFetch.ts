@@ -1,3 +1,5 @@
+import { usePreferencesStore } from "@/modules/settings/preferences";
+import { proxyForScenario } from "@/modules/proxy/lib/proxy";
 import { Channel, invoke } from "@tauri-apps/api/core";
 
 const MAX_REQUEST_BYTES = 64 * 1024 * 1024;
@@ -218,6 +220,8 @@ async function proxyFetchImpl(
       method: request.method,
       headers: Object.fromEntries(request.headers),
       allowPrivateNetwork,
+      // 每次请求动态读取，代理开关/地址变更无需重建 model 缓存。
+      proxy: proxyForScenario(usePreferencesStore.getState(), "ai"),
       onEvent: channel,
     }).replace(
       /[^\x20-\x7e]/g,

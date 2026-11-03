@@ -2,7 +2,9 @@ import { routeAgentNotification } from "@/modules/agents/lib/route";
 import { useWindowFocus } from "@/modules/agents/lib/useWindowFocus";
 import { useAgentStore } from "@/modules/agents/store/agentStore";
 import type { AgentStatus } from "@/modules/agents/lib/types";
+import { t } from "@/modules/i18n";
 import { useEffect, useRef } from "react";
+import { useAiPanelStore } from "../store/aiPanelStore";
 import { useChatStore } from "../store/chatStore";
 
 const AGENT = "Terax";
@@ -27,7 +29,7 @@ function liveStatus(s: RunStatus): AgentStatus | null {
 export function LocalAgentNotificationsBridge() {
   const status = useChatStore((s) => s.agentMeta.status) as RunStatus;
   const error = useChatStore((s) => s.agentMeta.error);
-  const visible = useChatStore((s) => s.panelOpen || s.mini.open);
+  const visible = useAiPanelStore((s) => s.open);
   const focused = useWindowFocus();
 
   const visibleRef = useRef(visible);
@@ -37,9 +39,13 @@ export function LocalAgentNotificationsBridge() {
   const prev = useRef<RunStatus>(status);
 
   useEffect(() => {
-    useAgentStore.getState().setLocalAgent(
-      liveStatus(status) ? { agent: AGENT, status: liveStatus(status)! } : null,
-    );
+    useAgentStore
+      .getState()
+      .setLocalAgent(
+        liveStatus(status)
+          ? { agent: AGENT, status: liveStatus(status)! }
+          : null,
+      );
 
     const was = prev.current;
     prev.current = status;
@@ -59,15 +65,23 @@ export function LocalAgentNotificationsBridge() {
         focused: focusedRef.current,
         visible: visibleRef.current,
         allowToast: true,
-        onActivate: () => useChatStore.getState().openPanel(),
+        onActivate: () => useAiPanelStore.getState().openPanel(),
       });
 
     if (status === "awaiting-approval") {
-      fire("attention", "Terax needs your approval", "Approve a tool to continue");
+      fire(
+        "attention",
+        t("ai.notifications.approvalTitle"),
+        t("ai.notifications.approvalBody"),
+      );
     } else if (status === "error") {
-      fire("error", "Terax run failed", error ?? undefined);
+      fire("error", t("ai.notifications.runFailed"), error ?? undefined);
     } else if (status === "idle" && isBusy(was)) {
-      fire("finished", "Terax finished", "Your task is ready");
+      fire(
+        "finished",
+        t("ai.notifications.finishedTitle"),
+        t("ai.notifications.finishedBody"),
+      );
     }
   }, [status, error]);
 

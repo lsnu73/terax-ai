@@ -2,6 +2,7 @@ import { tool } from "ai";
 import { z } from "zod";
 import { useManagedAgentsStore } from "@/modules/agents/store/managedAgentsStore";
 import { writeToSession } from "@/modules/terminal";
+import { aiNeedsApproval } from "../lib/approvalMode";
 import type { ToolContext } from "./context";
 
 // Claude Code's TUI treats a trailing CR in the same write chunk as the text
@@ -35,7 +36,7 @@ export function buildManagedAgentTools(ctx: ToolContext) {
             "The full, self-contained task prompt for the Claude Code agent.",
           ),
       }),
-      needsApproval: true,
+      needsApproval: aiNeedsApproval,
       execute: async ({ prompt }) => {
         const sessionId = ctx.getSessionId();
         if (!sessionId) return { error: "no active chat session" };
@@ -67,7 +68,7 @@ export function buildManagedAgentTools(ctx: ToolContext) {
             "One clear, self-contained instruction for the agent. No control characters.",
           ),
       }),
-      needsApproval: true,
+      needsApproval: aiNeedsApproval,
       execute: async ({ instruction }) => {
         const sessionId = ctx.getSessionId();
         const store = useManagedAgentsStore.getState();

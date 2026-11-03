@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::net::{IpAddr, ToSocketAddrs};
+use std::time::Duration;
 
 use bytes::Bytes;
 use futures_util::{future::Abortable, FutureExt, StreamExt};
@@ -144,7 +145,7 @@ fn sanitize_headers(headers: Option<HashMap<String, String>>) -> Result<HeaderMa
 }
 
 #[tauri::command]
-pub async fn lm_ping(base_url: String) -> Result<u16, String> {
+pub async fn lm_ping(base_url: String, proxy: Option<String>) -> Result<u16, String> {
     let trimmed = base_url.trim().trim_end_matches('/');
     if trimmed.is_empty() {
         return Err("empty base url".into());
@@ -157,7 +158,7 @@ pub async fn lm_ping(base_url: String) -> Result<u16, String> {
         .to_string();
     let safe_ips = classify_and_collect_safe_ips(&host, true).await?;
 
-    let client = client_for(Profile::Ping, &host, &safe_ips, true)?;
+    let client = client_for(Profile::Ping, &host, &safe_ips, true, proxy.as_deref())?;
     client
         .get(parsed)
         .send()
@@ -168,6 +169,34 @@ pub async fn lm_ping(base_url: String) -> Result<u16, String> {
 
 // AI HTTP proxy — bypasses webview CORS / Mixed-Content / PNA so local-network
 // model servers (LM Studio, Ollama, vLLM) work in the production bundle.
+
+/// 一次性 GET（供 Linux 更新检查等无法使用浏览器 fetch 设置代理的场景）。
+/// `proxy` 为 `None` 时禁用系统代理，保证场景关闭即直连。
+#[tauri::command]
+pub async fn net_http_get(url: String, proxy: Option<String>) -> Result<String, String> {
+    let parsed = validate_url(&url, false)?;
+    let mut builder = reqwest::Client::builder()
+        .connect_timeout(Duration::from_secs(10))
+        .timeout(Duration::from_secs(30))
+        .redirect(reqwest::redirect::Policy::limited(5));
+    builder = match proxy.as_deref().map(str::trim).filter(|p| !p.is_empty()) {
+        Some(p) => builder.proxy(reqwest::Proxy::all(p).map_err(|e| e.to_string())?),
+        None => builder.no_proxy(),
+    };
+    let client = builder.build().map_err(|e| e.to_string())?;
+    let response = client
+        .get(parsed)
+        .header(reqwest::header::ACCEPT, "application/vnd.github+json")
+        .header(reqwest::header::USER_AGENT, "terax")
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    let status = response.status();
+    if !status.is_success() {
+        return Err(format!("GitHub API {status}"));
+    }
+    response.text().await.map_err(|e| e.to_string())
+}
 
 fn build_request(
     client: &reqwest::Client,
@@ -233,6 +262,7 @@ struct StreamRequest {
     method: String,
     headers: Option<HashMap<String, String>>,
     allow_private_network: Option<bool>,
+    proxy: Option<String>,
     on_event: JavaScriptChannelId,
 }
 
@@ -254,6 +284,7 @@ pub async fn ai_http_stream(
         method,
         headers,
         allow_private_network,
+        proxy,
         on_event,
     } = serde_json::from_str(metadata).map_err(|e| e.to_string())?;
     let on_event = on_event.channel_on::<_, Response>(window.as_ref().clone());
@@ -265,7 +296,8 @@ pub async fn ai_http_stream(
             let parsed = validate_url(&url, allow_private)?;
             let host = parsed.host_str().ok_or("missing host")?.to_string();
             let safe_ips = classify_and_collect_safe_ips(&host, allow_private).await?;
-            let client = client_for(Profile::Stream, &host, &safe_ips, allow_private)?;
+            let client =
+                client_for(Profile::Stream, &host, &safe_ips, allow_private, proxy.as_deref())?;
             let request = build_request(&client, &method, parsed, headers, body)?;
             let response = request.send().await.map_err(|e| e.to_string())?;
             let metadata = serde_json::to_vec(&StreamHeaders {
