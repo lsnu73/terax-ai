@@ -1,6 +1,6 @@
 # 技术架构
 
-- 最后校验：2026-10-30
+- 最后校验：2026-11-03
 
 ## 技术栈与版本
 
@@ -44,7 +44,7 @@ IPC 命令索引见 [../architecture/two-process-model.md](../architecture/two-p
 | `src-tauri/src/` | 原生入口、IPC 命令、操作系统适配 | React 状态或 UI 逻辑 |
 | `src-tauri/crates/` | CLI 与控制协议等 Rust workspace crate | webview 组件 |
 | `packages/ghostty-core/` | 终端模型与 WASM 适配核心 | 应用层标签和 Space 状态 |
-| `scripts/` | 构建、性能、IPC 与终端验证工具 | 产品运行时代码 |
+| `scripts/` | 构建、版本发布、性能、IPC 与终端验证工具 | 产品运行时代码 |
 
 前端模块细目见 [../../TERAX.md](../../TERAX.md) 的 Module layout，避免在此维护第二份逐模块说明。
 

@@ -1,9 +1,9 @@
 # 开发指南
 
-- 最后校验：2026-10-30
+- 最后校验：2026-11-03
 - 验证平台：Windows 11，Git Bash
 
-> 目标：新人照做即可跑起来。本页命令均实际执行过；唯一未执行的发布命令已显式标记。
+> 目标：新人照做即可跑起来。本页命令均实际执行过；未执行的构建与发布命令已显式标记。
 
 ## 前置要求
 
@@ -64,11 +64,41 @@ pnpm tauri dev
 
 ## 部署发布
 
+本地构建安装包：
+
 ```bash
 pnpm tauri build
 ```
 
 ?未经本机验证。该命令会执行 CLI release 构建、前端生产构建、Rust release 编译和安装包打包。配置声明的产物目录为 `src-tauri/target/release/bundle/`。正式发布还需要对应平台签名与更新凭据，不要在文档或命令行中写入密钥。
+
+### 同步版本与创建标签
+
+只同步版本文件，以下示例以 `0.9.1` 为例：
+
+```bash
+pnpm release:version 0.9.1
+node scripts/release-version.mjs --check v0.9.1
+```
+
+脚本会同步 `package.json`、`src-tauri/tauri.conf.json`、`src-tauri/Cargo.toml` 和 `src-tauri/Cargo.lock`，不会修改独立的 Ghostty core 包或第三方依赖版本。只接受稳定的 `x.y.z` 版本。
+
+如需同时创建发布提交和标签，在干净工作区执行：
+
+```bash
+pnpm release:version 0.9.1 --commit --tag
+```
+
+该命令只暂存四个版本文件，创建 `chore(release): v0.9.1` 提交和 `v0.9.1` 标签，不会自动推送。版本同步、提交和标签流程已在临时仓库测试，本次未在真实仓库创建发布提交或标签。
+
+确认提交和标签后手动推送。以下命令会触发公开发布，本次未执行：
+
+```bash
+git push origin main
+git push origin v0.9.1
+```
+
+推送 `v*` 标签后，GitHub Actions 先校验 tag 与全部版本文件一致，再构建 Windows NSIS 安装包、签名和 `latest.json`。校验失败会阻止发布。
 
 ## 环境问题排查
 
