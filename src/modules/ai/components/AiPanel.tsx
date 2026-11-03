@@ -7,12 +7,19 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { AiChatView } from "@/modules/ai/components/AiChat";
 import { AiPanelComposer } from "@/modules/ai/components/AiPanelComposer";
 import { PlanDiffReview } from "@/modules/ai/components/PlanDiffReview";
 import { TodoStrip } from "@/modules/ai/components/TodoStrip";
+import { resolveProxyUrl } from "@/modules/proxy/lib/proxy";
+import { usePreferencesStore } from "@/modules/settings/preferences";
 import { getOrCreateChat } from "@/modules/ai/store/chatRuntime";
 import {
   Add01Icon,
@@ -27,7 +34,10 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useChat, type UIMessage } from "@ai-sdk/react";
 import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { buildComposerMessage, type ComposerSubmission } from "../lib/composerMessage";
+import {
+  buildComposerMessage,
+  type ComposerSubmission,
+} from "../lib/composerMessage";
 import type { SessionMeta } from "../lib/sessions";
 import { useSnippetsStore } from "../store/snippetsStore";
 import { useAiPanelStore } from "../store/aiPanelStore";
@@ -141,6 +151,7 @@ function AiPanelSession({
             onDeleteSession={(id) => useChatStore.getState().deleteSession(id)}
           />
           <div className="flex-1" />
+          <ProxyHints />
           {busy ? (
             <span className="flex min-w-0 items-center gap-1 text-[10px] text-muted-foreground">
               <Spinner className="size-2.5 shrink-0" />
@@ -189,7 +200,9 @@ function AiPanelSession({
             </div>
           ) : messages.length === 0 ? (
             <EmptyState
-              onPick={(text) => useAiPanelStore.getState().prefillPanel({ text })}
+              onPick={(text) =>
+                useAiPanelStore.getState().prefillPanel({ text })
+              }
             />
           ) : (
             <AiChatView
@@ -233,6 +246,62 @@ function AiPanelSession({
   );
 }
 
+/**
+ * 面板头部代理徽章：终端代理影响 AI 执行的命令，AI 会话代理影响模型请求。
+ * 紧凑徽章（脉冲圆点 + 文案 + 下拉图标），点击展开只读弹层，只展示已开启
+ * 代理的场景及生效后果（不提供开关，开关在状态栏/设置页），失焦自动关闭；
+ * 两个代理都未开启（或未配置代理地址）时不显示。
+ */
+function ProxyHints() {
+  const { t } = useTranslation();
+  const proxy = usePreferencesStore((s) => s.proxy);
+  const configured = resolveProxyUrl(proxy) !== null;
+  if (!configured || (!proxy.terminal && !proxy.ai)) return null;
+  const scenarios = [
+    {
+      key: "terminal",
+      label: t("ai.proxy.terminalLabel"),
+      effect: t("ai.proxy.terminalEffect"),
+    },
+    {
+      key: "ai",
+      label: t("ai.proxy.sessionLabel"),
+      effect: t("ai.proxy.sessionEffect"),
+    },
+  ] as const;
+  const enabled = scenarios.filter(({ key }) => proxy[key]);
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          title={t("ai.proxy.badge")}
+          className="flex shrink-0 items-center gap-1 rounded-md bg-green-500/15 px-1.5 py-0.5 text-[10px] font-medium text-green-700 transition-colors hover:bg-green-500/25 dark:text-green-400"
+        >
+          <span className="size-1.5 shrink-0 animate-pulse rounded-full bg-green-500" />
+          <span>{t("ai.proxy.badge")}</span>
+          <HugeiconsIcon icon={ArrowDown01Icon} size={10} strokeWidth={2} />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent side="bottom" align="end" className="w-56 p-2">
+        <div className="flex flex-col gap-1">
+          {enabled.map(({ key, label, effect }) => (
+            <div key={key} className="rounded-md px-2 py-1.5">
+              <div className="flex items-center gap-1.5">
+                <span className="size-1.5 shrink-0 rounded-full bg-green-500" />
+                <span className="text-[12px]">{label}</span>
+              </div>
+              <p className="mt-0.5 pl-3 text-[10px] leading-relaxed text-muted-foreground">
+                {effect}
+              </p>
+            </div>
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function SessionPicker({
   sessionId,
   sessions,
@@ -263,10 +332,7 @@ function SessionPicker({
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="min-w-56">
-        <DropdownMenuItem
-          onSelect={onNewSession}
-          className="gap-2 text-xs"
-        >
+        <DropdownMenuItem onSelect={onNewSession} className="gap-2 text-xs">
           <HugeiconsIcon icon={Add01Icon} size={12} strokeWidth={1.75} />
           {t("ai.miniWindow.newSession")}
         </DropdownMenuItem>

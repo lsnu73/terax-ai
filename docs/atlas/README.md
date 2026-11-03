@@ -37,7 +37,7 @@ Terax 是面向开发者的开源桌面开发工作区，以终端为中心，�
 | 改通知铃铛、软件运行消息或通知显示方式 | [features/通知中心.md](features/通知中心.md) | `src/modules/agents/components/NotificationBell.tsx`, `src/modules/agents/lib/runtimeNotifications.ts`, `src/modules/agents/store/agentStore.ts` |
 | 改设置分区导航、选项搜索或结果定位 | [features/设置页.md](features/设置页.md) | `src/settings/SettingsView.tsx`, `src/settings/components/SettingsSearch.tsx`, `src/settings/settingsSearch.ts` |
 | 改关于页链接或检查更新入口 | [features/设置-关于.md](features/设置-关于.md) | `src/settings/sections/AboutSection.tsx`, `src/modules/updater/useUpdater.ts` |
-| 改代理设置或三场景代理生效 | [features/代理.md](features/代理.md) | `src/settings/sections/ProxySection.tsx`, `src/modules/proxy/lib/proxy.ts` |
+| 改代理设置或三场景代理生效 | [features/代理.md](features/代理.md) | `src/settings/sections/ProxySection.tsx`, `src/modules/proxy/lib/proxy.ts`, `src/modules/proxy/lib/terminalProxyRegistry.ts` |
 | 改终端链接打开方式（URL/路径） | [features/终端链接打开.md](features/终端链接打开.md) | `src/modules/terminal/ghostty/useGhosttyTerminalSession.ts`, `src/lib/open-path.ts` |
 | 改最近路径弹窗或目录历史 | [features/终端路径历史.md](features/终端路径历史.md) | `src/modules/terminal/path-history/PathHistoryDialog.tsx`, `src/modules/terminal/lib/pathHistory.ts` |
 | 项目跑不起来 | [getting-started.md](getting-started.md) | `package.json`, `src-tauri/tauri.conf.json` |

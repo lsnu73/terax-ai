@@ -24,6 +24,14 @@ export const ai = {
     send: "Send",
     sendEnter: "Send (Enter)",
   },
+  proxy: {
+    badge: "Proxy on",
+    terminalLabel: "Terminal",
+    sessionLabel: "AI chat",
+    terminalEffect: "Commands run by AI in the terminal go through the proxy.",
+    sessionEffect:
+      "Model requests and streaming responses go through the proxy.",
+  },
   modelPicker: {
     noModelConfigured: "No model configured — open Settings → Models",
     modelTitle: "Model: {{label}}",

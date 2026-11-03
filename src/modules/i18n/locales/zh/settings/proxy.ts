@@ -16,6 +16,7 @@ export const settingsProxyZh: typeof settingsProxy = {
   scenarios: {
     label: "代理生效场景",
     terminal: "终端",
+    terminalStaleHint: "已变更，刷新已打开的终端后生效。",
     terminalDescription:
       "新建终端自动生效；已打开的终端右键标签页选「刷新」。AI 问答执行的命令也走此代理，下一条命令即生效，无需刷新会话（已运行的后台进程需重启）。",
     ai: "AI 会话",

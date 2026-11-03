@@ -3,6 +3,7 @@ import {
   disposeGhosttySession,
   ghosttyFocusedLeaf,
   ghosttyLeafHasForegroundProcess,
+  ghosttyLeafIds,
   ghosttyLeafIdForPty,
   ghosttyCwdForLeaf,
   ghosttyPtyIdForLeaf,
@@ -76,6 +77,22 @@ export function disposeSession(leafId: number): void {
 /** 关闭并重新创建该窗格的 shell（保留窗格布局与 cwd），用于让新设置生效。 */
 export async function restartSession(leafId: number): Promise<boolean> {
   return respawnGhosttySession(leafId);
+}
+
+/** 刷新当前所有存活的终端会话，用于让新代理等设置对已打开的终端生效。 */
+export async function restartAllSessions(): Promise<number> {
+  let restarted = 0;
+  for (const leafId of ghosttyLeafIds()) {
+    try {
+      if (await restartSession(leafId)) restarted += 1;
+    } catch (error) {
+      console.error(
+        `[terax] Failed to restart terminal leaf ${leafId}:`,
+        error,
+      );
+    }
+  }
+  return restarted;
 }
 
 function delay(milliseconds: number): Promise<void> {

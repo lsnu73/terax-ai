@@ -21,6 +21,13 @@ export const aiZh: typeof ai = {
     send: "发送",
     sendEnter: "发送（Enter）",
   },
+  proxy: {
+    badge: "代理中",
+    terminalLabel: "终端",
+    sessionLabel: "AI 问答",
+    terminalEffect: "AI 在终端执行的命令都会走代理。",
+    sessionEffect: "与模型的请求和流式响应都会走代理。",
+  },
   modelPicker: {
     noModelConfigured: "尚未配置模型——打开 设置 → 模型",
     modelTitle: "模型：{{label}}",

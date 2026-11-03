@@ -1,5 +1,13 @@
 /** 状态栏：隐私标记、路径面包屑、工作区环境选择器。 */
 export const statusbar = {
+  proxy: {
+    terminalBadge: "Proxy: terminal commands on",
+    terminalBadgeTooltip:
+      "Commands run in the terminal and by AI both go through the proxy.",
+    terminalRefresh: "Refresh to apply",
+    terminalRefreshTooltip:
+      "Terminal proxy setting changed. Click to restart open terminals and apply it.",
+  },
   privateBadge: "Private: hidden from AI",
   privateTooltip:
     "AI can't see this terminal's output. Use it for secrets, SSH, or anything you don't want sent to the model.",

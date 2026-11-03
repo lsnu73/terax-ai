@@ -2,6 +2,12 @@ import type { statusbar } from "../en/statusbar";
 
 /** 状态栏：隐私标记、路径面包屑、工作区环境选择器。 */
 export const statusbarZh: typeof statusbar = {
+  proxy: {
+    terminalBadge: "代理：终端命令已生效",
+    terminalBadgeTooltip: "终端命令和 AI 执行的命令都会走代理。",
+    terminalRefresh: "刷新终端生效",
+    terminalRefreshTooltip: "终端代理设置已变化，点击刷新已打开的终端以生效。",
+  },
   privateBadge: "隐私：对 AI 不可见",
   privateTooltip:
     "AI 无法看到此终端的输出。可用于密码、SSH 或任何你不希望发送给模型的内容。",

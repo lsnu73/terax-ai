@@ -8,6 +8,10 @@ import { initializeSessionGeneration as startSessionInitialization } from "@/mod
 import { replaceSessionSurface } from "@/modules/terminal/ghostty/replaceSessionSurface";
 import { openExternalUrl } from "@/lib/external-link";
 import { openPathInFileManager, pathFromLink } from "@/lib/open-path";
+import {
+  forgetLeafSpawnedProxy,
+  recordLeafSpawnedProxy,
+} from "@/modules/proxy/lib/terminalProxyRegistry";
 import { proxyForScenario } from "@/modules/proxy/lib/proxy";
 import { ensureMonoFontsLoaded, resolveFontFamily } from "@/lib/fonts";
 import { usePreferencesStore } from "@/modules/settings/preferences";
@@ -305,6 +309,11 @@ export function hasGhosttySession(leafId: number): boolean {
   return sessions.has(leafId);
 }
 
+/** 当前所有存活会话的 leafId（含未聚焦窗格），供批量刷新等场景使用。 */
+export function ghosttyLeafIds(): number[] {
+  return [...sessions.keys()];
+}
+
 export function writeToGhosttySession(leafId: number, data: string): boolean {
   const session = sessions.get(leafId);
   if (!session || session.shellExited || session.disposed) return false;
@@ -416,6 +425,7 @@ export function disposeGhosttySession(leafId: number): boolean {
   if (!session) return false;
   session.disposed = true;
   session.generation += 1;
+  forgetLeafSpawnedProxy(leafId);
   session.input?.dispose();
   session.surface?.dispose();
   disposeGhosttyBlocks(leafId);
@@ -853,6 +863,9 @@ async function initializeSessionGeneration(
 
   const startCols = model.cols;
   const startRows = model.rows;
+  // 记录本次 PTY 实际注入的终端代理，供状态栏检测「设置已变更、终端未刷新」。
+  const spawnedProxyUrl = proxyForScenario(preferences, "terminal");
+  recordLeafSpawnedProxy(session.leafId, spawnedProxyUrl);
   const pty = await openPty(
     startCols,
     startRows,
@@ -876,7 +889,7 @@ async function initializeSessionGeneration(
     true,
     preferences.terminalShell || undefined,
     session.leafId,
-    proxyForScenario(preferences, "terminal"),
+    spawnedProxyUrl,
   );
   if (session.disposed || generation !== session.generation) {
     await pty.close();

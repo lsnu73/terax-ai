@@ -37,7 +37,7 @@
 | `src/modules/explorer/FileExplorer.tsx` | [快捷键提示](features/快捷键提示.md) | 文件资源管理器 | 文件搜索按钮动态标题 |
 | `src/modules/tabs/lib/useTabs.ts` | [撤销终端窗格拆分](features/撤销终端窗格拆分.md) | [终端命令与结果块](features/终端命令与结果块.md)、标签与分屏状态、[AI面板](features/AI面板.md) | 记录拆分历史、恢复焦点、维护终端标签与 settings tab 单例 |
 | `src/modules/terminal/lib/panes.ts` | [撤销终端窗格拆分](features/撤销终端窗格拆分.md) | [终端链接打开](features/终端链接打开.md) | 叶节点查询、拆分与移除 |
-| `src/modules/terminal/lib/terminalSessionApi.ts` | [撤销终端窗格拆分](features/撤销终端窗格拆分.md) | 终端会话生命周期 | 释放被撤销窗格资源 |
+| `src/modules/terminal/lib/terminalSessionApi.ts` | [撤销终端窗格拆分](features/撤销终端窗格拆分.md) | 终端会话生命周期、[代理](features/代理.md) | 释放被撤销窗格资源；`restartSession`/`restartAllSessions` 刷新终端让新设置生效 |
 | `src/modules/terminal/lib/terminalLinks.ts` | [终端链接打开](features/终端链接打开.md) | 终端输入 | 定义链接修饰键与打开契约 |
 | `src/modules/terminal/ghostty/useGhosttyTerminalSession.ts` | [终端链接打开](features/终端链接打开.md) | [终端命令与结果块](features/终端命令与结果块.md)、终端会话与渲染 | 分流链接并为所有终端初始化块会话 |
 | `src/modules/terminal/lib/blockAnchorProbe.ts` | [终端命令与结果块](features/终端命令与结果块.md) | 终端会话与渲染 | 检测会话缺失 OSC 133;C 命令锚点（PS 5.1 无 PSReadLine 时提示安装） |
@@ -107,8 +107,10 @@
 | `src/settings/sections/AboutSection.tsx` | [设置-关于](features/设置-关于.md) | [设置页](features/设置页.md) | 关于分区 UI、仓库链接与更新/源码搜索锚点 |
 | `src/modules/updater/useUpdater.ts` | [设置-关于](features/设置-关于.md) | 应用更新、[代理](features/代理.md) | 更新状态机与手动检查，检查/下载遵循更新场景代理 |
 | `src/settings/sections/ProxySection.tsx` | [代理](features/代理.md) | [设置页](features/设置页.md) | 代理设置分区 UI 与搜索锚点 |
-| `src/modules/proxy/components/ProxyStatusButton.tsx` | [代理](features/代理.md) | 状态栏 | 状态栏三场景代理开关 |
+| `src/modules/proxy/components/ProxyStatusButton.tsx` | [代理](features/代理.md) | 状态栏 | 状态栏三场景代理开关与「刷新终端生效」提示 |
+| `src/modules/proxy/components/TerminalProxyBadge.tsx` | [代理](features/代理.md) | 状态栏 | 左侧隐私徽章旁的绿色「代理：终端命令已生效」徽章 |
 | `src/modules/proxy/lib/proxy.ts` | [代理](features/代理.md) | 无 | 代理 URL 解析与场景判定 |
+| `src/modules/proxy/lib/terminalProxyRegistry.ts` | [代理](features/代理.md) | 无 | 终端会话创建时的代理快照登记表（leafId → URL），由 `useGhosttyTerminalSession` 读写 |
 | `src/modules/proxy/lib/autoLaunch.ts` | [代理](features/代理.md) | [通知中心](features/通知中心.md) | 代理软件自动启动触发与失败通知 |
 | `src-tauri/src/modules/proxy.rs` | [代理](features/代理.md) | 无 | 代理软件进程检测与启动 |
 | `src-tauri/src/modules/net/clients.rs` | [代理](features/代理.md) | AI 会话 | reqwest 客户端缓存，代理地址纳入缓存键 |

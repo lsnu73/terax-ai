@@ -15,6 +15,7 @@ export const settingsProxy = {
   scenarios: {
     label: "Use proxy for",
     terminal: "Terminal",
+    terminalStaleHint: "Changed — restart open terminals to apply.",
     terminalDescription:
       "Applies to new terminals; for open ones, right-click the tab and choose Refresh. Commands run by AI also use this proxy and pick up changes on the next command—no session refresh needed (restart running background processes).",
     ai: "AI conversations",

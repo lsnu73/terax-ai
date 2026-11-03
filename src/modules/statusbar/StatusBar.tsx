@@ -7,6 +7,7 @@ import { AgentStatusPill } from "@/modules/ai/components/AgentStatusPill";
 import { AiOpenButton } from "@/modules/ai/components/AiOpenButton";
 import { LspStatusPill } from "@/modules/lsp";
 import { ProxyStatusButton } from "@/modules/proxy/components/ProxyStatusButton";
+import { TerminalProxyBadge } from "@/modules/proxy/components/TerminalProxyBadge";
 import type { WorkspaceEnv } from "@/modules/workspace";
 import { IncognitoIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -62,6 +63,7 @@ export function StatusBar({
             </TooltipContent>
           </Tooltip>
         ) : null}
+        <TerminalProxyBadge />
       </div>
       <div className="flex shrink-0 items-center gap-1.5">
         <AgentStatusPill onClick={onOpenMini} />
