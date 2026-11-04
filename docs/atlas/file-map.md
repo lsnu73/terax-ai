@@ -38,7 +38,9 @@
 | `src/modules/ai/store/aiPanelStore.ts` | [AI面板](features/AI面板.md) | 无 | 面板开关与 prefill 状态 |
 | `src/modules/ai/lib/aiPanelBridge.ts` | [AI面板](features/AI面板.md) | 无 | prefill 类型契约 |
 | `src/modules/ai/lib/composerMessage.ts` | [AI面板](features/AI面板.md) | AI 对话 | Composer 到 AI SDK parts 的纯转换 |
-| `src/modules/explorer/FileExplorer.tsx` | [快捷键提示](features/快捷键提示.md) | 文件资源管理器 | 文件搜索按钮动态标题 |
+| `src/modules/explorer/FileExplorer.tsx` | [文件资源管理器](features/文件资源管理器.md) | [快捷键提示](features/快捷键提示.md) | 普通树与搜索视图容器、文件搜索按钮动态标题 |
+| `src/modules/explorer/ExplorerSearch.tsx` | [文件资源管理器](features/文件资源管理器.md) | 无 | 模糊查询、搜索树渲染、键盘导航与目录折叠 |
+| `src/modules/explorer/lib/searchTree.ts` | [文件资源管理器](features/文件资源管理器.md) | 无 | 命中到裁剪目录树的纯转换、祖先去重与可见行计算 |
 | `src/modules/tabs/lib/useTabs.ts` | [撤销终端窗格拆分](features/撤销终端窗格拆分.md) | [终端命令与结果块](features/终端命令与结果块.md)、标签与分屏状态、[AI面板](features/AI面板.md) | 记录拆分历史、恢复焦点、维护终端标签与 settings tab 单例 |
 | `src/modules/terminal/lib/panes.ts` | [撤销终端窗格拆分](features/撤销终端窗格拆分.md) | [终端链接打开](features/终端链接打开.md) | 叶节点查询、拆分与移除 |
 | `src/modules/terminal/lib/terminalSessionApi.ts` | [撤销终端窗格拆分](features/撤销终端窗格拆分.md) | 终端会话生命周期、[代理](features/代理.md) | 释放被撤销窗格资源；`restartSession`/`restartAllSessions` 刷新终端让新设置生效 |

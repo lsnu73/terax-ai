@@ -30,6 +30,7 @@ Terax 是面向开发者的开源桌面开发工作区，以终端为中心，�
 | 改标签栏、标签右键菜单或新建标签入口 | [features/标签页管理.md](features/标签页管理.md) | `src/modules/tabs/TabBar.tsx`, `src/modules/tabs/NewTabMenu.tsx`, `src/modules/tabs/lib/useTabs.ts` |
 | 改预览端口菜单或预设 | [features/预览端口管理.md](features/预览端口管理.md) | `src/modules/preview/PreviewAddressBar.tsx`, `src/modules/preview/lib/portPresets.ts` |
 | 改命令面板命令或搜索模式 | [features/命令面板.md](features/命令面板.md) | `src/modules/command-palette/CommandPalette.tsx`, `src/modules/command-palette/commands.ts` |
+| 改文件搜索结果树或文件搜索交互 | [features/文件资源管理器.md](features/文件资源管理器.md) | `src/modules/explorer/ExplorerSearch.tsx`, `src/modules/explorer/lib/searchTree.ts` |
 | 改按钮悬浮提示的快捷键格式 | [features/快捷键提示.md](features/快捷键提示.md) | `src/modules/shortcuts/components/ShortcutTooltip.tsx` |
 | 改 AI 面板、对话或 Composer | [features/AI面板.md](features/AI面板.md) | `src/modules/ai/components/AiPanel.tsx`, `src/modules/ai/components/AiChat.tsx`, `src/modules/ai/store/aiPanelStore.ts` |
 | 改 AI 生成提交信息或其提示词 | [features/AI提交信息生成.md](features/AI提交信息生成.md) | `src/modules/source-control/useSourceControlPanel.ts`, `src/modules/ai/config/prompts.ts` |
@@ -46,7 +47,7 @@ Terax 是面向开发者的开源桌面开发工作区，以终端为中心，�
 
 ## 当前覆盖范围
 
-首版采用种子功能法，之后按开发增量补齐。目前完整覆盖「撤销终端窗格拆分」「开发者工具」「终端链接打开」「终端输入法候选框定位」「终端路径历史」「终端命令与结果块」「标签页管理」「预览端口管理」「快捷键提示」「AI 面板」「AI 模型配置」「命令面板」「AI 提交信息生成」「设置-关于」「代理」「设置页」「通知中心」十七个功能。其他功能在 [features/_index.md](features/_index.md) 中登记为未覆盖，后续随开发补齐，不以目录名推测实现。
+首版采用种子功能法，之后按开发增量补齐。目前完整覆盖「撤销终端窗格拆分」「开发者工具」「终端链接打开」「终端输入法候选框定位」「终端路径历史」「终端命令与结果块」「标签页管理」「预览端口管理」「快捷键提示」「AI 面板」「AI 模型配置」「命令面板」「AI 提交信息生成」「设置-关于」「代理」「设置页」「通知中心」「文件资源管理器」十八个功能。其他功能在 [features/_index.md](features/_index.md) 中登记为未覆盖，后续随开发补齐，不以目录名推测实现。
 
 ## 协作约定
 

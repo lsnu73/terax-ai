@@ -8,8 +8,8 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import {
+  ArrowRight01Icon,
   Cancel01Icon,
-  Folder01Icon,
   Search01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -19,22 +19,17 @@ import {
   forwardRef,
   useEffect,
   useImperativeHandle,
+  useMemo,
   useRef,
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
 import { usePreferencesStore } from "@/modules/settings/preferences";
-import { FileIcon } from "./FileIcon";
+import { FileIcon, FolderIcon } from "./FileIcon";
 import { copyToClipboard, revealInFinder } from "./lib/contextActions";
 import { COMPACT_CONTENT, COMPACT_ITEM } from "./lib/menuItemClass";
+import { buildSearchTreeRows, type SearchHit } from "./lib/searchTree";
 import { cn } from "@/lib/utils";
-
-type SearchHit = {
-  path: string;
-  rel: string;
-  name: string;
-  is_dir: boolean;
-};
 
 type SearchResult = {
   hits: SearchHit[];
@@ -80,6 +75,9 @@ export const ExplorerSearch = forwardRef<ExplorerSearchHandle, Props>(
     const showHidden = usePreferencesStore((s) => s.showHidden);
     const [query, setQuery] = useState("");
     const [results, setResults] = useState<SearchHit[]>([]);
+    const [collapsedPaths, setCollapsedPaths] = useState<Set<string>>(
+      new Set(),
+    );
     const [selectedIndex, setSelectedIndex] = useState(0);
     const [searching, setSearching] = useState(false);
     const [truncated, setTruncated] = useState(false);
@@ -88,6 +86,10 @@ export const ExplorerSearch = forwardRef<ExplorerSearchHandle, Props>(
     const lastKeyboardNavAt = useRef(0);
 
     const active = query.trim().length > 0;
+    const treeRows = useMemo(
+      () => buildSearchTreeRows(rootPath, results, collapsedPaths),
+      [rootPath, results, collapsedPaths],
+    );
 
     useEffect(() => {
       onActiveChange?.(active);
@@ -99,6 +101,7 @@ export const ExplorerSearch = forwardRef<ExplorerSearchHandle, Props>(
       } else {
         setQuery("");
         setResults([]);
+        setCollapsedPaths(new Set());
         setSelectedIndex(0);
         setSearching(false);
         setTruncated(false);
@@ -107,6 +110,7 @@ export const ExplorerSearch = forwardRef<ExplorerSearchHandle, Props>(
 
     useEffect(() => {
       const q = query.trim();
+      setCollapsedPaths(new Set());
       if (q.length < MIN_QUERY_LEN) {
         setResults([]);
         setSelectedIndex(0);
@@ -129,7 +133,14 @@ export const ExplorerSearch = forwardRef<ExplorerSearchHandle, Props>(
           if (alive) {
             setResults(res.hits);
             setTruncated(res.truncated);
-            setSelectedIndex(0);
+            const nextRows = buildSearchTreeRows(rootPath, res.hits);
+            const firstHitPath = res.hits[0]?.path;
+            setSelectedIndex(
+              Math.max(
+                0,
+                nextRows.findIndex((row) => row.path === firstHitPath),
+              ),
+            );
           }
         } catch (e) {
           if (alive) {
@@ -163,18 +174,26 @@ export const ExplorerSearch = forwardRef<ExplorerSearchHandle, Props>(
     );
 
     useEffect(() => {
-      if (active && results.length > 0) {
+      if (active && treeRows.length > 0) {
         const el = scrollRef.current?.querySelector(
           `[data-index="${selectedIndex}"]`,
         );
         el?.scrollIntoView({ block: "nearest" });
       }
-    }, [selectedIndex, results, active]);
+    }, [selectedIndex, treeRows, active]);
+
+    const toggleDirectory = (path: string) => {
+      setCollapsedPaths((current) => {
+        const next = new Set(current);
+        if (next.has(path)) next.delete(path);
+        else next.add(path);
+        return next;
+      });
+    };
 
     const handleSelect = (hit: SearchHit) => {
-      if (!hit.is_dir) {
-        onOpenFile(hit.path);
-      }
+      if (hit.is_dir) toggleDirectory(hit.path);
+      else onOpenFile(hit.path);
     };
 
     return (
@@ -198,20 +217,33 @@ export const ExplorerSearch = forwardRef<ExplorerSearchHandle, Props>(
                   onRequestClose();
                   return;
                 }
-                if (results.length > 0) {
+                if (treeRows.length > 0) {
+                  const selected = treeRows[selectedIndex];
                   if (e.key === "ArrowDown") {
                     e.preventDefault();
                     lastKeyboardNavAt.current = Date.now();
-                    setSelectedIndex((prev) => (prev + 1) % results.length);
+                    setSelectedIndex((prev) => (prev + 1) % treeRows.length);
                   } else if (e.key === "ArrowUp") {
                     e.preventDefault();
                     lastKeyboardNavAt.current = Date.now();
                     setSelectedIndex(
-                      (prev) => (prev - 1 + results.length) % results.length,
+                      (prev) => (prev - 1 + treeRows.length) % treeRows.length,
                     );
-                  } else if (e.key === "Enter") {
+                  } else if (
+                    (e.key === "ArrowLeft" || e.key === "ArrowRight") &&
+                    selected?.is_dir
+                  ) {
+                    const collapsed = collapsedPaths.has(selected.path);
+                    if (
+                      (e.key === "ArrowLeft" && !collapsed) ||
+                      (e.key === "ArrowRight" && collapsed)
+                    ) {
+                      e.preventDefault();
+                      toggleDirectory(selected.path);
+                    }
+                  } else if (e.key === "Enter" && selected) {
                     e.preventDefault();
-                    handleSelect(results[selectedIndex]);
+                    handleSelect(selected);
                   }
                 }
               }}
@@ -243,7 +275,7 @@ export const ExplorerSearch = forwardRef<ExplorerSearchHandle, Props>(
                   {t("explorer.search.noMatches")}
                 </div>
               ) : (
-                results.map((hit, index) => {
+                treeRows.map((hit, index) => {
                   const isSelected = index === selectedIndex;
                   return (
                     <ContextMenu key={hit.path}>
@@ -251,37 +283,50 @@ export const ExplorerSearch = forwardRef<ExplorerSearchHandle, Props>(
                         <button
                           type="button"
                           data-index={index}
-                          onClick={() => handleSelect(hit)}
+                          onClick={() => {
+                            setSelectedIndex(index);
+                            handleSelect(hit);
+                          }}
                           onMouseEnter={() => {
                             if (Date.now() - lastKeyboardNavAt.current > 250) {
                               setSelectedIndex(index);
                             }
                           }}
                           className={cn(
-                            "flex w-full items-center gap-1.5 px-2 py-1 text-left text-xs transition-colors",
+                            "flex w-full items-center gap-1.5 py-1 pr-2 text-left text-xs transition-colors",
                             isSelected
                               ? "bg-accent text-foreground"
                               : "hover:bg-accent/50 text-foreground/80",
                           )}
+                          style={{ paddingLeft: 8 + hit.depth * 14 }}
                           title={hit.path}
                         >
+                          <span className="flex size-3 shrink-0 items-center justify-center text-muted-foreground">
+                            {hit.is_dir ? (
+                              <HugeiconsIcon
+                                icon={ArrowRight01Icon}
+                                size={11}
+                                strokeWidth={2.25}
+                                className={cn(
+                                  "transition-transform",
+                                  !collapsedPaths.has(hit.path) && "rotate-90",
+                                )}
+                              />
+                            ) : null}
+                          </span>
                           {!hit.is_dir ? (
                             <FileIcon
                               name={hit.name}
                               className="size-3.5 shrink-0"
                             />
                           ) : (
-                            <HugeiconsIcon
-                              icon={Folder01Icon}
-                              size={13}
-                              strokeWidth={1.75}
-                              className="shrink-0 text-muted-foreground"
+                            <FolderIcon
+                              name={hit.name}
+                              expanded={!collapsedPaths.has(hit.path)}
+                              className="size-3.5 shrink-0"
                             />
                           )}
                           <span className="truncate">{hit.name}</span>
-                          <span className="ml-auto truncate text-[10px] text-muted-foreground">
-                            {hit.rel}
-                          </span>
                         </button>
                       </ContextMenuTrigger>
                       <ContextMenuContent className={COMPACT_CONTENT}>

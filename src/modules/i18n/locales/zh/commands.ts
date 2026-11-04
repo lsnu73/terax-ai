@@ -43,7 +43,7 @@ export const commandsZh: typeof commands = {
     searchFiles: "按名称搜索文件",
   },
   view: {
-    toggleFileExplorer: "切换文件管理器",
+    toggleFileExplorer: "切换左侧侧边栏",
     toggleHiddenFiles: "切换隐藏文件",
   },
   ai: {

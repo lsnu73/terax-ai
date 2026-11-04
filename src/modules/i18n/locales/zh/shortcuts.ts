@@ -65,7 +65,7 @@ export const shortcutsZh: typeof shortcuts = {
     focusAttention: "跳转到需要注意的代理",
   },
   sidebar: {
-    toggle: "切换文件管理器",
+    toggle: "切换左侧侧边栏",
   },
   editor: {
     undo: "撤销",

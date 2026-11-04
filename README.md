@@ -325,7 +325,7 @@ AI 面板输入区下方的元信息行可以切换执行审批模式：
 | 终端最近路径 | `Ctrl+E` |
 | 在标签页中查找 | `Ctrl+F` |
 | 搜索文件 | `Ctrl+Shift+F` |
-| 切换文件管理器 | `Ctrl+Shift+B` |
+| 切换左侧侧边栏 | `Ctrl+Shift+B` |
 | 聚焦文件管理器 | `Ctrl+Shift+E` |
 | 空间总览 | `Ctrl+Shift+S` |
 | 下一个空间 | `Ctrl+Shift+]` |

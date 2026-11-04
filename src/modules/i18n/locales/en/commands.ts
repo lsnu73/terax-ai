@@ -41,7 +41,7 @@ export const commands = {
     searchFiles: "Search files by name",
   },
   view: {
-    toggleFileExplorer: "Toggle file explorer",
+    toggleFileExplorer: "Toggle left sidebar",
     toggleHiddenFiles: "Toggle hidden files",
   },
   ai: {
@@ -68,7 +68,8 @@ export const commands = {
     noThemes: "No themes",
     contentsHeading: "Contents",
     pathsHeading: "Recent terminal paths",
-    noPaths: "No recent paths yet. Change directory in a terminal to record one.",
+    noPaths:
+      "No recent paths yet. Change directory in a terminal to record one.",
     typeMinChars: "Type at least 2 characters",
     noMatches: "No matches",
     searchModesHeading: "Search modes",

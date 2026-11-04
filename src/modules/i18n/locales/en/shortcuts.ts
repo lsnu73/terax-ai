@@ -63,7 +63,7 @@ export const shortcuts = {
     focusAttention: "Jump to agent needing attention",
   },
   sidebar: {
-    toggle: "Toggle file explorer",
+    toggle: "Toggle left sidebar",
   },
   editor: {
     undo: "Undo",
