@@ -1,12 +1,12 @@
 # AI 面板
 
-- 最后校验：2026-11-03
+- 最后校验：2026-11-04
 - 状态：已覆盖
 - 关联 lore：[AI 面板与设置页迁入主窗口](../../lore/decisions/2026-10-31-AI面板与设置页迁入主窗口.md)（取代 2026-10-30 的跨 Webview 镜像方案）
 
 ## 1. 业务需求
 
-用户按 Ctrl/Cmd+I 在主窗口右侧打开或关闭 AI 面板。面板与终端/编辑器共用同一个窗口，打开即渲染（React 挂载），不再创建原生窗口。面板可拖拽调宽，宽度持久化到 localStorage。
+用户按 Ctrl/Cmd+I 在主窗口右侧打开或关闭 AI 面板。面板与终端/编辑器共用同一个窗口，打开即渲染（React 挂载），不再创建原生窗口。面板可拖拽调宽，宽度持久化到 localStorage。工作区右侧分隔线与六点握把常驻：存在可用 Provider 时，向左拖拽直接展开面板、向右拖过收合阈值直接收合，与 Ctrl/Cmd+I 共用同一开关状态；未配置可用模型时禁用拖拽，按下分隔线会通知用户先配置 AI 模型，并提供跳转模型设置的入口。面板分包在启动空档预热，首次打开先显示同构骨架再过渡到内容，不再出现整块空白。
 
 面板内容与原独立窗口一致：会话切换、聊天视图、Todo、计划模式横幅、完整 Composer（图片/附件/@文件/snippet/slash command）、输入框下方元信息行（角色、执行审批模式、上下文用量、模型切换）。Escape（非输入焦点）或关闭按钮关闭面板。
 
@@ -43,6 +43,7 @@ AiChatView 请求失败卡片“重试”
 | 文件 | 角色 | 备注 |
 |---|---|---|
 | `src/modules/ai/components/AiPanel.tsx` | 面板页面 | 聊天、会话切换、计划横幅、空态建议；直连 stores，接入 `regenerate` |
+| `src/modules/ai/components/AiPanelSkeleton.tsx` | 骨架占位 | 分包未就绪时渲染，与真实布局同构（头部/消息/输入区） |
 | `src/modules/ai/components/AiChat.tsx` | 聊天视图 | 消息与流式状态渲染；请求失败卡片提供重试和关闭 |
 | `src/modules/ai/components/AiPanelComposer.tsx` | 完整输入区 | 与旧 AiWindowComposer 同构；prefill 直接走 props |
 | `src/modules/ai/store/aiPanelStore.ts` | 面板开关与 prefill | zustand；主窗口内共享，无事件桥 |
@@ -60,7 +61,7 @@ AiChatView 请求失败卡片“重试”
 3. prefill（终端选区、编辑器选区、文件附件）经 `prefillAiPanel` 写入 aiPanelStore；面板挂载后由 Composer 消费并清除。
 4. 工具审批待决时 AgentRunBridge 自动打开面板；AI diff tab 流程不变。
 5. API Key 只经钥匙串 IPC 读取，不进任何 store 持久化。
-6. 面板宽度经 `onResize` 写 `terax.ai-panel-width`（localStorage），下次打开复用。
+6. 面板宽度经 `onResize` 写 `terax.ai-panel-width`（localStorage），下次打开复用。`onResize` 同时回写 `aiPanelStore.open`（0px 收合为关、展开为开），拖拽与快捷键共用同一状态源；拖拽展开时不覆盖用户刚拖出的宽度（仅从收合位打开才 `resize` 到持久化宽度）。无可用 Provider 时分隔线 `disabled`，`onResize` 同样保持面板收合，避免间接布局变化绕过禁用状态。
 7. 失败重试直接调用同一 Chat 的 `regenerate`：保留原用户消息和此前上下文，若已有部分助手回答则替换该回答；SDK 发起请求时清除旧错误并复用现有加载、停止和持久化链路。
 
 ## 5. 对外接口
@@ -89,3 +90,8 @@ AiChatView 请求失败卡片“重试”
 - 2026-11-03：头部新增 `ProxyHints` 代理生效提示（终端代理→AI 命令、AI 会话代理→模型请求，可同时显示）。
 - 2026-11-03：`ProxyHints` 改为紧凑徽章 + 弹层（脉冲圆点 +「代理中」+ 下拉图标），弹层直接管理终端/AI 问答开关，失焦自动关闭。
 - 2026-11-03：代理弹层改为只读（各场景开启状态 + 生效后果说明），不再提供开关。
+- 2026-11-04：修复拖拽与快捷键状态失同步：拖拽收合后 store 仍记 open，Ctrl+I 需按两次。分隔线改为 `hasComposer` 时常驻并由 `onResize` 回写开关状态，向左拖即可从关闭态直接展开（原先必须手动 Ctrl+I）；拖拽收合同步 `closePanel`（清除 prefill、卸载内容）。
+- 2026-11-04：首开空白治理：Suspense fallback 从 null 换成 `AiPanelSkeleton` 同构骨架，并在启动空档（`deferredUiReady` 后 `requestIdleCallback`，仅 hasComposer 时）预热面板分包；首开即骨架或内容，无整块空白。首开慢的主因（独立 WebView 冷启动）已在 2026-10-31 迁入主窗口时消除，剩余为懒加载分包体积。
+- 2026-11-04：未配置可用模型时仍显示右侧分隔线与六点握把，但禁用拖拽展开/收合；按下分隔线显示配置模型通知，并可跳转模型设置。
+- 2026-11-04：左右分隔线中央新增六点握把（`ResizableHandle grip`），静止半透明、悬停/拖拽全亮。
+- 2026-11-04：修正工作区与 AI 面板分隔线的视觉居中：工作区右侧与 AI 面板左侧均留 4px 间距，分隔线及六点握把位于两块面板实际间隔的中央，不再偏向 AI 面板。

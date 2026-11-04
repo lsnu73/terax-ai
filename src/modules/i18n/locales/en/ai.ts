@@ -14,6 +14,9 @@ export const ai = {
     read: "Read",
     remove: "Remove",
   },
+  panel: {
+    configureModelFirst: "Configure an AI model before resizing the AI panel.",
+  },
   statusbar: {
     openAiAgent: "Open AI agent",
     attachFile: "Attach file or image",

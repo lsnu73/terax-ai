@@ -11,6 +11,9 @@ export const aiZh: typeof ai = {
     read: "读取",
     remove: "移除",
   },
+  panel: {
+    configureModelFirst: "请先配置 AI 模型，再拖动 AI 面板分隔线。",
+  },
   statusbar: {
     openAiAgent: "打开 AI 助手",
     attachFile: "附加文件或图片",

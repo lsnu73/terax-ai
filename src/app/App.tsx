@@ -28,11 +28,13 @@ import {
   useChatStore,
   useSelectionAskAi,
 } from "@/modules/ai";
+import { runtimeToast } from "@/modules/agents/lib/runtimeNotifications";
 import {
   openAiPanel,
   prefillAiPanel,
   toggleAiPanel,
 } from "@/modules/ai/lib/aiPanel";
+import { AiPanelSkeleton } from "@/modules/ai/components/AiPanelSkeleton";
 import { useAiPanelStore } from "@/modules/ai/store/aiPanelStore";
 import { native } from "@/modules/ai/lib/native";
 import { CommandPalette, createCommandItems } from "@/modules/command-palette";
@@ -412,15 +414,48 @@ export default function App() {
   const aiPanelRef = useRef<PanelImperativeHandle | null>(null);
   const aiPanelVisible = aiPanelOpen && hasComposer;
 
+  const handleAiPanelSeparatorPointerDown = useCallback(() => {
+    if (hasComposer) return;
+    runtimeToast.info(t("ai.panel.configureModelFirst"), {
+      id: "ai-panel-model-required",
+      action: {
+        label: t("ai.composer.connectProvider"),
+        onClick: () => void openSettings("models"),
+      },
+    });
+  }, [hasComposer]);
+
   // AI 面板始终挂载在同一个 ResizablePanelGroup 中（面板 ID 组合不变），
-  // 开关只 collapse/resize。此前按 aiPanelOpen 增删第三个面板会让
-  // react-resizable-panels 在两套布局缓存间切换，左侧栏开合状态被旧布局覆盖。
+  // 开关只 collapse/resize。分隔线与握把常驻；配置模型后向左拖即展开、
+  // 向右拖过阈值即收合，未配置时禁用拖拽并提示先配置模型。拖拽产生的
+  // 收合/展开经 onResize 回写 aiPanelStore，快捷键与拖拽共用同一状态源。
   useEffect(() => {
     const panel = aiPanelRef.current;
     if (!panel) return;
-    if (aiPanelVisible) panel.resize(`${aiPanelWidthRef.current}px`);
-    else panel.collapse();
+    if (aiPanelVisible) {
+      // 拖拽展开时面板已脱离收合位，不要覆盖用户刚拖出的宽度。
+      if (panel.isCollapsed()) panel.resize(`${aiPanelWidthRef.current}px`);
+    } else {
+      panel.collapse();
+    }
   }, [aiPanelVisible]);
+
+  // 启动空档预热 AI 面板分包：首次 Ctrl+I 不必等分包下载解析，骨架即内容。
+  // 仅在存在可用 Provider（hasComposer）时预热，未配置 AI 的启动零开销。
+  useEffect(() => {
+    if (!deferredUiReady || !hasComposer) return;
+    if (typeof requestIdleCallback === "function") {
+      const id = requestIdleCallback(
+        () => void import("@/modules/ai/components/AiPanel"),
+        { timeout: 10_000 },
+      );
+      return () => cancelIdleCallback(id);
+    }
+    const id = window.setTimeout(() => {
+      void import("@/modules/ai/components/AiPanel");
+    }, 2000);
+    return () => window.clearTimeout(id);
+  }, [deferredUiReady, hasComposer]);
 
   useProxyAutoLaunch();
 
@@ -1613,13 +1648,16 @@ export default function App() {
                   </div>
                 </div>
               </ResizablePanel>
-              <ResizableHandle className="w-1 rounded-full bg-transparent transition-colors duration-[var(--dur-fast)] after:w-4 hover:bg-border" />
+              <ResizableHandle
+                grip
+                className="w-1 rounded-full bg-transparent transition-colors duration-[var(--dur-fast)] after:w-4 hover:bg-border"
+              />
               <ResizablePanel
                 id="workspace"
                 defaultSize="78%"
                 minSize="30%"
               >
-                <div className="h-full min-h-0 pl-0.5 pr-2">
+                <div className="h-full min-h-0 pl-0.5 pr-1">
                   <div className="terax-pane flex h-full min-h-0 flex-col">
                     <div className="relative min-h-0 flex-1">
                       <WorkspaceSurface
@@ -1657,9 +1695,12 @@ export default function App() {
                   </div>
                 </div>
               </ResizablePanel>
-              {aiPanelVisible ? (
-                <ResizableHandle className="w-1 rounded-full bg-transparent transition-colors duration-[var(--dur-fast)] after:w-4 hover:bg-border" />
-              ) : null}
+              <ResizableHandle
+                grip
+                disabled={!hasComposer}
+                onPointerDown={handleAiPanelSeparatorPointerDown}
+                className="w-1 rounded-full bg-transparent transition-colors duration-[var(--dur-fast)] after:w-4 hover:bg-border"
+              />
               <ResizablePanel
                 id="ai-panel"
                 panelRef={aiPanelRef}
@@ -1668,7 +1709,18 @@ export default function App() {
                 collapsible
                 collapsedSize={0}
                 onResize={(size) => {
-                  if (size.inPixels <= 0) return;
+                  if (!hasComposer) {
+                    if (size.inPixels > 0) aiPanelRef.current?.collapse();
+                    return;
+                  }
+                  if (size.inPixels <= 0) {
+                    // 拖拽收合与 closePanel 同步（含清除 prefill），
+                    // 下一次 Ctrl+I 从收合位重新展开。
+                    if (useAiPanelStore.getState().open) {
+                      useAiPanelStore.getState().closePanel();
+                    }
+                    return;
+                  }
                   try {
                     localStorage.setItem(
                       AI_PANEL_WIDTH_KEY,
@@ -1677,12 +1729,15 @@ export default function App() {
                   } catch {
                     /* ignore */
                   }
+                  if (!useAiPanelStore.getState().open) {
+                    openAiPanel();
+                  }
                 }}
               >
                 {aiPanelVisible ? (
-                  <div className="h-full min-h-0 pr-2">
+                  <div className="h-full min-h-0 pl-1 pr-2">
                     <div className="terax-pane h-full min-h-0 overflow-hidden">
-                      <Suspense fallback={null}>
+                      <Suspense fallback={<AiPanelSkeleton />}>
                         <AiPanel onClose={closeAiPanel} />
                       </Suspense>
                     </div>
