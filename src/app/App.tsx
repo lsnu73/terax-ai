@@ -56,12 +56,13 @@ import { t } from "@/modules/i18n";
 import { setLspNavigator } from "@/modules/lsp";
 import type { PreviewPaneHandle } from "@/modules/preview";
 import { useProxyAutoLaunch } from "@/modules/proxy/lib/autoLaunch";
-import { openSettings, registerSettingsOpener } from "@/modules/settings/openSettings";
+import {
+  openSettings,
+  registerSettingsOpener,
+} from "@/modules/settings/openSettings";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import { setShowHidden, setPathHistory } from "@/modules/settings/store";
-import {
-  recordPathHistory,
-} from "@/modules/terminal/lib/pathHistory";
+import { recordPathHistory } from "@/modules/terminal/lib/pathHistory";
 import { cdTerminalLeafTo } from "@/modules/terminal/lib/terminalCd";
 import { PathHistoryDialog } from "@/modules/terminal/path-history/PathHistoryDialog";
 import {
@@ -332,6 +333,49 @@ export default function App() {
     };
   }, [booted, deferredUiReady]);
 
+  // 启动恢复完成后把焦点交给活动终端的命令输入。终端就绪前用户已开始
+  // 操作其他控件时不抢焦点。
+  const startupFocusHandled = useRef(false);
+  useEffect(() => {
+    if (!booted || !deferredUiReady || startupFocusHandled.current) return;
+    const tab = tabsRef.current.find((t) => t.id === activeIdRef.current);
+    if (tab?.kind !== "terminal") {
+      startupFocusHandled.current = true;
+      return;
+    }
+    const leafId = tab.activeLeafId;
+    let cancelled = false;
+    void whenSessionReady(leafId).then(() => {
+      if (cancelled) return;
+      const currentTab = tabsRef.current.find(
+        (t) => t.id === activeIdRef.current,
+      );
+      if (
+        currentTab?.kind !== "terminal" ||
+        currentTab.activeLeafId !== leafId
+      ) {
+        return;
+      }
+      const active = document.activeElement;
+      if (
+        active instanceof HTMLElement &&
+        active !== document.body &&
+        active !== document.documentElement &&
+        !active.closest("[data-terminal-stack]")
+      ) {
+        startupFocusHandled.current = true;
+        return;
+      }
+      const terminal = terminalRefs.current.get(leafId);
+      if (!terminal) return;
+      startupFocusHandled.current = true;
+      terminal.focus();
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [booted, deferredUiReady]);
+
   useSpacePersistence({
     tabs,
     activeId,
@@ -507,9 +551,7 @@ export default function App() {
     [],
   );
   const handleBlockSearchClose = useCallback((leafId: number) => {
-    setBlockSearch((current) =>
-      current?.leafId === leafId ? null : current,
-    );
+    setBlockSearch((current) => (current?.leafId === leafId ? null : current));
   }, []);
   useEffect(() => {
     if (blockSearch) searchInlineRef.current?.focus();
@@ -688,12 +730,9 @@ export default function App() {
     return () => registerSettingsOpener(null);
   }, [openSettingsTab]);
 
-  const handleAttachFileToAgent = useCallback(
-    (path: string) => {
-      prefillAiPanel({ attachmentPaths: [path] });
-    },
-    [],
-  );
+  const handleAttachFileToAgent = useCallback((path: string) => {
+    prefillAiPanel({ attachmentPaths: [path] });
+  }, []);
 
   const askFromSelection = useCallback(() => {
     const selection = captureActiveSelection();
@@ -1265,11 +1304,7 @@ export default function App() {
   );
 
   const searchTarget = useMemo<SearchTarget>(() => {
-    if (
-      blockSearch &&
-      isTerminalTab &&
-      activeLeafId === blockSearch.leafId
-    )
+    if (blockSearch && isTerminalTab && activeLeafId === blockSearch.leafId)
       return {
         kind: "terminal",
         addon: blockSearch.addon,
@@ -1652,11 +1687,7 @@ export default function App() {
                 grip
                 className="w-1 rounded-full bg-transparent transition-colors duration-[var(--dur-fast)] after:w-4 hover:bg-border"
               />
-              <ResizablePanel
-                id="workspace"
-                defaultSize="78%"
-                minSize="30%"
-              >
+              <ResizablePanel id="workspace" defaultSize="78%" minSize="30%">
                 <div className="h-full min-h-0 pl-0.5 pr-1">
                   <div className="terax-pane flex h-full min-h-0 flex-col">
                     <div className="relative min-h-0 flex-1">
