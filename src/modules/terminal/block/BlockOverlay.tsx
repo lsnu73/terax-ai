@@ -1,16 +1,26 @@
 import "@/modules/terminal/block/block.css";
 
 import { cn } from "@/lib/utils";
+import type { TimelineEntry } from "@/modules/terminal/ghostty/GhosttyBlocks";
 import { CommandLineIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { useTranslation } from "react-i18next";
+import { CommandTimeline } from "./CommandTimeline";
 import type { PositionedBlock, VisibleBlocks } from "./lib/blockTypes";
+
+type TimelineData = {
+  items: TimelineEntry[];
+  totalLines: number;
+};
 
 type Props = {
   subscribe: (cb: () => void) => () => void;
   getVisible: () => VisibleBlocks;
+  /** Whole-history timeline snapshot, reference-stable while unchanged. */
+  getTimeline: () => TimelineData | null;
+  onReveal: (id: string) => void;
   onCloseSearch: () => void;
 };
 
@@ -53,26 +63,37 @@ function sameVisibleBlocks(a: VisibleBlocks, b: VisibleBlocks): boolean {
 }
 
 export function BlockOverlay(props: Props) {
-  const { subscribe, getVisible, onCloseSearch } = props;
+  const { subscribe, getVisible, getTimeline, onReveal, onCloseSearch } = props;
   const [vis, setVis] = useState<VisibleBlocks>(EMPTY);
+  const [timeline, setTimeline] = useState<TimelineData | null>(null);
   const lastVisible = useRef(EMPTY);
+  const lastTimeline = useRef<TimelineData | null>(null);
 
   useEffect(() => {
     const update = (synchronous = false) => {
       const v = getVisible();
-      if (sameVisibleBlocks(v, lastVisible.current)) return;
+      const tl = getTimeline();
+      // The timeline snapshot is reference-stable while its cheap cache key
+      // is unchanged, so a reference compare costs nothing per frame.
+      if (
+        sameVisibleBlocks(v, lastVisible.current) &&
+        tl === lastTimeline.current
+      )
+        return;
       const cleared = v.generation !== lastVisible.current.generation;
       lastVisible.current = v;
+      lastTimeline.current = tl;
       const commit = () => {
         if (cleared) onCloseSearch();
         setVis(v);
+        setTimeline(tl);
       };
       if (synchronous) flushSync(commit);
       else commit();
     };
     update();
     return subscribe(() => update(true));
-  }, [subscribe, getVisible, onCloseSearch]);
+  }, [subscribe, getVisible, getTimeline, onCloseSearch]);
 
   return (
     <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
@@ -80,6 +101,7 @@ export function BlockOverlay(props: Props) {
         <BlockChrome key={block.id} block={block} />
       ))}
       {vis.sticky && <StickyHeader block={vis.sticky} />}
+      {timeline && <CommandTimeline data={timeline} onReveal={onReveal} />}
     </div>
   );
 }

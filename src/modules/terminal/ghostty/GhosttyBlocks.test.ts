@@ -1,11 +1,11 @@
 import { readFile } from "node:fs/promises";
-import { beforeAll, describe, expect, it, vi } from "vitest";
-import { TeraxGhostty } from "@terax/ghostty-core/adapted";
 import { AdaptedGhosttyTerminalModel } from "@/modules/terminal/ghostty/AdaptedGhosttyTerminalModel";
 import {
   GhosttyBlocks,
   matchCellText,
 } from "@/modules/terminal/ghostty/GhosttyBlocks";
+import { TeraxGhostty } from "@terax/ghostty-core/adapted";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 
 describe.each(["ghostty-vt", "ghostty-vt-scalar"])(
   "Ghostty command blocks (%s)",
@@ -83,6 +83,56 @@ describe.each(["ghostty-vt", "ghostty-vt-scalar"])(
         expect(blocks.navigate(-1)).toBe(true);
         expect(model.trackedSelection()).not.toBeNull();
         expect(blocks.clearSelection()).toBe(true);
+      } finally {
+        dispose();
+      }
+    });
+
+    it("lists every command for the timeline and reveals one by id", () => {
+      const { model, blocks, write, dispose } = create();
+      try {
+        write(
+          "\x1b]133;C;first\x07one\r\n\x1b]133;D;0\x07\r\n\x1b]133;C;second\x07two\r\n\x1b]133;D;3\x07\x1b]133;C;tail\x07",
+        );
+        const timeline = blocks.timeline();
+        expect(
+          timeline.items.map((item) => ({
+            command: item.command,
+            start: item.start,
+            running: item.running,
+            ok: item.ok,
+          })),
+        ).toEqual([
+          { command: "first", start: 0, running: false, ok: true },
+          {
+            command: "second",
+            start: timeline.items[1].start,
+            running: false,
+            ok: false,
+          },
+          {
+            command: "tail",
+            start: timeline.items[2].start,
+            running: true,
+            ok: true,
+          },
+        ]);
+        expect(timeline.items[1].start).toBeGreaterThan(0);
+        expect(timeline.totalLines).toBe(
+          model.scrollPosition().history + model.rows,
+        );
+        // Cached against revision plus a coarse history bucket.
+        expect(blocks.timeline()).toBe(timeline);
+
+        expect(blocks.revealBlock("2")).toBe(true);
+        expect(model.trackedSelection()).not.toBeNull();
+        expect(model.viewportOriginLine()).toBeLessThanOrEqual(
+          timeline.items[1].start,
+        );
+        expect(blocks.revealBlock("999")).toBe(false);
+
+        write("\x1b[H\x1b[2J");
+        expect(blocks.timeline().items).toEqual([]);
       } finally {
         dispose();
       }

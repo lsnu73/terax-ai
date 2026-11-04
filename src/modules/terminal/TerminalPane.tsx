@@ -1,15 +1,16 @@
 import { ContextMenu, ContextMenuTrigger } from "@/components/ui/context-menu";
+import { runtimeToast as toast } from "@/modules/agents/lib/runtimeNotifications";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import { BlockContextMenu } from "@/modules/terminal/block/BlockContextMenu";
 import type { PositionedBlock } from "@/modules/terminal/block/lib/blockTypes";
-import type { TerminalSearchController } from "@/modules/terminal/search/TerminalSearchController";
 import { GhosttyBlockSearchController } from "@/modules/terminal/ghostty/search/GhosttyBlockSearchController";
-import { runtimeToast as toast } from "@/modules/agents/lib/runtimeNotifications";
 import { submitToLeaf } from "@/modules/terminal/lib/terminalSessionApi";
+import type { TerminalSearchController } from "@/modules/terminal/search/TerminalSearchController";
 import { useTheme } from "@/modules/theme";
 import {
   forwardRef,
   lazy,
+  type MouseEvent,
   memo,
   Suspense,
   useCallback,
@@ -17,16 +18,15 @@ import {
   useImperativeHandle,
   useRef,
   useState,
-  type MouseEvent,
 } from "react";
 import { useTranslation } from "react-i18next";
 import type { TerminalBackendKind } from "./backend/contracts";
 import { resolvedTerminalBackend } from "./backend/selection";
-import {
-  useGhosttyTerminalSession,
-  ghosttyBlockGeometry,
-} from "./ghostty/useGhosttyTerminalSession";
 import { ghosttyBlocks } from "./ghostty/ghosttyBlockSessions";
+import {
+  ghosttyBlockGeometry,
+  useGhosttyTerminalSession,
+} from "./ghostty/useGhosttyTerminalSession";
 
 export type TerminalPaneHandle = {
   write: (data: string) => void;
@@ -125,6 +125,12 @@ const GhosttyTerminalPane = memo(
       [leafId, onBlockSearchClose],
     );
 
+    // 命令时间线悬停/点击不是终端表面：pointerdown 落在时间线上时
+    // 不记录选区起点，避免 onPointerUp 的块命中把它当作普通点击清除。
+    const timelineTarget = (event: MouseEvent<HTMLDivElement>) =>
+      event.target instanceof HTMLElement &&
+      event.target.closest("[data-command-timeline]") !== null;
+
     const onContextMenu = (event: MouseEvent<HTMLDivElement>) => {
       const state = ghosttyBlocks(leafId);
       const geometry = ghosttyBlockGeometry(leafId);
@@ -186,6 +192,7 @@ const GhosttyTerminalPane = memo(
                 !event.altKey &&
                 !event.metaKey &&
                 !event.ctrlKey &&
+                !timelineTarget(event) &&
                 containerRef.current?.contains(event.target as Node)
                   ? { x: event.clientX, y: event.clientY }
                   : null;

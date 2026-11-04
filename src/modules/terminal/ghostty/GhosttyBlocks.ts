@@ -1,4 +1,3 @@
-import type { GhosttyTerminalEvent } from "@terax/ghostty-core/protocol";
 import type {
   BlockContext,
   BlockMatch,
@@ -7,9 +6,25 @@ import type {
 } from "@/modules/terminal/block/lib/blockTypes";
 import type { BlockMode } from "@/modules/terminal/block/lib/modeMachine";
 import type { GhosttyTerminalModelApi } from "@/modules/terminal/ghostty/GhosttyTerminalModel";
+import type { GhosttyTerminalEvent } from "@terax/ghostty-core/protocol";
 
 const MAX_BLOCKS = 1000;
 const MAX_METADATA_UNITS = 256 * 1024;
+/** Command timeline reveal: eased scroll duration in milliseconds. */
+const REVEAL_SCROLL_MS = 180;
+// Node test environments have no frame timers; the eased reveal then
+// degrades to the instant scroll.
+const frameTimers: {
+  request?: (callback: (now: number) => void) => number;
+  cancel?: (id: number) => void;
+} =
+  typeof requestAnimationFrame === "function" &&
+  typeof cancelAnimationFrame === "function"
+    ? {
+        request: (callback) => requestAnimationFrame(callback),
+        cancel: (id) => cancelAnimationFrame(id),
+      }
+    : {};
 type BlockModel = GhosttyTerminalModelApi &
   Required<
     Pick<
@@ -35,6 +50,17 @@ type Entry = {
   finishedAt: number;
 };
 
+/** One command in the whole-history timeline overlay (buffer-line space). */
+export type TimelineEntry = {
+  id: string;
+  command: string;
+  /** Buffer line of the command row; the bar position and reveal target. */
+  start: number;
+  running: boolean;
+  ok: boolean;
+  exitCode: number | null;
+};
+
 export class GhosttyBlocks {
   private readonly model: BlockModel;
   private entries: Entry[] = [];
@@ -49,6 +75,11 @@ export class GhosttyBlocks {
   private metadataUnits = 0;
   private clearGeneration = 0;
   private entryRevision = 0;
+  private revealRaf = 0;
+  private timelineCache: {
+    key: string;
+    data: { items: TimelineEntry[]; totalLines: number };
+  } | null = null;
 
   constructor(model: GhosttyTerminalModelApi) {
     requireBlockModel(model);
@@ -157,6 +188,7 @@ export class GhosttyBlocks {
   }
 
   private clearMetadata(): void {
+    frameTimers.cancel?.(this.revealRaf);
     this.clearSelection();
     this.clearGeneration++;
     this.entryRevision++;
@@ -166,6 +198,7 @@ export class GhosttyBlocks {
     this.selected = null;
     this.pendingCommand = "";
     this.pendingCommandComplete = false;
+    this.timelineCache = null;
     this.model.setBlockSearchMatch?.(null);
   }
 
@@ -342,6 +375,52 @@ export class GhosttyBlocks {
     return false;
   }
 
+  /**
+   * Whole-history view for the command timeline overlay: every tracked block
+   * with its current command-row buffer line. Cached against a cheap key
+   * (revision plus a coarse history bucket, rows and cols), so streaming
+   * output does not re-derive every range per parsed line; the bar positions
+   * self-correct on the next revision, scroll or resize.
+   */
+  timeline(): { items: TimelineEntry[]; totalLines: number } {
+    const history = this.model.scrollPosition().history;
+    const key = `${this.entryRevision}|${Math.floor(history / 8)}|${this.model.rows}|${this.model.cols}`;
+    if (this.timelineCache?.key === key) return this.timelineCache.data;
+    const items: TimelineEntry[] = [];
+    if (this.mode !== "alt" && this.mode !== "plain") {
+      for (const entry of this.entries) {
+        const start = this.model.semanticMarkerLine?.(entry.start);
+        if (start == null) continue;
+        items.push({
+          id: entry.id,
+          command: entry.command,
+          start,
+          running: entry.end === null,
+          ok: entry.exitCode === null || entry.exitCode === 0,
+          exitCode: entry.exitCode,
+        });
+      }
+    }
+    const data = { items, totalLines: history + this.model.rows };
+    this.timelineCache = { key, data };
+    return data;
+  }
+
+  /**
+   * Timeline reveal: select the block like navigate does and bring its
+   * command row into view. `smooth` eases the scroll; the animation writes
+   * absolute offsets, so user scrolling simply overrides it.
+   */
+  revealBlock(id: string, smooth = false): boolean {
+    if (this.mode === "alt") return false;
+    const entry = this.entries.find((entry) => entry.id === id);
+    const range = entry && this.range(entry);
+    if (!entry || !range) return false;
+    if (!range.empty) this.select(entry, range);
+    this.scrollToLine(Math.max(0, range.start - 2), smooth);
+    return true;
+  }
+
   async searchBlock(
     id: string,
     query: string,
@@ -433,7 +512,33 @@ export class GhosttyBlocks {
     );
   }
 
+  private scrollToLine(line: number, smooth: boolean): void {
+    frameTimers.cancel?.(this.revealRaf);
+    const target = Math.max(0, this.model.scrollPosition().history - line);
+    const request = frameTimers.request;
+    if (!smooth || !request) {
+      this.model.scrollTo(target);
+      return;
+    }
+    const model = this.model;
+    const from = model.scrollPosition().offset;
+    const delta = target - from;
+    if (Math.abs(delta) < 4) {
+      model.scrollTo(target);
+      return;
+    }
+    const startedAt = performance.now();
+    const step = (now: number) => {
+      if (model.isDisposed?.()) return;
+      const progress = Math.min(1, (now - startedAt) / REVEAL_SCROLL_MS);
+      model.scrollTo(Math.round(from + delta * (1 - (1 - progress) ** 3)));
+      if (progress < 1) this.revealRaf = request(step);
+    };
+    this.revealRaf = request(step);
+  }
+
   dispose(): void {
+    frameTimers.cancel?.(this.revealRaf);
     if (!this.model.isDisposed?.()) this.model.enableSemanticMarkers(false);
   }
 }
