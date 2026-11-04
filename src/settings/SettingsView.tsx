@@ -160,8 +160,11 @@ export function SettingsView({
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background text-foreground select-none">
-      <header className="flex h-11 shrink-0 items-center border-b border-border/60 bg-card/60 pl-3">
+    <div className="flex h-full min-h-0 overflow-hidden bg-background text-foreground select-none">
+      <aside className="flex w-52 shrink-0 flex-col border-r border-border/60 bg-card/60">
+        <div className="relative z-20 shrink-0 p-3">
+          <SettingsSearch onSelect={onSearchSelect} />
+        </div>
         <Tabs
           value={active}
           onValueChange={(v) => {
@@ -169,29 +172,23 @@ export function SettingsView({
             setActive(next);
             onSectionChange?.(next);
           }}
-          orientation="horizontal"
-          className="flex-1 items-center"
+          orientation="vertical"
+          className="min-h-0 flex-1"
         >
-          <TabsList className="mx-auto h-7 bg-muted/40 px-2">
+          <TabsList className="w-full items-stretch justify-start gap-1 rounded-none bg-transparent p-2">
             {TABS.map((tab) => (
               <TabsTrigger
                 key={tab.id}
                 value={tab.id}
-                className="h-6 gap-1.5 px-2.5 text-[11.5px]"
+                className="h-8 gap-2 rounded-md px-3 text-xs"
               >
-                <HugeiconsIcon icon={tab.icon} size={12} strokeWidth={1.75} />
+                <HugeiconsIcon icon={tab.icon} size={14} strokeWidth={1.75} />
                 <span>{t(tab.labelKey)}</span>
               </TabsTrigger>
             ))}
           </TabsList>
         </Tabs>
-      </header>
-
-      <div className="relative z-20 shrink-0 border-b border-border/60 bg-card/60 px-8 py-2">
-        <div className="mx-auto w-full max-w-2xl">
-          <SettingsSearch onSelect={onSearchSelect} />
-        </div>
-      </div>
+      </aside>
 
       <main
         ref={mainRef}

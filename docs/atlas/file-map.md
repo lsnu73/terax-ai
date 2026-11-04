@@ -72,8 +72,8 @@
 | `src/modules/i18n/locales/zh/preview.ts` | [预览端口管理](features/预览端口管理.md) | 中文文案 | 与英文词典同构 |
 | `src/modules/i18n/locales/en/shortcuts.ts` | [快捷键提示](features/快捷键提示.md) | 英文文案 | 快捷键名称 |
 | `src/modules/i18n/locales/zh/shortcuts.ts` | [快捷键提示](features/快捷键提示.md) | 中文文案 | 与英文词典同构 |
-| `src/settings/SettingsView.tsx` | [设置页](features/设置页.md) | 偏好同步 | 设置页分区导航、搜索工具栏、结果定位与高亮 |
-| `src/settings/components/SettingsSearch.tsx` | [设置页](features/设置页.md) | 无 | 跨分区查询、翻译后过滤与结果键盘交互 |
+| `src/settings/SettingsView.tsx` | [设置页](features/设置页.md) | 偏好同步 | 左侧搜索框与竖向分区导航、右侧内容区、结果定位与高亮 |
+| `src/settings/components/SettingsSearch.tsx` | [设置页](features/设置页.md) | 无 | 跨分区查询、翻译后过滤、按分区分组、结果浮层排版与键盘交互 |
 | `src/settings/settingsSearch.ts` | [设置页](features/设置页.md) | 无 | 设置搜索静态索引、目标 ID、关键词与条件可见性 |
 | `src/settings/components/SettingRow.tsx` | [设置页](features/设置页.md) | 无 | 普通设置行布局与可选搜索锚点 |
 | `src/settings/sections/GeneralSection.tsx` | [设置页](features/设置页.md) | 通用偏好 | 通用设置 UI 与搜索锚点 |
