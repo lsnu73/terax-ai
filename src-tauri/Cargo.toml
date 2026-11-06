@@ -99,6 +99,12 @@ objc2-foundation = { version = "0.3", features = ["NSArray", "NSURL", "NSString"
 fsevent-sys = "4.1"
 window-vibrancy = "0.6"
 
+[target.'cfg(any(target_os = "windows", target_os = "macos"))'.dependencies]
+# The tray icon keeps the app reachable while its window is hidden. Linux is
+# excluded on purpose: the backend links libappindicator, a system library the
+# Linux packages do not otherwise need.
+tauri = { version = "2", features = ["macos-private-api", "protocol-asset", "tray-icon"] }
+
 [target.'cfg(target_os = "windows")'.dependencies]
 keyring = { version = "3.6", default-features = false, features = [
 	"windows-native",

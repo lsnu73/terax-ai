@@ -138,17 +138,27 @@ export const SearchInline = forwardRef<SearchInlineHandle, Props>(
     }, [clearTarget, restoreTargetFocus, target]);
 
     const focus = useCallback(() => {
+      if (!target) return;
       if (open) {
         inputRef.current?.focus();
       } else {
         openPopup();
       }
-    }, [open, openPopup]);
+    }, [open, openPopup, target]);
 
     useImperativeHandle(ref, () => ({ focus }), [focus]);
 
     // Target switched (terminal ↔ editor) or removed → drop highlights.
     useEffect(() => clearTarget, [clearTarget]);
+
+    // Nothing to search on this tab (preview, settings, markdown) → no popup
+    // and no button: the preview keeps its own find.
+    useEffect(() => {
+      if (target || !open) return;
+      setQ("");
+      setStats(null);
+      setOpen(false);
+    }, [target, open]);
 
     // 点击弹窗/按钮以外区域关闭。
     useEffect(() => {
@@ -272,6 +282,8 @@ export const SearchInline = forwardRef<SearchInlineHandle, Props>(
         <HugeiconsIcon icon={icon} size={12} strokeWidth={1.75} />
       </button>
     );
+
+    if (!target) return null;
 
     return (
       <>

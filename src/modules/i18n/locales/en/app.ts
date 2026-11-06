@@ -17,6 +17,18 @@ export const app = {
     unsavedBeforeSwitch:
       "Save or close unsaved editor tabs before switching workspace.",
   },
+  tray: {
+    open: "Open Terax",
+    quit: "Quit Terax",
+  },
+  closeChoice: {
+    title: "Close Terax?",
+    description:
+      "Quit the app or keep it running in the system tray. Change this any time in Settings.",
+    remember: "Remember my choice",
+    minimizeToTray: "Minimize to tray",
+    quit: "Quit Terax",
+  },
   closeDialog: {
     unsavedTitle: "Unsaved Changes",
     unsavedTitled: '"{{title}}" has unsaved changes. Close anyway?',

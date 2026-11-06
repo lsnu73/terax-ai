@@ -18,6 +18,8 @@ pub mod pty;
 pub mod runtime;
 pub mod secrets;
 pub mod shell;
+pub mod traces;
+pub mod tray;
 pub mod vibrancy;
 pub mod window_presentation;
 pub mod workspace;

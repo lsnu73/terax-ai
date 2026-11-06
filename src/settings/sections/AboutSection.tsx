@@ -1,15 +1,39 @@
 import { Button } from "@/components/ui/button";
 import { useUpdater } from "@/modules/updater";
-import { GithubIcon } from "@hugeicons/core-free-icons";
+import {
+  Copy01Icon,
+  GithubIcon,
+  Refresh01Icon,
+  Tick02Icon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { getName, getVersion } from "@tauri-apps/api/app";
+import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { arch, platform } from "@tauri-apps/plugin-os";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SectionHeader } from "../components/SectionHeader";
 
 const REPO_URL = "https://github.com/lsnu73/terax-ai";
+
+type AppTrace = {
+  id: string;
+  kind: string;
+  value: string;
+  exists: boolean;
+};
+
+/** Order the machine traces are shown in. */
+const TRACE_KINDS = [
+  "install",
+  "config",
+  "data",
+  "cache",
+  "logs",
+  "registry",
+  "credentials",
+] as const;
 
 const PLATFORM_LABEL: Record<string, string> = {
   macos: "macOS",
@@ -25,6 +49,8 @@ export function AboutSection() {
   const [version, setVersion] = useState("");
   const [name, setName] = useState("Terax");
   const [build, setBuild] = useState("");
+  const [traces, setTraces] = useState<AppTrace[] | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
   const { status, check, install } = useUpdater({ autoCheck: false });
   const checking = status.kind === "checking";
   const downloading = status.kind === "downloading";
@@ -56,6 +82,14 @@ export function AboutSection() {
     else void check({ manual: true });
   };
 
+  const loadTraces = useCallback(() => {
+    void invoke<AppTrace[]>("app_traces")
+      .then(setTraces)
+      .catch(() => setTraces([]));
+  }, []);
+
+  useEffect(loadTraces, [loadTraces]);
+
   useEffect(() => {
     void getVersion().then(setVersion);
     void getName().then(setName);
@@ -68,6 +102,21 @@ export function AboutSection() {
       setBuild("");
     }
   }, []);
+
+  const copyTrace = (key: string, value: string) => {
+    void navigator.clipboard.writeText(value).then(() => {
+      setCopied(key);
+      window.setTimeout(
+        () => setCopied((current) => (current === key ? null : current)),
+        1500,
+      );
+    });
+  };
+
+  const traceGroups = TRACE_KINDS.map((kind) => ({
+    kind,
+    items: (traces ?? []).filter((trace) => trace.kind === kind),
+  })).filter((group) => group.items.length > 0);
 
   return (
     <div className="flex flex-col gap-6">
@@ -157,6 +206,77 @@ export function AboutSection() {
             %
           </p>
         ) : null}
+      </div>
+
+      <div data-setting-id="about.traces" className="flex flex-col gap-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[12px] font-medium">
+              {t("settings.about.traces.title")}
+            </span>
+            <span className="text-[11px] text-muted-foreground">
+              {t("settings.about.traces.description")}
+            </span>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 shrink-0 gap-1.5 px-2"
+            onClick={loadTraces}
+          >
+            <HugeiconsIcon icon={Refresh01Icon} size={12} strokeWidth={1.75} />
+            {t("settings.about.traces.refresh")}
+          </Button>
+        </div>
+        {traceGroups.map((group) => (
+          <div key={group.kind} className="flex flex-col gap-1">
+            <span className="text-[10.5px] font-medium tracking-wide text-muted-foreground uppercase">
+              {t(`settings.about.traces.kinds.${group.kind}`, {
+                defaultValue: group.kind,
+              })}
+            </span>
+            <div className="flex flex-col gap-1">
+              {group.items.map((trace) => {
+                const key = `${trace.id}:${trace.value}`;
+                return (
+                  <div
+                    key={key}
+                    className="flex items-start gap-2 rounded-md border border-border/50 bg-card/50 px-2.5 py-1.5"
+                  >
+                    <div className="flex min-w-0 flex-1 flex-col">
+                      <span className="flex items-center gap-1.5 text-[11.5px] font-medium">
+                        {t(`settings.about.traces.items.${trace.id}`, {
+                          defaultValue: trace.id,
+                        })}
+                        {trace.exists ? null : (
+                          <span className="rounded bg-muted px-1 py-px text-[9.5px] font-normal text-muted-foreground">
+                            {t("settings.about.traces.missing")}
+                          </span>
+                        )}
+                      </span>
+                      <span className="mt-0.5 font-mono text-[10.5px] break-all text-muted-foreground select-text">
+                        {trace.value}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      title={t("settings.about.traces.copy")}
+                      aria-label={t("settings.about.traces.copy")}
+                      onClick={() => copyTrace(key, trace.value)}
+                      className="grid size-6 shrink-0 place-items-center rounded text-muted-foreground hover:bg-accent hover:text-foreground"
+                    >
+                      <HugeiconsIcon
+                        icon={copied === key ? Tick02Icon : Copy01Icon}
+                        size={12}
+                        strokeWidth={1.75}
+                      />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

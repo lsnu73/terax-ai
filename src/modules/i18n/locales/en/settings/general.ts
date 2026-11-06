@@ -152,6 +152,17 @@ export const settingsGeneral = {
       titleIdle: "Send a native test notification after two seconds",
     },
   },
+  window: {
+    label: "Window",
+    closeAction: {
+      title: "When closing the window",
+      description:
+        "Ask every time, quit Terax, or keep it running in the system tray. Changeable at any time.",
+      ask: "Ask every time",
+      quit: "Quit Terax",
+      tray: "Minimize to tray",
+    },
+  },
   startup: {
     label: "Startup",
     launchAtLogin: {

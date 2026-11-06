@@ -151,6 +151,17 @@ export const settingsGeneralZh: typeof settingsGeneral = {
       titleIdle: "两秒后发送一条原生测试通知",
     },
   },
+  window: {
+    label: "窗口",
+    closeAction: {
+      title: "关闭窗口时",
+      description:
+        "每次询问、直接退出程序，或缩小到系统托盘继续运行。之后可随时修改。",
+      ask: "每次询问",
+      quit: "退出程序",
+      tray: "缩小到托盘",
+    },
+  },
   startup: {
     label: "启动",
     launchAtLogin: {

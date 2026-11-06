@@ -16,6 +16,7 @@ import {
 import { currentLocale } from "@/modules/i18n";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import type {
+  CloseAction,
   LanguagePref,
   NotificationDisplayMode,
   ThemePref,
@@ -24,6 +25,7 @@ import {
   setAgentNotificationSound,
   setAgentNotifications,
   setAutostart,
+  setCloseAction,
   setConfirmCloseRunningTerminal,
   setDefaultWorkspaceEnv,
   setExplorerGitDecorations,
@@ -144,6 +146,7 @@ export function GeneralSection() {
   const confirmCloseRunningTerminal = usePreferencesStore(
     (s) => s.confirmCloseRunningTerminal,
   );
+  const closeAction = usePreferencesStore((s) => s.closeAction);
   const zoomLevel = usePreferencesStore((s) => s.zoomLevel);
   const agentNotifications = usePreferencesStore((s) => s.agentNotifications);
   const agentNotificationSound = usePreferencesStore(
@@ -667,6 +670,39 @@ export function GeneralSection() {
             onCheckedChange={(v) => void setAgentNotificationSound(v)}
           />
         </SettingRow>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label>{t("settings.general.window.label")}</Label>
+        <div className="flex flex-col gap-2">
+          <SettingRow
+            searchId="general.window.closeAction"
+            title={t("settings.general.window.closeAction.title")}
+            description={t("settings.general.window.closeAction.description")}
+          >
+            <Select
+              value={closeAction}
+              onValueChange={(value) =>
+                void setCloseAction(value as CloseAction)
+              }
+            >
+              <SelectTrigger className="h-8 w-44 text-[12px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ask">
+                  {t("settings.general.window.closeAction.ask")}
+                </SelectItem>
+                <SelectItem value="tray">
+                  {t("settings.general.window.closeAction.tray")}
+                </SelectItem>
+                <SelectItem value="quit">
+                  {t("settings.general.window.closeAction.quit")}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </SettingRow>
+        </div>
       </div>
 
       <div className="flex flex-col gap-2">

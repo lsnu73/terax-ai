@@ -1,12 +1,12 @@
 # AI 面板
 
-- 最后校验：2026-11-04
+- 最后校验：2026-11-06
 - 状态：已覆盖
 - 关联 lore：[AI 面板与设置页迁入主窗口](../../lore/decisions/2026-10-31-AI面板与设置页迁入主窗口.md)（取代 2026-10-30 的跨 Webview 镜像方案）
 
 ## 1. 业务需求
 
-用户按 Ctrl/Cmd+I 在主窗口右侧打开或关闭 AI 面板。面板与终端/编辑器共用同一个窗口，打开即渲染（React 挂载），不再创建原生窗口。面板可拖拽调宽，宽度持久化到 localStorage。工作区右侧分隔线与六点握把常驻：存在可用 Provider 时，向左拖拽直接展开面板、向右拖过收合阈值直接收合，与 Ctrl/Cmd+I 共用同一开关状态；未配置可用模型时禁用拖拽，按下分隔线会通知用户先配置 AI 模型，并提供跳转模型设置的入口。工作区右侧与 AI 面板左侧各留 4px 间距，分隔线和握把位于两块面板实际间隔中央。面板分包在启动空档预热，首次打开先显示同构骨架再过渡到内容，不再出现整块空白。
+用户按 Ctrl/Cmd+I 在主窗口右侧打开或关闭 AI 面板。面板与终端/编辑器共用同一个窗口，打开即渲染（React 挂载），不再创建原生窗口。面板可拖拽调宽，宽度持久化到 localStorage。工作区右侧分隔线与六点握把常驻：存在可用 Provider 时，向左拖拽直接展开面板、向右拖过收合阈值直接收合，与 Ctrl/Cmd+I 共用同一开关状态；未配置可用模型时禁用拖拽，按下分隔线会通知用户先配置 AI 模型，并提供跳转模型设置的入口。侧栏与工作区的间距左右对称：侧栏、工作区、AI 面板各自留 2px，分隔线与握把位于实际间隔中央，因此终端与左侧栏、终端与 AI 面板的可见间距一致。六点握把静止为 35% 中性灰、悬停 55%、拖拽或聚焦时为主色，与页面背景保持区分。面板分包在启动空档预热，首次打开先显示同构骨架再过渡到内容，不再出现整块空白。
 
 面板内容与原独立窗口一致：会话切换、聊天视图、Todo、计划模式横幅、完整 Composer（图片/附件/@文件/snippet/slash command）、输入框下方元信息行（角色、执行审批模式、上下文用量、模型切换）。Escape（非输入焦点）或关闭按钮关闭面板。
 
@@ -50,8 +50,8 @@ AiChatView 请求失败卡片“重试”
 | `src/modules/ai/lib/aiPanel.ts` | 开关封装与 Provider 检查 | prefill 无可用 Provider 时转设置页 |
 | `src/modules/ai/lib/aiPanelBridge.ts` | prefill 类型契约 | 仅剩 selection/attachment/text 类型 |
 | `src/modules/ai/components/AgentRunBridge.tsx` | 主窗口聊天桥 | 持有唯一 Chat、agentMeta、持久化、AI diff tab 管理；审批待决时自动开面板 |
-| `src/components/ui/resizable.tsx` | 分隔线与握把 | `ResizableHandle grip` 渲染常驻六点握把及悬停/拖拽状态 |
-| `src/app/App.tsx` | 布局与快捷键接线 | 右侧 ResizablePanel、对称分隔间距、宽度持久化、`registerSettingsOpener` |
+| `src/components/ui/resizable.tsx` | 分隔线与握把 | `ResizableHandle grip` 渲染常驻六点握把；静止/悬停/拖拽有三级对比色 |
+| `src/app/App.tsx` | 布局与快捷键接线 | 右侧 ResizablePanel、左右对称间距、宽度持久化、`registerSettingsOpener` |
 
 已删除（不再存在，仅作历史记录）：src/ai/、ai.html、src/modules/ai/lib/aiWindow.ts、aiWindowBridge.ts、src-tauri/src/modules/ai_window.rs，以及 open_ai_window / close_ai_window 命令。
 
@@ -96,3 +96,4 @@ AiChatView 请求失败卡片“重试”
 - 2026-11-04：未配置可用模型时仍显示右侧分隔线与六点握把，但禁用拖拽展开/收合；按下分隔线显示配置模型通知，并可跳转模型设置。
 - 2026-11-04：左右分隔线中央新增六点握把（`ResizableHandle grip`），静止半透明、悬停/拖拽全亮。
 - 2026-11-04：修正工作区与 AI 面板分隔线的视觉居中：工作区右侧与 AI 面板左侧均留 4px 间距，分隔线及六点握把位于两块面板实际间隔的中央，不再偏向 AI 面板。
+- 2026-11-06：间距改为左右完全对称（侧栏/工作区/AI 面板各 2px），使终端到左侧栏与到 AI 面板的距离一致；六点握把改用中性灰 35%/55% 与主色高亮，避免与页面背景融为一体。

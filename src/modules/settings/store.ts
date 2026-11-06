@@ -126,6 +126,13 @@ export const EDITOR_THEME_LABELS: Record<EditorThemeId, string> = {
   "xcode-light": "Xcode Light",
 };
 
+/** 关闭主窗口时的行为："ask" 每次询问；"quit" 直接退出；"tray" 最小化到托盘。 */
+export type CloseAction = "ask" | "quit" | "tray";
+
+export function coerceCloseAction(value: unknown): CloseAction {
+  return value === "quit" || value === "tray" ? value : "ask";
+}
+
 // 【导览 9】非密钥配置的持久化。这里没有任何 apiKey 字段 —— 密钥全在钥匙串。
 // 模型相关的配置本身不在这个文件里：providers / models / 请求参数都在
 // terax-ai-models.json（src/modules/ai/config/persist.ts）。
@@ -172,6 +179,8 @@ export type Preferences = {
   terminalFontSize: number;
   terminalScrollback: number;
   confirmCloseRunningTerminal: boolean;
+  /** 关闭窗口时先询问、直接退出，还是收进托盘。 */
+  closeAction: CloseAction;
   lastWslDistro: string | null;
   zoomLevel: number;
   agentNotifications: boolean;
@@ -303,6 +312,7 @@ const KEY_TERMINAL_LETTER_SPACING = "terminalLetterSpacing";
 const KEY_TERMINAL_FONT_SIZE = "terminalFontSize";
 const KEY_TERMINAL_SCROLLBACK = "terminalScrollback";
 const KEY_CONFIRM_CLOSE_RUNNING_TERMINAL = "confirmCloseRunningTerminal";
+const KEY_CLOSE_ACTION = "closeAction";
 const KEY_LAST_WSL_DISTRO = "lastWslDistro";
 const KEY_ZOOM_LEVEL = "zoomLevel";
 const KEY_AGENT_NOTIFICATIONS = "agentNotifications";
@@ -390,6 +400,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   terminalFontSize: TERMINAL_FONT_SIZE_DEFAULT,
   terminalScrollback: TERMINAL_SCROLLBACK_DEFAULT,
   confirmCloseRunningTerminal: true,
+  closeAction: "ask",
   lastWslDistro: null,
   zoomLevel: 1.0,
   agentNotifications: true,
@@ -542,6 +553,7 @@ export async function loadPreferences(): Promise<Preferences> {
     confirmCloseRunningTerminal:
       get<boolean>(KEY_CONFIRM_CLOSE_RUNNING_TERMINAL) ??
       DEFAULT_PREFERENCES.confirmCloseRunningTerminal,
+    closeAction: coerceCloseAction(get<unknown>(KEY_CLOSE_ACTION)),
     lastWslDistro:
       get<string | null>(KEY_LAST_WSL_DISTRO) ??
       DEFAULT_PREFERENCES.lastWslDistro,
@@ -869,6 +881,10 @@ export async function setConfirmCloseRunningTerminal(
   await writePref(KEY_CONFIRM_CLOSE_RUNNING_TERMINAL, value);
 }
 
+export async function setCloseAction(value: CloseAction): Promise<void> {
+  await writePref(KEY_CLOSE_ACTION, coerceCloseAction(value));
+}
+
 export async function setLastWslDistro(value: string | null): Promise<void> {
   await writePref(KEY_LAST_WSL_DISTRO, value);
 }
@@ -1006,6 +1022,7 @@ export async function onPreferencesChange(
     [KEY_TERMINAL_FONT_SIZE]: "terminalFontSize",
     [KEY_TERMINAL_SCROLLBACK]: "terminalScrollback",
     [KEY_CONFIRM_CLOSE_RUNNING_TERMINAL]: "confirmCloseRunningTerminal",
+    [KEY_CLOSE_ACTION]: "closeAction",
     [KEY_LAST_WSL_DISTRO]: "lastWslDistro",
     [KEY_ZOOM_LEVEL]: "zoomLevel",
     [KEY_AGENT_NOTIFICATIONS]: "agentNotifications",

@@ -1,3 +1,4 @@
+import { minimizeToTray } from "@/app/lib/appTray";
 import { runtimeToast as toast } from "@/modules/agents/lib/runtimeNotifications";
 import { flushPersist } from "@/modules/ai/store/chatStore";
 import {
@@ -13,6 +14,7 @@ import {
   useState,
 } from "react";
 import { usePreferencesStore } from "@/modules/settings/preferences";
+import { setCloseAction, type CloseAction } from "@/modules/settings/store";
 import { t } from "@/modules/i18n";
 import type { Tab } from "@/modules/tabs";
 import { leafHasForegroundProcess, leafIds } from "@/modules/terminal";
@@ -57,7 +59,10 @@ export function canOptOutOfAppClosePrompt(blocker: AppCloseBlocker): boolean {
 export function useAppCloseGuard(tabsRef: RefObject<Tab[]>) {
   const [pendingAppClose, setPendingAppClose] =
     useState<AppCloseBlocker | null>(null);
+  // The close-mode prompt: quit or minimize to the tray.
+  const [pendingCloseChoice, setPendingCloseChoice] = useState(false);
   const forceClose = useRef(false);
+  const skipChoice = useRef(false);
   const closing = useRef(false);
   const warned = useRef(false);
   const closeWindow = useCallback(async () => {
@@ -100,6 +105,32 @@ export function useAppCloseGuard(tabsRef: RefObject<Tab[]>) {
     }
   }, [closeWindow]);
 
+  const hideToTray = useCallback(async () => {
+    setPendingCloseChoice(false);
+    // No tray backend (Linux): quitting is the only way out that keeps the
+    // window reachable.
+    if (!(await minimizeToTray())) await finishClose();
+  }, [finishClose]);
+
+  // Busy terminals and unsaved editors still gate a real quit, whichever
+  // route asked for it.
+  const quitWithGuard = useCallback(async () => {
+    setPendingCloseChoice(false);
+    setPendingAppClose(null);
+    const busyTerminal =
+      usePreferencesStore.getState().confirmCloseRunningTerminal &&
+      (await anyTerminalBusy(tabsRef.current));
+    // Count after the await so edits made during the IPC check are seen.
+    const dirtyEditors = tabsRef.current.filter(
+      (t) => t.kind === "editor" && t.dirty,
+    ).length;
+    if (dirtyEditors > 0 || busyTerminal) {
+      setPendingAppClose({ dirtyEditors, busyTerminal });
+    } else {
+      void finishClose();
+    }
+  }, [tabsRef, finishClose]);
+
   useEffect(() => {
     let unlisten: (() => void) | undefined;
     let disposed = false;
@@ -107,19 +138,18 @@ export function useAppCloseGuard(tabsRef: RefObject<Tab[]>) {
       .onCloseRequested(async (event) => {
         if (forceClose.current) return;
         event.preventDefault();
-        // Opting out skips the per-leaf IPC entirely; it never relaxes the
-        // unsaved-changes guard below.
-        const busyTerminal =
-          usePreferencesStore.getState().confirmCloseRunningTerminal &&
-          (await anyTerminalBusy(tabsRef.current));
-        // Count after the await so edits made during the IPC check are seen.
-        const dirtyEditors = tabsRef.current.filter(
-          (t) => t.kind === "editor" && t.dirty,
-        ).length;
-        if (dirtyEditors > 0 || busyTerminal) {
-          setPendingAppClose({ dirtyEditors, busyTerminal });
+        if (skipChoice.current) {
+          skipChoice.current = false;
+          void quitWithGuard();
+          return;
+        }
+        const action = usePreferencesStore.getState().closeAction;
+        if (action === "tray") {
+          void hideToTray();
+        } else if (action === "quit") {
+          void quitWithGuard();
         } else {
-          void finishClose();
+          setPendingCloseChoice(true);
         }
       })
       .then((un) => {
@@ -130,7 +160,7 @@ export function useAppCloseGuard(tabsRef: RefObject<Tab[]>) {
       disposed = true;
       unlisten?.();
     };
-  }, [tabsRef, finishClose]);
+  }, [quitWithGuard, hideToTray]);
 
   const confirmAppClose = useCallback(() => {
     setPendingAppClose(null);
@@ -139,5 +169,37 @@ export function useAppCloseGuard(tabsRef: RefObject<Tab[]>) {
 
   const cancelAppClose = useCallback(() => setPendingAppClose(null), []);
 
-  return { pendingAppClose, confirmAppClose, cancelAppClose };
+  const cancelCloseChoice = useCallback(() => setPendingCloseChoice(false), []);
+
+  /** Applies the chosen close mode, persisting it when "remember" is ticked. */
+  const chooseCloseAction = useCallback(
+    async (action: Exclude<CloseAction, "ask">, remember: boolean) => {
+      if (remember) {
+        try {
+          await setCloseAction(action);
+        } catch (e) {
+          console.error("close-action preference failed", e);
+        }
+      }
+      if (action === "tray") await hideToTray();
+      else await quitWithGuard();
+    },
+    [hideToTray, quitWithGuard],
+  );
+
+  /** Quits without the close-mode prompt (a shell exited), keeping the guard. */
+  const quitWithoutChoice = useCallback(() => {
+    skipChoice.current = true;
+    void getCurrentWindow().close();
+  }, []);
+
+  return {
+    pendingAppClose,
+    pendingCloseChoice,
+    confirmAppClose,
+    cancelAppClose,
+    cancelCloseChoice,
+    chooseCloseAction,
+    quitWithoutChoice,
+  };
 }

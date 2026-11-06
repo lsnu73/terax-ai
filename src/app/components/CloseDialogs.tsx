@@ -13,9 +13,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { setConfirmCloseRunningTerminal } from "@/modules/settings/store";
+import {
+  type CloseAction,
+  setConfirmCloseRunningTerminal,
+} from "@/modules/settings/store";
 import type { Tab } from "@/modules/tabs";
 import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -38,6 +42,12 @@ type Props = {
   pendingAppClose: AppCloseBlocker | null;
   onCancelAppClose: () => void;
   onConfirmAppClose: () => void;
+  pendingCloseChoice: boolean;
+  onCancelCloseChoice: () => void;
+  onChooseCloseAction: (
+    action: Exclude<CloseAction, "ask">,
+    remember: boolean,
+  ) => void;
 };
 
 type TFunction = (key: string, options?: Record<string, unknown>) => string;
@@ -141,10 +151,14 @@ export function CloseDialogs({
   pendingAppClose,
   onCancelAppClose,
   onConfirmAppClose,
+  pendingCloseChoice,
+  onCancelCloseChoice,
+  onChooseCloseAction,
 }: Props) {
   const { t } = useTranslation();
   const [optOutTerminalClose, setOptOutTerminalClose] = useState(false);
   const [optOutAppClose, setOptOutAppClose] = useState(false);
+  const [rememberCloseChoice, setRememberCloseChoice] = useState(false);
   const appCloseCanOptOut =
     pendingAppClose !== null && canOptOutOfAppClosePrompt(pendingAppClose);
 
@@ -172,8 +186,63 @@ export function CloseDialogs({
     onCancelAppClose();
   };
 
+  const chooseCloseAction = (action: Exclude<CloseAction, "ask">) => {
+    const remember = rememberCloseChoice;
+    setRememberCloseChoice(false);
+    onChooseCloseAction(action, remember);
+  };
+
+  const cancelCloseChoice = () => {
+    setRememberCloseChoice(false);
+    onCancelCloseChoice();
+  };
+
   return (
     <>
+      <AlertDialog
+        open={pendingCloseChoice}
+        onOpenChange={(open) => !open && cancelCloseChoice()}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t("app.closeChoice.title")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("app.closeChoice.description")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="-mt-3 flex items-center justify-center gap-2 sm:justify-start">
+            <Checkbox
+              id="remember-close-choice"
+              checked={rememberCloseChoice}
+              onCheckedChange={(value) => setRememberCloseChoice(value === true)}
+            />
+            <Label
+              htmlFor="remember-close-choice"
+              className="font-normal text-[12px] text-muted-foreground"
+            >
+              {t("app.closeChoice.remember")}
+            </Label>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelCloseChoice}>
+              {t("common.cancel")}
+            </AlertDialogCancel>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => chooseCloseAction("tray")}
+            >
+              {t("app.closeChoice.minimizeToTray")}
+            </Button>
+            <AlertDialogAction onClick={() => chooseCloseAction("quit")}>
+              {t("app.closeChoice.quit")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog
         open={pendingCloseTab !== null}
         onOpenChange={(open) => !open && onCancelClose()}

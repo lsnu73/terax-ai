@@ -17,6 +17,18 @@ export const appZh: typeof app = {
   workspace: {
     unsavedBeforeSwitch: "请先保存或关闭未保存的编辑器标签页，再切换工作区。",
   },
+  tray: {
+    open: "打开 Terax",
+    quit: "关闭程序",
+  },
+  closeChoice: {
+    title: "关闭 Terax？",
+    description:
+      "退出程序，或缩小到系统托盘继续运行。之后可在设置中随时修改。",
+    remember: "记住我的选择",
+    minimizeToTray: "缩小到托盘",
+    quit: "关闭程序",
+  },
   closeDialog: {
     unsavedTitle: "未保存的更改",
     unsavedTitled: "“{{title}}”有未保存的更改。仍要关闭吗？",

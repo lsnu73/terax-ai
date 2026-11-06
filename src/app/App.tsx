@@ -130,9 +130,9 @@ import {
   type WorkspaceEnv,
   workspaceScopeKey,
 } from "@/modules/workspace";
+import { focusSettingsSearch } from "@/settings/settingsSearchFocus";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
   lazy,
   Suspense,
@@ -515,6 +515,8 @@ export default function App() {
   const isTerminalTab = activeTab?.kind === "terminal";
   const isEditorTab = activeTab?.kind === "editor";
   const isGitHistoryTab = activeTab?.kind === "git-history";
+  const isPreviewTab = activeTab?.kind === "preview";
+  const isSettingsTab = activeTab?.kind === "settings";
 
   useEditorFileSync({ tabs, tabsRef, editorRefs });
   useThemeFileEditing({ tabsRef, openFileTab });
@@ -625,8 +627,15 @@ export default function App() {
     disposeTabs,
   });
 
-  const { pendingAppClose, confirmAppClose, cancelAppClose } =
-    useAppCloseGuard(tabsRef);
+  const {
+    pendingAppClose,
+    confirmAppClose,
+    cancelAppClose,
+    pendingCloseChoice,
+    cancelCloseChoice,
+    chooseCloseAction,
+    quitWithoutChoice,
+  } = useAppCloseGuard(tabsRef);
 
   useEffect(() => {
     const live = new Set<number>();
@@ -1077,11 +1086,21 @@ export default function App() {
       "terminal.clear": () => {
         clearFocusedTerminal();
       },
-      "search.focus": () => {
-        const editor = editorRefs.current.get(activeId);
-        if (editor) editor.openSearch();
-        else searchInlineRef.current?.focus();
-      },
+      // A preview keeps the web page's own find (Ctrl+F must reach the frame),
+      // so the handler is left unregistered there.
+      ...(isPreviewTab
+        ? {}
+        : {
+            "search.focus": () => {
+              if (isSettingsTab) {
+                focusSettingsSearch();
+                return;
+              }
+              const editor = editorRefs.current.get(activeId);
+              if (editor) editor.openSearch();
+              else searchInlineRef.current?.focus();
+            },
+          }),
       "ai.toggle": toggleAi,
       "ai.askSelection": onAskFromSelection,
       "agent.focusAttention": () => {
@@ -1131,6 +1150,8 @@ export default function App() {
       zoomOut,
       zoomReset,
       activateAgentTarget,
+      isPreviewTab,
+      isSettingsTab,
     ],
   );
 
@@ -1285,12 +1306,12 @@ export default function App() {
       if (!tab || tab.kind !== "terminal") return;
       // Last pane of the last tab: quit instead of respawning a shell.
       if (leafIds(tab.paneTree).length === 1 && all.length === 1) {
-        void getCurrentWindow().close();
+        quitWithoutChoice();
       } else {
         closePaneByLeaf(leafId);
       }
     },
-    [closePaneByLeaf],
+    [closePaneByLeaf, quitWithoutChoice],
   );
 
   const handleEditorDirty = useCallback(
@@ -1688,7 +1709,7 @@ export default function App() {
                 className="w-1 rounded-full bg-transparent transition-colors duration-[var(--dur-fast)] after:w-4 hover:bg-border"
               />
               <ResizablePanel id="workspace" defaultSize="78%" minSize="30%">
-                <div className="h-full min-h-0 pl-0.5 pr-1">
+                <div className="h-full min-h-0 px-0.5">
                   <div className="terax-pane flex h-full min-h-0 flex-col">
                     <div className="relative min-h-0 flex-1">
                       <WorkspaceSurface
@@ -1766,7 +1787,7 @@ export default function App() {
                 }}
               >
                 {aiPanelVisible ? (
-                  <div className="h-full min-h-0 pl-1 pr-2">
+                  <div className="h-full min-h-0 pl-0.5 pr-2">
                     <div className="terax-pane h-full min-h-0 overflow-hidden">
                       <Suspense fallback={<AiPanelSkeleton />}>
                         <AiPanel onClose={closeAiPanel} />
@@ -1880,6 +1901,11 @@ export default function App() {
             pendingAppClose={pendingAppClose}
             onCancelAppClose={cancelAppClose}
             onConfirmAppClose={confirmAppClose}
+            pendingCloseChoice={pendingCloseChoice}
+            onCancelCloseChoice={cancelCloseChoice}
+            onChooseCloseAction={(action, remember) => {
+              void chooseCloseAction(action, remember);
+            }}
           />
         </div>
       </TooltipProvider>

@@ -155,6 +155,15 @@ export const SETTING_SEARCH_ITEMS: readonly SettingSearchItem[] = [
     groupKey: "settings.general.terminal.label",
   },
   {
+    id: "general.window.closeAction",
+    section: "general",
+    targetId: "general.window.closeAction",
+    titleKey: "settings.general.window.closeAction.title",
+    descriptionKey: "settings.general.window.closeAction.description",
+    groupKey: "settings.general.window.label",
+    keywords: ["tray", "minimize", "quit", "close button"],
+  },
+  {
     id: "general.agents.displayMode",
     section: "general",
     targetId: "general.agents.displayMode",
@@ -506,5 +515,14 @@ export const SETTING_SEARCH_ITEMS: readonly SettingSearchItem[] = [
     titleKey: "settings.about.sourceCode",
     groupKey: "settings.about.header.title",
     keywords: ["github", "repository", "issue"],
+  },
+  {
+    id: "about.traces",
+    section: "about",
+    targetId: "about.traces",
+    titleKey: "settings.about.traces.title",
+    descriptionKey: "settings.about.traces.description",
+    groupKey: "settings.about.header.title",
+    keywords: ["path", "registry", "data", "cache", "logs", "keychain"],
   },
 ];

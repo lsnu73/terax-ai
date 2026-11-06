@@ -13,6 +13,7 @@ import {
   SETTING_SEARCH_ITEMS,
   type SettingSearchItem,
 } from "../settingsSearch";
+import { registerSettingsSearchFocus } from "../settingsSearchFocus";
 
 export function SettingsSearch({
   onSelect,
@@ -33,6 +34,19 @@ export function SettingsSearch({
     document.addEventListener("pointerdown", onPointerDown);
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, []);
+
+  // Ctrl+F belongs to this box while the settings page is open.
+  useEffect(
+    () =>
+      registerSettingsSearchFocus(() => {
+        const input = rootRef.current?.querySelector<HTMLInputElement>(
+          '[data-slot="command-input"]',
+        );
+        input?.focus();
+        input?.select();
+      }),
+    [],
+  );
 
   const resultGroups = useMemo(() => {
     const groups = new Map<SettingSearchItem["section"], SettingSearchItem[]>();

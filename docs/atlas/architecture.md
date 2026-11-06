@@ -1,6 +1,6 @@
 # 技术架构
 
-- 最后校验：2026-11-03
+- 最后校验：2026-11-06
 
 ## 技术栈与版本
 
@@ -29,6 +29,7 @@ React 主窗口 / 设置窗口 / AI 窗口
 - 主窗口入口是 `src/main.tsx`，由 `src/app/App.tsx` 组装业务模块。
 - 设置页以主窗口 tab 呈现（`src/settings/SettingsView.tsx`，经 `openSettings` 注册表打开），不再有独立设置窗口。
 - AI 是主窗口右侧面板（`src/modules/ai/components/AiPanel.tsx`，Ctrl+I 开关），与 AgentRunBridge 共享同一 Chat 引擎，无跨窗口桥。
+- 关闭窗口的行为（每次询问、直接退出、缩小到托盘）在主窗口前端判定，托盘图标由 Rust 按需创建。`tauri` 的 `tray-icon` 特性只声明在 Windows/macOS 的 target 依赖中，Linux 构建不引入 libappindicator，也没有托盘后端。
 - 新逻辑优先放在依赖轻的纯函数中，React 组件和 Tauri 命令保持薄层。
 
 IPC 命令索引见 [../architecture/two-process-model.md](../architecture/two-process-model.md)，安全边界见 [../architecture/security-model.md](../architecture/security-model.md)。

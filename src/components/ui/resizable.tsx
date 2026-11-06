@@ -56,15 +56,15 @@ function ResizableHandle({
 }
 
 /**
- * 六点握把：常驻在分隔线中央，静止时半透明，悬停/拖拽时全亮，
- * 让"这条线可以拖"不需要试错才知道。
+ * 六点握把：常驻在分隔线中央。静止时也要和页面背景拉开对比，
+ * 悬停/拖拽时更亮，让"这条线可以拖"不需要试错才知道。
  */
 function ResizableGrip() {
   return (
     <div
       data-resizable-grip
       aria-hidden
-      className="pointer-events-none z-10 flex h-8 w-3.5 shrink-0 flex-col items-center justify-center rounded-full bg-border opacity-55 shadow-xs transition-opacity duration-[var(--dur-fast)] group-hover:opacity-100 group-data-[separator=active]:opacity-100 group-focus-visible:opacity-100"
+      className="pointer-events-none z-10 flex h-8 w-3.5 shrink-0 flex-col items-center justify-center rounded-full bg-muted-foreground/35 shadow-xs transition-colors duration-[var(--dur-fast)] group-hover:bg-muted-foreground/55 group-data-[separator=active]:bg-primary/60 group-focus-visible:bg-primary/60"
     >
       <div className="grid grid-cols-2 gap-x-[3px] gap-y-[3.5px]">
         {Array.from({ length: 6 }, (_, index) => (
