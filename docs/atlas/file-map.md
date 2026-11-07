@@ -11,7 +11,7 @@
 ```text
 src-tauri/
 └── src/
-    ├── lib.rs — [开发者工具] 提供 `open_devtools` 命令（次：设置窗口、原生 IPC）
+    ├── lib.rs — [开发者工具] 提供 `open_devtools` 命令；单实例插件最先注册，二次启动文件参数走 macOS「打开方式」同款链路（次：设置窗口、原生 IPC、关闭窗口与系统托盘）
     └── modules/
         ├── file_manager.rs — [终端链接打开] 第三方文件管理器探测与打开命令
         ├── net/
@@ -23,8 +23,9 @@ src-tauri/
         │       ├── init.fish — [终端命令与结果块] OSC 133 标记、命令行上报与块头间隔空行（次：fish 集成）
         │       ├── profile.ps1 — [终端命令与结果块] OSC 133 标记、命令行上报与块头间隔空行（次：PowerShell 集成）
         │       └── zshrc.zsh — [终端命令与结果块] OSC 133 标记、命令行上报与块头间隔空行（次：zsh 集成）
+        ├── single_instance.rs — [关闭窗口与系统托盘] 单实例插件封装：二次启动转发 argv、唤回主窗口后新进程退出
         ├── traces.rs — [设置-关于] `app_traces`：安装、配置、数据、缓存、日志、注册表与凭据痕迹
-        └── tray.rs — [关闭窗口与系统托盘] 托盘图标、左键恢复窗口、右键菜单（打开/关闭程序）
+        └── tray.rs — [关闭窗口与系统托盘] 托盘图标、左键恢复窗口、右键菜单（打开/关闭程序）；`reveal_main_window` 供托盘、二次启动与 Dock 共用
 
 src/
 ├── app/
@@ -211,8 +212,9 @@ src/
 | `src/app/lib/appTray.ts` | [关闭窗口与系统托盘](features/关闭窗口与系统托盘.md) | 系统托盘 | 调用 `tray_show` 后隐藏窗口，托盘不可用时回落退出 |
 | `src/app/components/CloseDialogs.tsx` | [关闭窗口与系统托盘](features/关闭窗口与系统托盘.md) | 标签关闭确认 | 退出/缩小到托盘选择窗口与「记住我的选择」 |
 | `src/components/WindowControls.tsx` | [关闭窗口与系统托盘](features/关闭窗口与系统托盘.md) | 窗口外观 | 最小化/最大化/关闭按钮；关闭仍只调用 `window.close()` |
-| `src-tauri/src/modules/tray.rs` | [关闭窗口与系统托盘](features/关闭窗口与系统托盘.md) | 无 | 托盘图标、左键恢复窗口、右键菜单（打开/关闭程序） |
-| `src-tauri/src/lib.rs` | [开发者工具](features/开发者工具.md) | 设置窗口、原生 IPC | 提供 `open_devtools` 命令 |
+| `src-tauri/src/modules/tray.rs` | [关闭窗口与系统托盘](features/关闭窗口与系统托盘.md) | 无 | 托盘图标、左键恢复窗口、右键菜单（打开/关闭程序）；`reveal_main_window` 供托盘、二次启动与 Dock 共用 |
+| `src-tauri/src/modules/single_instance.rs` | [关闭窗口与系统托盘](features/关闭窗口与系统托盘.md) | 无 | 单实例插件封装：二次启动转发 argv、唤回主窗口后新进程退出 |
+| `src-tauri/src/lib.rs` | [开发者工具](features/开发者工具.md) | 设置窗口、原生 IPC、关闭窗口与系统托盘 | 提供 `open_devtools` 命令；单实例插件最先注册，二次启动文件参数走 macOS「打开方式」同款链路 |
 | `src/modules/shortcuts/shortcuts.ts` | [快捷键提示](features/快捷键提示.md) | [撤销终端窗格拆分](features/撤销终端窗格拆分.md)、[开发者工具](features/开发者工具.md)、[终端命令与结果块](features/终端命令与结果块.md)、[设置页](features/设置页.md) | 快捷键 ID、默认绑定、显示令牌、Ctrl+R 保留判定与设置搜索快捷键索引来源 |
 | `src/modules/shortcuts/lib/useGlobalShortcuts.ts` | [快捷键提示](features/快捷键提示.md) | [终端命令与结果块](features/终端命令与结果块.md) | 捕获键盘事件、派发处理器并跳过 Ctrl+R |
 | `src/modules/shortcuts/lib/useShortcutTokens.ts` | [快捷键提示](features/快捷键提示.md) | 全局快捷键分发 | 响应式读取用户覆盖并生成紧凑文本 |

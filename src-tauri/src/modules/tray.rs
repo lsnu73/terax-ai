@@ -5,14 +5,23 @@
 //! "open" and "quit". Linux has no tray backend in this build, so the
 //! frontend falls back to quitting when creation fails.
 
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
+
+/// Brings the main window back on every surface that can reach a running
+/// instance: the tray icon and menu, a second launch, the macOS dock.
+pub fn reveal_main_window(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.unminimize();
+        let _ = window.set_focus();
+    }
+}
 
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 mod platform {
     use super::*;
     use tauri::menu::{Menu, MenuItem};
     use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-    use tauri::Manager;
 
     const TRAY_ID: &str = "terax-tray";
     const MENU_OPEN: &str = "terax-tray-open";
@@ -58,11 +67,7 @@ mod platform {
     }
 
     fn reveal(app: &AppHandle) {
-        if let Some(window) = app.get_webview_window("main") {
-            let _ = window.show();
-            let _ = window.unminimize();
-            let _ = window.set_focus();
-        }
+        reveal_main_window(app);
     }
 }
 

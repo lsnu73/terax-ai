@@ -18,6 +18,8 @@ pub mod pty;
 pub mod runtime;
 pub mod secrets;
 pub mod shell;
+#[cfg(any(target_os = "windows", target_os = "macos"))]
+pub mod single_instance;
 pub mod traces;
 pub mod tray;
 pub mod vibrancy;

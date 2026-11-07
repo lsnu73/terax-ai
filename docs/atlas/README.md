@@ -39,7 +39,7 @@ Terax 是面向开发者的开源桌面开发工作区，以终端为中心，�
 | 改通知铃铛、软件运行消息或通知显示方式 | [features/通知中心.md](features/通知中心.md) | `src/modules/agents/components/NotificationBell.tsx`, `src/modules/agents/lib/runtimeNotifications.ts`, `src/modules/agents/store/agentStore.ts` |
 | 改设置左侧导航、选项搜索、结果分组或结果定位 | [features/设置页.md](features/设置页.md) | `src/settings/SettingsView.tsx`, `src/settings/components/SettingsSearch.tsx`, `src/settings/settingsSearch.ts` |
 | 改 Ctrl+F 的归属、设置页搜索聚焦或预览页查找 | [features/标签内搜索.md](features/标签内搜索.md) | `src/app/App.tsx`, `src/modules/header/SearchInline.tsx`, `src/settings/settingsSearchFocus.ts` |
-| 改关闭按钮行为、退出确认或系统托盘 | [features/关闭窗口与系统托盘.md](features/关闭窗口与系统托盘.md) | `src/app/hooks/useAppCloseGuard.ts`, `src-tauri/src/modules/tray.rs`, `src/app/components/CloseDialogs.tsx` |
+| 改关闭按钮行为、退出确认、系统托盘或二次启动唤回 | [features/关闭窗口与系统托盘.md](features/关闭窗口与系统托盘.md) | `src/app/hooks/useAppCloseGuard.ts`, `src-tauri/src/modules/tray.rs`, `src-tauri/src/modules/single_instance.rs`, `src/app/components/CloseDialogs.tsx` |
 | 改关于页的文件/注册表痕迹清单 | [features/设置-关于.md](features/设置-关于.md) | `src-tauri/src/modules/traces.rs`, `src/settings/sections/AboutSection.tsx` |
 | 改关于页链接、检查更新入口、版本同步或标签发布 | [features/设置-关于.md](features/设置-关于.md) | `src/settings/sections/AboutSection.tsx`, `src/modules/updater/useUpdater.ts`, `scripts/release-version.mjs` |
 | 改启动自动检查更新、更新提示消息或关于页一键更新 | [features/应用更新.md](features/应用更新.md) | `src/modules/updater/useUpdater.ts`, `src/app/App.tsx`, `src/settings/sections/AboutSection.tsx`, `src/settings/sections/GeneralSection.tsx` |

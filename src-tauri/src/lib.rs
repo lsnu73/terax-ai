@@ -7,6 +7,8 @@ use modules::{
 };
 use std::path::PathBuf;
 use std::sync::Mutex;
+#[cfg(any(target_os = "windows", target_os = "macos"))]
+use tauri::{AppHandle, Emitter};
 use tauri::{Manager, State};
 #[cfg(target_os = "macos")]
 use tauri::WindowEvent;
@@ -65,8 +67,14 @@ fn resolve_launch_target(entries: Vec<LaunchEntry>) -> LaunchTarget {
 }
 
 fn parse_launch_target() -> LaunchTarget {
-    let entries = std::env::args()
-        .skip(1)
+    parse_launch_args(std::env::args().skip(1))
+}
+
+/// Parses an argv that already excludes argv[0]: flags are dropped and only
+/// paths that still exist survive canonicalization.
+fn parse_launch_args(args: impl IntoIterator<Item = String>) -> LaunchTarget {
+    let entries = args
+        .into_iter()
         .filter(|arg| !arg.starts_with('-'))
         .filter_map(|arg| std::fs::canonicalize(arg).ok())
         .filter_map(|path| {
@@ -79,6 +87,28 @@ fn parse_launch_target() -> LaunchTarget {
         })
         .collect();
     resolve_launch_target(entries)
+}
+
+/// Hands a warm-start launch target to the running UI: authorizes the
+/// workspace, seeds the drain-once states (the boot drain stays the safety
+/// net) and emits the event the mounted app listens on.
+#[cfg(any(target_os = "windows", target_os = "macos"))]
+fn seed_launch_target(app: &AppHandle, target: LaunchTarget) {
+    if target.files.is_empty() {
+        return;
+    }
+    if let Some(dir) = &target.dir {
+        if let Some(registry) = app.try_state::<workspace::WorkspaceRegistry>() {
+            let _ = registry.authorize(dir);
+        }
+        if let Some(state) = app.try_state::<LaunchDir>() {
+            *state.0.lock().expect("LaunchDir mutex poisoned") = Some(dir.clone());
+        }
+    }
+    if let Some(state) = app.try_state::<LaunchFiles>() {
+        *state.0.lock().expect("LaunchFiles mutex poisoned") = target.files.clone();
+    }
+    let _ = app.emit("terax:open-file", target.files);
 }
 
 #[tauri::command]
@@ -112,6 +142,13 @@ pub fn run() {
     let control_for_setup = control_state.clone();
 
     let builder = tauri::Builder::default();
+    // Must be the first plugin: before anything else is set up, a second
+    // launch has to decide between owning the single instance and forwarding
+    // to the running one (then exiting). Without it a relaunch while the
+    // window hides in the tray would leave two processes only one of which
+    // the tray quit can reach.
+    #[cfg(any(target_os = "windows", target_os = "macos"))]
+    let builder = builder.plugin(modules::single_instance::plugin());
     let builder = builder.plugin(tauri_plugin_clipboard_manager::init());
     #[cfg(target_os = "macos")]
     let builder = builder
@@ -354,22 +391,15 @@ pub fn run() {
                         .map(LaunchEntry::File)
                         .collect();
                     let target = resolve_launch_target(entries);
-                    if target.files.is_empty() {
-                        return;
-                    }
-                    if let Some(dir) = &target.dir {
-                        if let Some(registry) = app.try_state::<workspace::WorkspaceRegistry>() {
-                            let _ = registry.authorize(dir);
-                        }
-                        if let Some(state) = app.try_state::<LaunchDir>() {
-                            *state.0.lock().expect("LaunchDir mutex poisoned") = Some(dir.clone());
-                        }
-                    }
-                    if let Some(state) = app.try_state::<LaunchFiles>() {
-                        *state.0.lock().expect("LaunchFiles mutex poisoned") = target.files.clone();
-                    }
-                    let _ = app.emit("terax:open-file", target.files);
+                    seed_launch_target(app.app_handle(), target);
                 }
+                // The dock icon must bring the window back while it hides in
+                // the tray; a visible window only needs the native activation.
+                #[cfg(target_os = "macos")]
+                tauri::RunEvent::Reopen {
+                    has_visible_windows: false,
+                    ..
+                } => modules::tray::reveal_main_window(app.app_handle()),
                 _ => {}
             }
         });
