@@ -17,8 +17,8 @@ type ChipTone =
 // the tone prop stays so call sites keep their semantics.
 type Tone = { box: string; icon: string };
 
-const BOX = "border-border/40 bg-foreground/[0.03] text-foreground/75";
-const TONE: Tone = { box: BOX, icon: "text-foreground/60" };
+const BOX = "border-border/60 bg-muted/50 text-foreground/85";
+const TONE: Tone = { box: BOX, icon: "text-foreground/70" };
 
 const TONES: Record<ChipTone, Tone> = {
   neutral: TONE,

@@ -142,6 +142,13 @@ export const aiZh: typeof ai = {
     connectBody:
       "连接任意 AI 厂商（或使用本地模型）——你的密钥只保存在系统钥匙串中。",
     connectProvider: "连接厂商",
+    attachments_one: "{{count}} 个附件",
+    attachments_other: "{{count}} 个附件",
+    attachSkipped_one: "已跳过 {{count}} 个无法附加的文件（二进制或超出大小限制）",
+    attachSkipped_other:
+      "已跳过 {{count}} 个无法附加的文件（二进制或超出大小限制）",
+    attachFailed: "无法附加 {{name}}：{{message}}",
+    dropHere: "松开即可添加到对话",
   },
   approval: {
     needsApproval: "需要审批",

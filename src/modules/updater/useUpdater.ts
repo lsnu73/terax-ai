@@ -2,10 +2,14 @@ import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check, type Update } from "@tauri-apps/plugin-updater";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useRef } from "react";
+import { create } from "zustand";
 import { IS_LINUX } from "@/lib/platform";
-import { usePreferencesStore } from "@/modules/settings/preferences";
+import { runtimeToast } from "@/modules/agents/lib/runtimeNotifications";
+import { t } from "@/modules/i18n";
 import { proxyForScenario } from "@/modules/proxy/lib/proxy";
+import { openSettings } from "@/modules/settings/openSettings";
+import { usePreferencesStore } from "@/modules/settings/preferences";
 
 const LAST_CHECK_KEY = "terax:updater:last-check";
 const CHECK_INTERVAL_MS = 30 * 60 * 1000;
@@ -28,6 +32,17 @@ export type UpdaterStatus =
   | { kind: "downloading"; downloaded: number; contentLength: number | null }
   | { kind: "ready" }
   | { kind: "error"; message: string };
+
+/** 发现新版本的检查来源：只有启动检查才发通知，手动检查只在设置页内展示。 */
+export type UpdaterCheckSource = "startup" | "manual";
+
+type UpdaterStore = {
+  status: UpdaterStatus;
+  source: UpdaterCheckSource | null;
+  check: (options?: { manual?: boolean }) => Promise<void>;
+  install: () => Promise<void>;
+  dismiss: () => void;
+};
 
 function parseVersion(v: string): number[] {
   return v
@@ -72,86 +87,125 @@ async function checkLinuxRelease(
   };
 }
 
-interface Options {
-  /** Skip the time-based throttle on automatic startup checks. */
-  manual?: boolean;
-}
+/**
+ * 更新状态机放在全局 store：启动自动检查发现的新版本要能被「关于」页直接
+ * 复用，否则从通知跳过去后还得再点一次「检查更新」。
+ */
+export const useUpdaterStore = create<UpdaterStore>((set, get) => ({
+  status: { kind: "idle" },
+  source: null,
 
-interface HookOptions {
-  /** When false, the hook does not run an automatic check on mount. */
-  autoCheck?: boolean;
-}
-
-export function useUpdater({ autoCheck = true }: HookOptions = {}) {
-  const [status, setStatus] = useState<UpdaterStatus>({ kind: "idle" });
-
-  const runCheck = useCallback(async ({ manual }: Options = {}) => {
+  check: async ({ manual = false } = {}) => {
     if (!manual) {
       const last = Number(localStorage.getItem(LAST_CHECK_KEY) ?? 0);
       if (Date.now() - last < CHECK_INTERVAL_MS) return;
     }
-    setStatus({ kind: "checking" });
+    const source: UpdaterCheckSource = manual ? "manual" : "startup";
+    set({ status: { kind: "checking" }, source: null });
     const proxy = proxyForScenario(usePreferencesStore.getState(), "updater");
     try {
       if (IS_LINUX) {
         const info = await checkLinuxRelease(proxy);
         if (info) {
-          setStatus({ kind: "manual-available", info });
+          set({ status: { kind: "manual-available", info }, source });
         } else {
           localStorage.setItem(LAST_CHECK_KEY, String(Date.now()));
-          setStatus({ kind: "uptodate" });
+          set({ status: { kind: "uptodate" }, source: null });
         }
         return;
       }
       // proxy 随 Update 对象保留，下载阶段继续生效。
       const update = await check({ proxy: proxy ?? undefined });
       if (update) {
-        setStatus({ kind: "available", update });
+        set({ status: { kind: "available", update }, source });
       } else {
         localStorage.setItem(LAST_CHECK_KEY, String(Date.now()));
-        setStatus({ kind: "uptodate" });
+        set({ status: { kind: "uptodate" }, source: null });
       }
     } catch (err) {
-      setStatus({ kind: "error", message: String(err) });
+      set({ status: { kind: "error", message: String(err) }, source: null });
     }
-  }, []);
+  },
 
-  const install = useCallback(async () => {
+  install: async () => {
+    const { status } = get();
     if (status.kind !== "available") return;
     const { update } = status;
     let total: number | null = null;
     let downloaded = 0;
-    setStatus({ kind: "downloading", downloaded: 0, contentLength: null });
+    set({ status: { kind: "downloading", downloaded: 0, contentLength: null } });
     try {
       await update.downloadAndInstall((event) => {
         if (event.event === "Started") {
           total = event.data.contentLength ?? null;
-          setStatus({
-            kind: "downloading",
-            downloaded: 0,
-            contentLength: total,
+          set({
+            status: {
+              kind: "downloading",
+              downloaded: 0,
+              contentLength: total,
+            },
           });
         } else if (event.event === "Progress") {
           downloaded += event.data.chunkLength;
-          setStatus({ kind: "downloading", downloaded, contentLength: total });
+          set({
+            status: { kind: "downloading", downloaded, contentLength: total },
+          });
         } else if (event.event === "Finished") {
-          setStatus({ kind: "ready" });
+          set({ status: { kind: "ready" } });
         }
       });
       await relaunch();
     } catch (err) {
-      setStatus({ kind: "error", message: String(err) });
+      set({ status: { kind: "error", message: String(err) }, source: null });
     }
-  }, [status]);
+  },
 
-  const dismiss = useCallback(() => {
-    setStatus({ kind: "idle" });
-  }, []);
+  dismiss: () => set({ status: { kind: "idle" }, source: null }),
+}));
+
+export function useUpdater() {
+  return useUpdaterStore();
+}
+
+/**
+ * 启动时自动检查更新（受「启动时自动检查更新」开关控制）。
+ * 发现新版本只发一条消息，消息里的按钮跳到 设置 → 关于；不再弹更新窗口。
+ */
+export function useStartupUpdateCheck(enabled: boolean): void {
+  const hydrated = usePreferencesStore((s) => s.hydrated);
+  const autoCheck = usePreferencesStore((s) => s.autoCheckUpdates);
+  // 只订阅版本号这个原始值：下载进度等状态变化不会让整个 App 重渲染。
+  const availableVersion = useUpdaterStore((s) =>
+    s.status.kind === "available"
+      ? s.status.update.version
+      : s.status.kind === "manual-available"
+        ? s.status.info.version
+        : null,
+  );
+  const source = useUpdaterStore((s) => s.source);
+  const notifiedVersion = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!autoCheck) return;
-    void runCheck();
-  }, [autoCheck, runCheck]);
+    if (!enabled || !hydrated || !autoCheck) return;
+    void useUpdaterStore.getState().check();
+  }, [enabled, hydrated, autoCheck]);
 
-  return { status, check: runCheck, install, dismiss };
+  useEffect(() => {
+    if (!enabled || !autoCheck || source !== "startup") return;
+    if (!availableVersion || notifiedVersion.current === availableVersion) {
+      return;
+    }
+    notifiedVersion.current = availableVersion;
+    runtimeToast.info(
+      t("updater.availableNotification", { version: availableVersion }),
+      {
+        id: `updater:${availableVersion}`,
+        description: t("updater.availableNotificationBody"),
+        action: {
+          label: t("updater.openAbout"),
+          onClick: () => openSettings("about"),
+        },
+      },
+    );
+  }, [autoCheck, availableVersion, enabled, source]);
 }

@@ -151,6 +151,14 @@ export const ai = {
     connectBody:
       "Connect any AI provider (or use local models) - your key stays in your OS keychain.",
     connectProvider: "Connect provider",
+    attachments_one: "{{count}} attachment",
+    attachments_other: "{{count}} attachments",
+    attachSkipped_one:
+      "Skipped {{count}} file that can't be attached (binary or too large)",
+    attachSkipped_other:
+      "Skipped {{count}} files that can't be attached (binary or too large)",
+    attachFailed: "Could not attach {{name}}: {{message}}",
+    dropHere: "Drop to attach to chat",
   },
   approval: {
     needsApproval: "needs approval",

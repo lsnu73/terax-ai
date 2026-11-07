@@ -45,7 +45,9 @@ import {
   useApplyEditorFontSize,
   useEditorFileSync,
 } from "@/modules/editor";
+import { aiAttachmentDropTarget } from "@/modules/ai/lib/aiAttachmentDrop";
 import { FileExplorer, type FileExplorerHandle } from "@/modules/explorer";
+import { combinePathDropTargets } from "@/modules/explorer/lib/useExplorerDnd";
 import type { GitHistorySearchHandle } from "@/modules/git-history";
 import {
   Header,
@@ -124,7 +126,7 @@ import {
   WindowActivityBridge,
   WindowVibrancyBridge,
 } from "@/modules/theme";
-import { UpdaterDialog } from "@/modules/updater";
+import { useStartupUpdateCheck } from "@/modules/updater";
 import {
   useWorkspaceEnvStore,
   type WorkspaceEnv,
@@ -256,6 +258,11 @@ export default function App() {
   const { zoomIn, zoomOut, zoomReset } = useZoom();
   useApplyEditorFontSize();
   const terminalPathDropTarget = useTerminalFileDrop();
+  // 资源管理器的指针拖拽先命中 AI 面板（附加为附件），否则落到终端粘贴路径。
+  const explorerPathDropTarget = useMemo(
+    () => combinePathDropTargets(aiAttachmentDropTarget, terminalPathDropTarget),
+    [terminalPathDropTarget],
+  );
   const explorerRef = useRef<FileExplorerHandle>(null);
 
   // Drives session disposal off the pane tree, not React lifecycles —
@@ -332,6 +339,9 @@ export default function App() {
       if (timer !== undefined) window.clearTimeout(timer);
     };
   }, [booted, deferredUiReady]);
+
+  // 启动后按偏好自动检查更新；发现新版本只发消息，不弹更新窗口。
+  useStartupUpdateCheck(deferredUiReady);
 
   // 启动恢复完成后把焦点交给活动终端的命令输入。终端就绪前用户已开始
   // 操作其他控件时不抢焦点。
@@ -1677,7 +1687,7 @@ export default function App() {
                             }
                             onOpenGitHistory={handleOpenGitHistoryForPath}
                             onAttachToAgent={handleAttachFileToAgent}
-                            pathDropTarget={terminalPathDropTarget}
+                            pathDropTarget={explorerPathDropTarget}
                             visible={!sidebarCollapsed}
                           />
                         ) : (
@@ -1880,8 +1890,6 @@ export default function App() {
             rootPath={explorerRoot ?? home}
             onCreated={(path) => openFileTab(path)}
           />
-
-          {deferredUiReady ? <UpdaterDialog /> : null}
 
           <CloseDialogs
             tabs={tabs}

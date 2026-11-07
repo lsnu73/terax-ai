@@ -40,6 +40,7 @@ import {
 } from "../lib/composerMessage";
 import type { SessionMeta } from "../lib/sessions";
 import { useSnippetsStore } from "../store/snippetsStore";
+import { useAiAttachmentDropActive } from "../store/aiAttachmentDropStore";
 import { useAiPanelStore } from "../store/aiPanelStore";
 import { useChatStore } from "../store/chatStore";
 import { usePlanStore } from "../store/planStore";
@@ -138,7 +139,10 @@ function AiPanelSession({
 
   return (
     <TooltipProvider>
-      <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background text-foreground">
+      <div
+        data-ai-attach-drop
+        className="relative flex h-full min-h-0 flex-col overflow-hidden bg-background text-foreground"
+      >
         <header className="flex h-10 shrink-0 items-center gap-2 border-b border-border/60 bg-card/60 px-3 select-none">
           <span className="text-[12px] font-semibold tracking-tight">
             Terax AI
@@ -241,8 +245,26 @@ function AiPanelSession({
             return [];
           }}
         />
+        <AttachmentDropOverlay />
       </div>
     </TooltipProvider>
+  );
+}
+
+/**
+ * 从资源管理器拖文件到面板时的投放提示。overlay 本身 `pointer-events-none`，
+ * 不干扰命中测试（拖动过程中仍能识别面板区域）。
+ */
+function AttachmentDropOverlay() {
+  const { t } = useTranslation();
+  const active = useAiAttachmentDropActive();
+  if (!active) return null;
+  return (
+    <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center border-2 border-primary/70 bg-primary/[0.06]">
+      <div className="rounded-lg border border-primary/40 bg-background/95 px-3 py-2 text-[12px] font-medium text-foreground shadow-sm">
+        {t("ai.composer.dropHere")}
+      </div>
+    </div>
   );
 }
 

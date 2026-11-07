@@ -1,2 +1,1 @@
-export { UpdaterDialog } from "./UpdaterDialog";
-export { useUpdater } from "./useUpdater";
+export { useStartupUpdateCheck, useUpdater } from "./useUpdater";

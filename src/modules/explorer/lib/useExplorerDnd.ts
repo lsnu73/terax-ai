@@ -26,6 +26,34 @@ type Options = {
 
 const THRESHOLD = 5;
 
+/**
+ * 把多个投放目标串成一条链：`primary` 命中时吞掉事件，否则交给 `fallback`。
+ * 终端与 AI 面板共用资源管理器的指针拖拽，各自维护高亮，不会同时亮起。
+ */
+export function combinePathDropTargets(
+  primary: ExplorerPathDropTarget,
+  fallback: ExplorerPathDropTarget,
+): ExplorerPathDropTarget {
+  return {
+    updateTarget(clientX, clientY) {
+      if (primary.updateTarget(clientX, clientY)) {
+        fallback.clearTarget();
+        return true;
+      }
+      primary.clearTarget();
+      return fallback.updateTarget(clientX, clientY);
+    },
+    dropPath(paths, clientX, clientY) {
+      if (primary.dropPath(paths, clientX, clientY)) return true;
+      return fallback.dropPath(paths, clientX, clientY);
+    },
+    clearTarget() {
+      primary.clearTarget();
+      fallback.clearTarget();
+    },
+  };
+}
+
 function parentDir(path: string): string {
   const i = path.lastIndexOf("/");
   return i > 0 ? path.slice(0, i) : path;

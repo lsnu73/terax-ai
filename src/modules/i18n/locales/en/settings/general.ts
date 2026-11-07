@@ -174,5 +174,10 @@ export const settingsGeneral = {
       description:
         "Reopen the main window where you left it. Applies on next launch.",
     },
+    autoCheckUpdates: {
+      title: "Automatically check for updates at startup",
+      description:
+        "When a new version is found, Terax shows a notification instead of opening a window. Update from Settings → About.",
+    },
   },
 };

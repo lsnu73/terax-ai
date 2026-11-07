@@ -205,6 +205,15 @@ export const SETTING_SEARCH_ITEMS: readonly SettingSearchItem[] = [
     groupKey: "settings.general.startup.label",
   },
   {
+    id: "general.startup.autoCheckUpdates",
+    section: "general",
+    targetId: "general.startup.autoCheckUpdates",
+    titleKey: "settings.general.startup.autoCheckUpdates.title",
+    descriptionKey: "settings.general.startup.autoCheckUpdates.description",
+    groupKey: "settings.general.startup.label",
+    keywords: ["update", "upgrade", "version"],
+  },
+  {
     id: "editor.appearance.fontSize",
     section: "editor",
     targetId: "editor.appearance.fontSize",

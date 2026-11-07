@@ -1,17 +1,9 @@
 import type { updater } from "../en/updater";
 
-/** 更新对话框的全部文案（Linux 手动安装流程也在这里）。 */
+/** 更新相关文案（启动检查消息与 设置 → 关于 跳转）。 */
 export const updaterZh: typeof updater = {
-  updateReady: "更新已就绪",
-  downloading: "正在下载更新…",
-  availableTitle: "Terax v{{version}} 已发布",
-  readyDescription: "重启 Terax 以完成安装。",
-  downloadProgress: "{{percent}}% — {{size}}",
-  manualDescription:
-    "你当前使用的是 v{{version}}。请选择你的发行版并运行命令，或从 GitHub 下载安装包。",
-  defaultBody: "新版本已准备好安装。",
-  copied: "已复制",
-  later: "稍后",
-  installRestart: "安装并重启",
-  downloadPackage: "下载安装包",
+  availableNotification: "Terax v{{version}} 已发布",
+  availableNotificationBody:
+    "前往 设置 → 关于 完成更新。不会自动弹出更新窗口。",
+  openAbout: "前往关于",
 };

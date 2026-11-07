@@ -53,7 +53,10 @@ import {
 } from "./lib/clipboardPaste";
 import { useWorkspaceEnvStore } from "@/modules/workspace";
 import { COMPACT_CONTENT, COMPACT_ITEM } from "./lib/menuItemClass";
-import { useExplorerDnd } from "./lib/useExplorerDnd";
+import {
+  type ExplorerPathDropTarget,
+  useExplorerDnd,
+} from "./lib/useExplorerDnd";
 import { useExplorerFileDrop } from "./lib/useExplorerFileDrop";
 import { useFileTree } from "./lib/useFileTree";
 import { useGitStatus } from "./lib/useGitStatus";
@@ -65,7 +68,6 @@ import {
   useShortcutHint,
 } from "@/modules/shortcuts";
 import type { GitStatusSnapshot } from "@/modules/ai/lib/native";
-import type { TerminalPathDropTarget } from "@/modules/terminal";
 
 export type FileExplorerHandle = {
   focus: () => void;
@@ -84,7 +86,7 @@ type Props = {
   onOpenInSourceControl?: (path: string) => void;
   onOpenGitHistory?: (path: string) => void;
   onAttachToAgent?: (path: string) => void;
-  pathDropTarget?: TerminalPathDropTarget;
+  pathDropTarget?: ExplorerPathDropTarget;
   gitStatus?: GitStatusSnapshot | null;
   /**
    * The explorer is on screen (default true). It stays mounted when the sidebar

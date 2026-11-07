@@ -24,6 +24,7 @@ import type {
 import {
   setAgentNotificationSound,
   setAgentNotifications,
+  setAutoCheckUpdates,
   setAutostart,
   setCloseAction,
   setConfirmCloseRunningTerminal,
@@ -121,6 +122,7 @@ export function GeneralSection() {
   const language = usePreferencesStore((s) => s.language);
   const autostart = usePreferencesStore((s) => s.autostart);
   const restoreWindowState = usePreferencesStore((s) => s.restoreWindowState);
+  const autoCheckUpdates = usePreferencesStore((s) => s.autoCheckUpdates);
   const showHidden = usePreferencesStore((s) => s.showHidden);
   const explorerGitDecorations = usePreferencesStore(
     (s) => s.explorerGitDecorations,
@@ -730,6 +732,18 @@ export function GeneralSection() {
             <Switch
               checked={restoreWindowState}
               onCheckedChange={(v) => void setRestoreWindowState(v)}
+            />
+          </SettingRow>
+          <SettingRow
+            searchId="general.startup.autoCheckUpdates"
+            title={t("settings.general.startup.autoCheckUpdates.title")}
+            description={t(
+              "settings.general.startup.autoCheckUpdates.description",
+            )}
+          >
+            <Switch
+              checked={autoCheckUpdates}
+              onCheckedChange={(v) => void setAutoCheckUpdates(v)}
             />
           </SettingRow>
         </div>

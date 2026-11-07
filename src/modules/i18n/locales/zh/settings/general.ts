@@ -172,5 +172,10 @@ export const settingsGeneralZh: typeof settingsGeneral = {
       title: "恢复窗口位置和大小",
       description: "重新打开主窗口时恢复上次的位置。下次启动时生效。",
     },
+    autoCheckUpdates: {
+      title: "启动时自动检查更新",
+      description:
+        "发现新版本时只显示一条消息，不弹出更新窗口；在 设置 → 关于 中完成更新。",
+    },
   },
 };

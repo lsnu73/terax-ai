@@ -106,8 +106,9 @@ function ComposerPrefill({
       };
       composer.addAttachments([file]);
     }
-    for (const path of prefill.attachmentPaths ?? []) {
-      void composer.attachFileByPath(path);
+    const paths = prefill.attachmentPaths ?? [];
+    if (paths.length > 0) {
+      void composer.attachFilesByPaths(paths);
     }
     onApplied();
     requestAnimationFrame(() => composer.textareaRef.current?.focus());
@@ -117,6 +118,7 @@ function ComposerPrefill({
 }
 
 function ComposerChips() {
+  const { t } = useTranslation();
   const composer = useComposer();
   if (
     composer.files.length === 0 &&
@@ -127,6 +129,11 @@ function ComposerChips() {
   }
   return (
     <div className="mb-1.5">
+      {composer.files.length > 0 ? (
+        <div className="mb-1 text-[10.5px] font-medium tracking-wide text-muted-foreground">
+          {t("ai.composer.attachments", { count: composer.files.length })}
+        </div>
+      ) : null}
       <ChipsRow
         files={composer.files}
         onRemoveFile={composer.removeFile}
@@ -173,7 +180,6 @@ function ComposerControls() {
         className="size-7 shrink-0"
         title={t("ai.statusbar.attachFile")}
         onClick={() => fileInputRef.current?.click()}
-        disabled={composer.isBusy}
       >
         <HugeiconsIcon icon={Add01Icon} size={13} strokeWidth={2} />
       </Button>

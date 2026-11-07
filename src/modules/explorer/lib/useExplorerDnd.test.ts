@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  combinePathDropTargets,
   finishExplorerDrag,
   resolveExplorerMoveTarget,
 } from "./useExplorerDnd";
@@ -166,5 +167,51 @@ describe("finishExplorerDrag", () => {
       onMove,
     );
     expect(onMove).toHaveBeenCalledWith(["/repo/a.ts", "/repo/b.ts"], "/repo/dest");
+  });
+});
+
+describe("combinePathDropTargets", () => {
+  const target = (hit: boolean) => ({
+    updateTarget: vi.fn(() => hit),
+    dropPath: vi.fn(() => hit),
+    clearTarget: vi.fn(),
+  });
+
+  it("routes hover to the primary target when it hits", () => {
+    const primary = target(true);
+    const fallback = target(true);
+    const combined = combinePathDropTargets(primary, fallback);
+
+    expect(combined.updateTarget(10, 20)).toBe(true);
+    expect(primary.updateTarget).toHaveBeenCalledWith(10, 20);
+    expect(fallback.updateTarget).not.toHaveBeenCalled();
+    expect(fallback.clearTarget).toHaveBeenCalledOnce();
+  });
+
+  it("falls through to the fallback target and clears the primary", () => {
+    const primary = target(false);
+    const fallback = target(true);
+    const combined = combinePathDropTargets(primary, fallback);
+
+    expect(combined.updateTarget(10, 20)).toBe(true);
+    expect(primary.clearTarget).toHaveBeenCalledOnce();
+    expect(fallback.updateTarget).toHaveBeenCalledWith(10, 20);
+  });
+
+  it("lets the fallback handle a drop the primary refuses", () => {
+    const primary = target(false);
+    const fallback = target(true);
+    const combined = combinePathDropTargets(primary, fallback);
+
+    expect(combined.dropPath(["/repo/a.ts"], 3, 4)).toBe(true);
+    expect(fallback.dropPath).toHaveBeenCalledWith(["/repo/a.ts"], 3, 4);
+  });
+
+  it("clears both targets", () => {
+    const primary = target(true);
+    const fallback = target(true);
+    combinePathDropTargets(primary, fallback).clearTarget();
+    expect(primary.clearTarget).toHaveBeenCalledOnce();
+    expect(fallback.clearTarget).toHaveBeenCalledOnce();
   });
 });

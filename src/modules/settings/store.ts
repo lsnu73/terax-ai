@@ -151,6 +151,8 @@ export type Preferences = {
   customInstructions: string;
   autostart: boolean;
   restoreWindowState: boolean;
+  /** 启动时自动检查新版本；发现更新时只发通知，不弹窗口。 */
+  autoCheckUpdates: boolean;
   autocompleteEnabled: boolean;
   autocompleteTrigger: AutocompleteTrigger;
   autocompleteProvider: AutocompleteProviderId;
@@ -283,6 +285,7 @@ const KEY_EDITOR_FONT_SIZE = "editorFontSize";
 const KEY_CUSTOM_INSTRUCTIONS = "customInstructions";
 const KEY_AUTOSTART = "autostart";
 const KEY_RESTORE_WINDOW = "restoreWindowState";
+const KEY_AUTO_CHECK_UPDATES = "autoCheckUpdates";
 export type AutocompleteTrigger = "auto" | "manual";
 
 const KEY_AUTOCOMPLETE_ENABLED = "autocompleteEnabled";
@@ -375,6 +378,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   // 显式保存过的取值（无论 true/false）始终优先；只有键不存在时才回落到这里。
   windowVibrancy: false,
   restoreWindowState: true,
+  autoCheckUpdates: true,
   autocompleteEnabled: false,
   autocompleteTrigger: "auto",
   autocompleteProvider: "",
@@ -472,6 +476,9 @@ export async function loadPreferences(): Promise<Preferences> {
     restoreWindowState:
       get<boolean>(KEY_RESTORE_WINDOW) ??
       DEFAULT_PREFERENCES.restoreWindowState,
+    autoCheckUpdates:
+      get<boolean>(KEY_AUTO_CHECK_UPDATES) ??
+      DEFAULT_PREFERENCES.autoCheckUpdates,
     windowVibrancy:
       get<boolean>(KEY_WINDOW_VIBRANCY) ?? DEFAULT_PREFERENCES.windowVibrancy,
     autocompleteEnabled:
@@ -703,6 +710,10 @@ export async function setAutostart(value: boolean): Promise<void> {
 
 export async function setRestoreWindowState(value: boolean): Promise<void> {
   await writePref(KEY_RESTORE_WINDOW, value);
+}
+
+export async function setAutoCheckUpdates(value: boolean): Promise<void> {
+  await writePref(KEY_AUTO_CHECK_UPDATES, value);
 }
 
 export async function setWindowVibrancy(value: boolean): Promise<void> {
@@ -998,6 +1009,7 @@ export async function onPreferencesChange(
     [KEY_CUSTOM_INSTRUCTIONS]: "customInstructions",
     [KEY_AUTOSTART]: "autostart",
     [KEY_RESTORE_WINDOW]: "restoreWindowState",
+    [KEY_AUTO_CHECK_UPDATES]: "autoCheckUpdates",
     [KEY_AUTOCOMPLETE_ENABLED]: "autocompleteEnabled",
     [KEY_AUTOCOMPLETE_TRIGGER]: "autocompleteTrigger",
     [KEY_AUTOCOMPLETE_PROVIDER]: "autocompleteProvider",

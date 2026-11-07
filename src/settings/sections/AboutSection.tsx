@@ -51,7 +51,7 @@ export function AboutSection() {
   const [build, setBuild] = useState("");
   const [traces, setTraces] = useState<AppTrace[] | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
-  const { status, check, install } = useUpdater({ autoCheck: false });
+  const { status, check, install } = useUpdater();
   const checking = status.kind === "checking";
   const downloading = status.kind === "downloading";
   const available = status.kind === "available";
@@ -79,6 +79,7 @@ export function AboutSection() {
                   : t("settings.about.update.checkForUpdates");
   const onUpdateClick = () => {
     if (available) void install();
+    else if (manualAvailable) void openUrl(status.info.releaseUrl);
     else void check({ manual: true });
   };
 

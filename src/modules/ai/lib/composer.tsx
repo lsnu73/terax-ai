@@ -7,6 +7,8 @@ import {
   useRef,
   useState,
 } from "react";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import { currentWorkspaceEnv } from "@/modules/workspace";
 import type { Snippet } from "./snippets";
 import type { SlashCommandMeta } from "./slashCommands";
@@ -33,6 +35,7 @@ type ComposerCtx = {
   addFiles: (list: FileList | null) => Promise<void>;
   addAttachments: (attachments: FileAttachment[]) => void;
   attachFileByPath: (path: string) => Promise<void>;
+  attachFilesByPaths: (paths: string[]) => Promise<void>;
   removeFile: (id: string) => void;
   pickedSnippets: Snippet[];
   addSnippet: (snippet: Snippet) => void;
@@ -67,6 +70,7 @@ export function AiComposerProvider({
   sendSubmission,
   stopSubmission,
 }: ProviderProps) {
+  const { t } = useTranslation();
   const sessionId = useChatStore((s) => s.activeSessionId);
   const status = useChatStore((s) => s.agentMeta.status);
   const agentBusy = status === "thinking" || status === "streaming";
@@ -93,24 +97,52 @@ export function AiComposerProvider({
     prevIsBusyRef.current = isBusy;
   }, [isBusy]);
 
+  const filesRef = useRef<FileAttachment[]>([]);
+  useEffect(() => {
+    filesRef.current = files;
+  }, [files]);
+
+  /** 按 id 去重后加入附件。 */
+  const mergeAttachments = useCallback((attachments: FileAttachment[]) => {
+    if (attachments.length === 0) return;
+    const existing = new Set(filesRef.current.map((file) => file.id));
+    const fresh = attachments.filter((file) => !existing.has(file.id));
+    if (fresh.length === 0) return;
+    // 同步写 ref：连续两次附加（例如同时拖入多个文件）时后一次也能看到前一次。
+    filesRef.current = [...filesRef.current, ...fresh];
+    setFiles((previous) => [...previous, ...fresh]);
+  }, []);
+
+  /**
+   * 添加成功不再弹通知——附件 chip 会立即出现在输入框上方，本身就是反馈。
+   * 只有“没有出现在列表里”的结果（二进制、超出大小限制）才需要提示原因。
+   */
+  const announceAttachments = useCallback(
+    (skipped: number) => {
+      if (skipped > 0) {
+        toast.warning(t("ai.composer.attachSkipped", { count: skipped }));
+      }
+    },
+    [t],
+  );
+
   const addFiles = async (list: FileList | null) => {
     if (!list) return;
+    const incoming = Array.from(list);
+    if (incoming.length === 0) return;
     const next: FileAttachment[] = [];
-    for (const file of Array.from(list)) {
+    let skipped = 0;
+    for (const file of incoming) {
       const attachment = await readAttachment(file);
       if (attachment) next.push(attachment);
+      else skipped += 1;
     }
-    if (next.length) setFiles((previous) => [...previous, ...next]);
+    if (next.length > 0) mergeAttachments(next);
+    announceAttachments(skipped);
   };
 
   const addAttachments = (attachments: FileAttachment[]) => {
-    setFiles((previous) => {
-      const existing = new Set(previous.map((file) => file.id));
-      return [
-        ...previous,
-        ...attachments.filter((file) => !existing.has(file.id)),
-      ];
-    });
+    mergeAttachments(attachments);
   };
 
   const removeFile = (id: string) =>
@@ -138,41 +170,38 @@ export function AiComposerProvider({
       previous.filter((command) => command.name !== name),
     );
 
-  const attachFileByPath = useCallback(async (path: string) => {
-    try {
-      type ReadResult =
-        | { kind: "text"; content: string; size: number }
-        | { kind: "binary"; size: number }
-        | { kind: "toolarge"; size: number; limit: number };
-      const result = await invoke<ReadResult>("fs_read_file", {
-        path,
-        workspace: currentWorkspaceEnv(),
-      });
-      if (result.kind !== "text") {
-        console.warn("attachFileByPath: skipped non-text file", path, result);
-        return;
+  const attachFilesByPaths = useCallback(
+    async (paths: string[]) => {
+      const unique = [...new Set(paths.filter((path) => path.length > 0))];
+      if (unique.length === 0) return;
+      const results = await Promise.all(unique.map(readAttachmentByPath));
+      const attachments = results.flatMap((result) =>
+        result.ok ? [result.attachment] : [],
+      );
+      const failed = results.filter(
+        (result): result is Extract<PathAttachmentResult, { ok: false }> =>
+          !result.ok && result.reason === "error",
+      );
+      const skipped = results.length - attachments.length - failed.length;
+      if (attachments.length > 0) mergeAttachments(attachments);
+      announceAttachments(skipped);
+      for (const failure of failed) {
+        toast.error(
+          t("ai.composer.attachFailed", {
+            name: failure.name,
+            message: failure.message ?? "",
+          }),
+        );
       }
-      const name = path.split(/[\\/]/).pop() || path;
-      const id = `path-${path}`;
-      setFiles((previous) => {
-        if (previous.some((file) => file.id === id)) return previous;
-        return [
-          ...previous,
-          {
-            id,
-            name,
-            kind: "text",
-            mediaType: "text/plain",
-            text: result.content,
-            size: result.size,
-          },
-        ];
-      });
       useChatStore.getState().focusInput();
-    } catch (error) {
-      console.error("attachFileByPath failed:", error);
-    }
-  }, []);
+    },
+    [announceAttachments, mergeAttachments, t],
+  );
+
+  const attachFileByPath = useCallback(
+    (path: string) => attachFilesByPaths([path]),
+    [attachFilesByPaths],
+  );
 
   useEffect(() => {
     const onAttach = (event: Event) => {
@@ -188,6 +217,7 @@ export function AiComposerProvider({
   const clear = () => {
     setValue("");
     setFiles([]);
+    filesRef.current = [];
     setPickedSnippets([]);
     setPickedCommands([]);
     requestAnimationFrame(() => textareaRef.current?.focus());
@@ -267,6 +297,7 @@ export function AiComposerProvider({
     addFiles,
     addAttachments,
     attachFileByPath,
+    attachFilesByPaths,
     removeFile,
     pickedSnippets,
     addSnippet,
@@ -283,8 +314,61 @@ export function AiComposerProvider({
   return <Ctx.Provider value={ctx}>{children}</Ctx.Provider>;
 }
 
-async function readAttachment(file: File): Promise<FileAttachment | null> {
-  const id = `${file.name}-${file.size}-${file.lastModified}`;
+type ReadFileResult =
+  | { kind: "text"; content: string; size: number }
+  | { kind: "binary"; size: number }
+  | { kind: "toolarge"; size: number; limit: number };
+
+type PathAttachmentResult =
+  | { ok: true; attachment: FileAttachment }
+  | {
+      ok: false;
+      name: string;
+      reason: "binary" | "too-large" | "error";
+      message?: string;
+    };
+
+/**
+ * 从绝对路径读附件（右键“附加到 Agent”、@ 文件选择、拖拽投放都走这里）。
+ * 文本内联进消息；二进制/超大文件不回传内容，交给调用方给出可见提示。
+ */
+async function readAttachmentByPath(
+  path: string,
+): Promise<PathAttachmentResult> {
+  const name = path.split(/[\\/]/).pop() || path;
+  try {
+    const result = await invoke<ReadFileResult>("fs_read_file", {
+      path,
+      workspace: currentWorkspaceEnv(),
+    });
+    if (result.kind === "text") {
+      return {
+        ok: true,
+        attachment: {
+          id: `path-${path}`,
+          name,
+          kind: "text",
+          mediaType: "text/plain",
+          text: result.content,
+          size: result.size,
+        },
+      };
+    }
+    if (result.kind === "binary") {
+      return { ok: false, name, reason: "binary" };
+    }
+    return { ok: false, name, reason: "too-large" };
+  } catch (error) {
+    return {
+      ok: false,
+      name,
+      reason: "error",
+      message: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+async function readAttachment(file: File): Promise<FileAttachment | null> {  const id = `${file.name}-${file.size}-${file.lastModified}`;
   if (file.type.startsWith("image/")) {
     const url = await readAsDataURL(file);
     return {
