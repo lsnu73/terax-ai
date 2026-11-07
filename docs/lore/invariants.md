@@ -80,3 +80,9 @@
   - 强制点：`src/app/App.tsx` 的 `searchTarget` 统一选择全文或局部控制器；`src/modules/terminal/ghostty/search/GhosttyBlockSearchController.ts` 适配既有终端搜索契约；`src/modules/terminal/block/BlockOverlay.tsx` 不再包含 SearchBar。
   - ⚠️ 此条暂无自动化测试强制，靠交互代码评审把关。
   - 代码索引：见 [atlas/features/终端命令与结果块.md](../atlas/features/终端命令与结果块.md)；焦点坑见 [pitfalls/2026-11-02-命令块查找焦点被终端抢回.md](pitfalls/2026-11-02-命令块查找焦点被终端抢回.md)。
+
+- **INV-017** `tauri-plugin-single-instance` 必须是 `src-tauri/src/lib.rs` builder 链上第一个注册的插件，新增插件不得插到它前面。
+  - 违反代价：二次启动的进程会先执行排在前面的插件 setup，再在单实例检查处退出。当前这些 setup 无副作用，但未来任何在 setup 里创建窗口、写文件或占用独占资源的插件都会在注定退出的进程里跑一遍，产生竞态或残留；官方插件文档同样要求第一个注册。
+  - 强制点：`src-tauri/src/lib.rs:151` 的注册顺序（`modules::single_instance::plugin` 排在 clipboard 插件之前，代码内已留注释说明）。
+  - ⚠️ 此条暂无自动化强制（注册顺序无法静态断言），靠评审把关。
+  - 代码索引：见 [atlas/features/关闭窗口与系统托盘.md](../atlas/features/关闭窗口与系统托盘.md)。
