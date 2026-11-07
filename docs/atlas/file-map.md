@@ -28,7 +28,7 @@ src-tauri/
 
 src/
 ├── app/
-│   ├── App.tsx — [开发者工具] 注册 DevTools 与关闭守卫接线，协调标签页、预览、搜索目标与左右对称布局（次：撤销终端窗格拆分、终端链接打开、终端命令与结果块、标签内搜索、关闭窗口与系统托盘、AI面板）
+│   ├── App.tsx — [开发者工具] 注册 DevTools 与关闭守卫接线，协调标签页、预览、搜索目标与左右对称布局；组合 AI/终端文件投放目标并触发启动更新检查（次：撤销终端窗格拆分、终端链接打开、终端命令与结果块、标签内搜索、关闭窗口与系统托盘、AI面板、应用更新）
 │   ├── components/
 │   │   ├── CloseDialogs.tsx — [关闭窗口与系统托盘] 退出/缩小到托盘选择窗口与「记住我的选择」（次：标签关闭确认）
 │   │   └── WorkspaceSurface.tsx — [终端链接打开] 透传预览与块搜索回调，并在工作区层渲染设置页（次：工作区渲染、设置页、终端命令与结果块）
@@ -58,8 +58,8 @@ src/
 │   │   │   ├── AgentRunBridge.tsx — [AI面板] 主窗口唯一聊天引擎、agentMeta 与持久化、AI diff tab 管理（次：AI 对话与工具审批）
 │   │   │   ├── AiChat.tsx — [AI面板] 消息渲染、请求失败展示、重试与关闭操作（次：AI 对话）
 │   │   │   ├── AiOpenButton.tsx — [快捷键提示] 状态栏 AI 开关与动态快捷键提示（次：AI面板）
-│   │   │   ├── AiPanel.tsx — [AI面板] 右侧面板页面：聊天、会话、计划横幅与空态；接入失败回合重试（次：AI 对话）
-│   │   │   ├── AiPanelComposer.tsx — [AI面板] 完整 Composer 与 prefill；元信息行组装（次：AI 对话）
+│   │   │   ├── AiPanel.tsx — [AI面板] 右侧面板页面：聊天、会话、计划横幅与空态；接入失败回合重试；根节点标记文件投放区域并渲染投放高亮（次：AI 对话）
+│   │   │   ├── AiPanelComposer.tsx — [AI面板] 完整 Composer 与 prefill；元信息行组装；附件 chip 与「N 个附件」标题（次：AI 对话）
 │   │   │   ├── AiPanelSkeleton.tsx — [AI面板] 懒加载分包就绪前的同构骨架占位（次：AI 对话）
 │   │   │   ├── ApprovalModeToggle.tsx — [AI面板] 执行审批模式切换（review/auto）（次：AI 对话与工具审批）
 │   │   │   └── ModelPicker.tsx — [AI模型配置] 思考强度滑条与模型选择（次：AI 面板）
@@ -72,11 +72,14 @@ src/
 │   │   │   └── types.ts — [AI模型配置] `ParamDef` / `EffortConfig` 等数据模型
 │   │   ├── lib/
 │   │   │   ├── agent.ts — [AI模型配置] withRequestParams 把解析后的参数合并进出站请求（次：AI 对话与工具审批）
+│   │   │   ├── aiAttachmentDrop.ts — [AI面板] AI 面板投放目标：命中 `data-ai-attach-drop`、drop 时写 prefill（次：文件资源管理器）
 │   │   │   ├── aiPanel.ts — [AI面板] 面板开关封装与 Provider 检查（次：选区与文件 prefill）
 │   │   │   ├── aiPanelBridge.ts — [AI面板] prefill 类型契约
 │   │   │   ├── approvalMode.ts — [AI面板] 工具 needsApproval 按偏好动态判定（次：AI 对话与工具审批）
+│   │   │   ├── composer.tsx — [AI面板] 附件读取、按 id 去重、批量路径附加与跳过/失败提示；`terax:ai-attach-file` 监听（次：AI 对话）
 │   │   │   └── composerMessage.ts — [AI面板] Composer 到 AI SDK parts 的纯转换（次：AI 对话）
 │   │   └── store/
+│   │       ├── aiAttachmentDropStore.ts — [AI面板] 拖动进入面板时的高亮状态
 │   │       └── aiPanelStore.ts — [AI面板] 面板开关与 prefill 状态
 │   ├── command-palette/
 │   │   ├── CommandPalette.tsx — [命令面板] 面板 UI、查询模式分流与主题预览（次：主题切换）
@@ -89,9 +92,10 @@ src/
 │   │       └── mru.ts — [命令面板] 会话内最近使用排序
 │   ├── explorer/
 │   │   ├── ExplorerSearch.tsx — [文件资源管理器] 模糊查询、搜索树渲染、键盘导航与目录折叠
-│   │   ├── FileExplorer.tsx — [文件资源管理器] 普通树与搜索视图容器、文件搜索按钮动态标题（次：快捷键提示）
+│   │   ├── FileExplorer.tsx — [文件资源管理器] 普通树与搜索视图容器、文件搜索按钮动态标题；接收组合后的路径投放目标（次：快捷键提示、AI面板）
 │   │   └── lib/
-│   │       └── searchTree.ts — [文件资源管理器] 命中到裁剪目录树的纯转换、祖先去重与可见行计算
+│   │       ├── searchTree.ts — [文件资源管理器] 命中到裁剪目录树的纯转换、祖先去重与可见行计算
+│   │       └── useExplorerDnd.ts — [文件资源管理器] 指针拖拽、拖动浮层与多目标链（`combinePathDropTargets`）（次：AI面板、终端路径投放）
 │   ├── header/
 │   │   ├── Header.tsx — [快捷键提示] 设置、侧栏、命令面板按钮提示与通知铃铛入口（次：顶栏布局、通知中心）
 │   │   └── SearchInline.tsx — [快捷键提示] Ctrl+F 与命令块查找共用的弹窗，按 target 切换全文或局部控制器；无 target 时不渲染（次：标签内搜索、终端命令与结果块）
@@ -127,7 +131,7 @@ src/
 │   │       └── terminalProxyRegistry.ts — [代理] 终端会话创建时的代理快照登记表（leafId → URL），由 `useGhosttyTerminalSession` 读写
 │   ├── settings/
 │   │   ├── openSettings.ts — [设置页] 设置 tab 打开注册表，深层组件经此调用（次：AI面板）
-│   │   └── store.ts — [预览端口管理] 端口列表、通知显示方式、`closeAction` 持久化与跨窗口广播（次：设置窗口与偏好同步、通知中心、关闭窗口与系统托盘）
+│   │   └── store.ts — [预览端口管理] 端口列表、通知显示方式、`closeAction`、`autoCheckUpdates` 持久化与跨窗口广播（次：设置窗口与偏好同步、通知中心、关闭窗口与系统托盘、应用更新）
 │   ├── shortcuts/
 │   │   ├── components/
 │   │   │   └── ShortcutTooltip.tsx — [快捷键提示] 统一 Tooltip 与菜单快捷键文本
@@ -173,7 +177,7 @@ src/
 │   │   └── path-history/
 │   │       └── PathHistoryDialog.tsx — [终端路径历史] Ctrl+E 最近路径弹窗
 │   └── updater/
-│       └── useUpdater.ts — [设置-关于] 更新状态机与手动检查，检查/下载遵循更新场景代理（次：应用更新、代理）
+│       └── useUpdater.ts — [应用更新] 全局更新状态机、启动自动检查、通知消息与下载安装；检查/下载遵循更新场景代理（次：设置-关于、代理）
 └── settings/
     ├── SettingsView.tsx — [设置页] 左侧搜索框与竖向分区导航、右侧内容区、结果定位与高亮（次：偏好同步）
     ├── components/
@@ -181,10 +185,10 @@ src/
     │   ├── SettingRow.tsx — [设置页] 普通设置行布局与可选搜索锚点
     │   └── SettingsSearch.tsx — [设置页] 跨分区查询、翻译后过滤、按分区分组、结果浮层排版与键盘交互；注册 Ctrl+F 聚焦（次：标签内搜索）
     ├── sections/
-    │   ├── AboutSection.tsx — [设置-关于] 关于分区 UI、仓库链接、更新/源码搜索锚点与文件/注册表痕迹清单（次：设置页）
+    │   ├── AboutSection.tsx — [设置-关于] 关于分区 UI、仓库链接、更新/源码搜索锚点与文件/注册表痕迹清单；复用全局更新状态并一键安装（次：设置页、应用更新）
     │   ├── AgentsSection.tsx — [AI提交信息生成] AI 行为设置、提示词模块与各区域搜索锚点（次：设置页）
     │   ├── EditorSection.tsx — [设置页] 编辑器设置 UI、条件选项与搜索锚点（次：编辑器偏好）
-    │   ├── GeneralSection.tsx — [设置页] 通用设置 UI 与搜索锚点；关闭窗口行为选择器（次：通用偏好、关闭窗口与系统托盘）
+    │   ├── GeneralSection.tsx — [设置页] 通用设置 UI 与搜索锚点；关闭窗口行为与启动自动检查更新开关（次：通用偏好、关闭窗口与系统托盘、应用更新）
     │   ├── ModelsSection.tsx — [AI模型配置] 模型/Provider 编辑器、校验与配置/默认项/Provider 搜索锚点（次：设置页）
     │   ├── ProxySection.tsx — [代理] 代理设置分区 UI 与搜索锚点（次：设置页）
     │   ├── ShortcutsSection.tsx — [撤销终端窗格拆分] 保存用户覆盖键位、警告 Ctrl+R 冲突并提供逐行搜索锚点（次：终端命令与结果块、快捷键自定义、设置页）
@@ -200,7 +204,7 @@ src/
 
 | 文件 | 主归属功能 | 次要归属 | 说明 |
 |---|---|---|---|
-| `src/app/App.tsx` | [开发者工具](features/开发者工具.md) | [撤销终端窗格拆分](features/撤销终端窗格拆分.md)、[终端链接打开](features/终端链接打开.md)、[终端命令与结果块](features/终端命令与结果块.md)、[标签内搜索](features/标签内搜索.md)、[关闭窗口与系统托盘](features/关闭窗口与系统托盘.md)、[AI面板](features/AI面板.md) | 注册 DevTools 与关闭守卫接线，协调标签页、预览、搜索目标与左右对称布局 |
+| `src/app/App.tsx` | [开发者工具](features/开发者工具.md) | [撤销终端窗格拆分](features/撤销终端窗格拆分.md)、[终端链接打开](features/终端链接打开.md)、[终端命令与结果块](features/终端命令与结果块.md)、[标签内搜索](features/标签内搜索.md)、[关闭窗口与系统托盘](features/关闭窗口与系统托盘.md)、[AI面板](features/AI面板.md)、[应用更新](features/应用更新.md) | 注册 DevTools 与关闭守卫接线，协调标签页、预览、搜索目标与左右对称布局；组合 AI/终端文件投放目标并触发启动更新检查 |
 | `src/components/ui/resizable.tsx` | [AI面板](features/AI面板.md) | 可调整布局 | 分隔线、拖拽热区与常驻六点握把；握把静止/悬停/拖拽三级对比色 |
 | `src/app/components/WorkspaceSurface.tsx` | [终端链接打开](features/终端链接打开.md) | 工作区渲染、[设置页](features/设置页.md)、[终端命令与结果块](features/终端命令与结果块.md) | 透传预览与块搜索回调，并在工作区层渲染设置页 |
 | `src/app/hooks/useAppCloseGuard.ts` | [关闭窗口与系统托盘](features/关闭窗口与系统托盘.md) | 会话落盘守卫 | 关闭请求总入口：读取 `closeAction`、选择窗口、托盘隐藏与退出前守卫 |
@@ -226,10 +230,13 @@ src/
 | `src/modules/tabs/NewTabMenu.tsx` | [标签页管理](features/标签页管理.md) | [快捷键提示](features/快捷键提示.md) | 新建标签类型与编码代理启动入口，菜单显示快捷键 |
 | `src/modules/tabs/TabBar.tsx` | [标签页管理](features/标签页管理.md) | [快捷键提示](features/快捷键提示.md) | 标签栏、受控右键菜单与捕获阶段外部点击关闭 |
 | `src/modules/ai/components/AiOpenButton.tsx` | [快捷键提示](features/快捷键提示.md) | [AI面板](features/AI面板.md) | 状态栏 AI 开关与动态快捷键提示 |
-| `src/modules/ai/components/AiPanel.tsx` | [AI面板](features/AI面板.md) | AI 对话 | 右侧面板页面：聊天、会话、计划横幅与空态；接入失败回合重试 |
+| `src/modules/ai/components/AiPanel.tsx` | [AI面板](features/AI面板.md) | AI 对话 | 右侧面板页面：聊天、会话、计划横幅与空态；接入失败回合重试；根节点标记文件投放区域并渲染投放高亮 |
 | `src/modules/ai/components/AiPanelSkeleton.tsx` | [AI面板](features/AI面板.md) | AI 对话 | 懒加载分包就绪前的同构骨架占位 |
 | `src/modules/ai/components/AiChat.tsx` | [AI面板](features/AI面板.md) | AI 对话 | 消息渲染、请求失败展示、重试与关闭操作 |
-| `src/modules/ai/components/AiPanelComposer.tsx` | [AI面板](features/AI面板.md) | AI 对话 | 完整 Composer 与 prefill；元信息行组装 |
+| `src/modules/ai/components/AiPanelComposer.tsx` | [AI面板](features/AI面板.md) | AI 对话 | 完整 Composer 与 prefill；元信息行组装；附件 chip 与「N 个附件」标题 |
+| `src/modules/ai/lib/composer.tsx` | [AI面板](features/AI面板.md) | AI 对话 | 附件读取、按 id 去重、批量路径附加与跳过/失败提示；`terax:ai-attach-file` 监听 |
+| `src/modules/ai/lib/aiAttachmentDrop.ts` | [AI面板](features/AI面板.md) | [文件资源管理器](features/文件资源管理器.md) | AI 面板投放目标：命中 `data-ai-attach-drop`、drop 时写 prefill |
+| `src/modules/ai/store/aiAttachmentDropStore.ts` | [AI面板](features/AI面板.md) | 无 | 拖动进入面板时的高亮状态 |
 | `src/modules/ai/components/ApprovalModeToggle.tsx` | [AI面板](features/AI面板.md) | AI 对话与工具审批 | 执行审批模式切换（review/auto） |
 | `src/modules/ai/lib/approvalMode.ts` | [AI面板](features/AI面板.md) | AI 对话与工具审批 | 工具 needsApproval 按偏好动态判定 |
 | `src/modules/ai/components/AgentRunBridge.tsx` | [AI面板](features/AI面板.md) | AI 对话与工具审批 | 主窗口唯一聊天引擎、agentMeta 与持久化、AI diff tab 管理 |
@@ -237,7 +244,8 @@ src/
 | `src/modules/ai/store/aiPanelStore.ts` | [AI面板](features/AI面板.md) | 无 | 面板开关与 prefill 状态 |
 | `src/modules/ai/lib/aiPanelBridge.ts` | [AI面板](features/AI面板.md) | 无 | prefill 类型契约 |
 | `src/modules/ai/lib/composerMessage.ts` | [AI面板](features/AI面板.md) | AI 对话 | Composer 到 AI SDK parts 的纯转换 |
-| `src/modules/explorer/FileExplorer.tsx` | [文件资源管理器](features/文件资源管理器.md) | [快捷键提示](features/快捷键提示.md) | 普通树与搜索视图容器、文件搜索按钮动态标题 |
+| `src/modules/explorer/FileExplorer.tsx` | [文件资源管理器](features/文件资源管理器.md) | [快捷键提示](features/快捷键提示.md)、[AI面板](features/AI面板.md) | 普通树与搜索视图容器、文件搜索按钮动态标题；接收组合后的路径投放目标 |
+| `src/modules/explorer/lib/useExplorerDnd.ts` | [文件资源管理器](features/文件资源管理器.md) | [AI面板](features/AI面板.md)、终端路径投放 | 指针拖拽、拖动浮层与多目标链（`combinePathDropTargets`） |
 | `src/modules/explorer/ExplorerSearch.tsx` | [文件资源管理器](features/文件资源管理器.md) | 无 | 模糊查询、搜索树渲染、键盘导航与目录折叠 |
 | `src/modules/explorer/lib/searchTree.ts` | [文件资源管理器](features/文件资源管理器.md) | 无 | 命中到裁剪目录树的纯转换、祖先去重与可见行计算 |
 | `src/modules/tabs/lib/useTabs.ts` | [撤销终端窗格拆分](features/撤销终端窗格拆分.md) | [终端命令与结果块](features/终端命令与结果块.md)、标签与分屏状态、[AI面板](features/AI面板.md) | 记录拆分历史、恢复焦点、维护终端标签与 settings tab 单例 |
@@ -266,7 +274,7 @@ src/
 | `src/modules/preview/PreviewPane.tsx` | [预览端口管理](features/预览端口管理.md) | 网页预览 | 空态「端口」按钮调用地址栏 handle |
 | `src/modules/preview/PortPresetDialog.tsx` | [预览端口管理](features/预览端口管理.md) | 网页预览 | 新增与编辑端口表单 |
 | `src/modules/preview/lib/portPresets.ts` | [预览端口管理](features/预览端口管理.md) | 无 | 默认端口、归一化、合并与重复校验 |
-| `src/modules/settings/store.ts` | [预览端口管理](features/预览端口管理.md) | 设置窗口与偏好同步、[通知中心](features/通知中心.md)、[关闭窗口与系统托盘](features/关闭窗口与系统托盘.md) | 端口列表、通知显示方式、`closeAction` 持久化与跨窗口广播 |
+| `src/modules/settings/store.ts` | [预览端口管理](features/预览端口管理.md) | 设置窗口与偏好同步、[通知中心](features/通知中心.md)、[关闭窗口与系统托盘](features/关闭窗口与系统托盘.md)、[应用更新](features/应用更新.md) | 端口列表、通知显示方式、`closeAction`、`autoCheckUpdates` 持久化与跨窗口广播 |
 | `src/modules/i18n/locales/en/preview.ts` | [预览端口管理](features/预览端口管理.md) | 英文文案 | 端口菜单与表单文案 |
 | `src/modules/i18n/locales/zh/preview.ts` | [预览端口管理](features/预览端口管理.md) | 中文文案 | 与英文词典同构 |
 | `src/modules/i18n/locales/en/shortcuts.ts` | [快捷键提示](features/快捷键提示.md) | 英文文案 | 快捷键名称 |
@@ -276,7 +284,7 @@ src/
 | `src/settings/settingsSearch.ts` | [设置页](features/设置页.md) | 无 | 设置搜索静态索引、目标 ID、关键词与条件可见性 |
 | `src/settings/settingsSearchFocus.ts` | [标签内搜索](features/标签内搜索.md) | [设置页](features/设置页.md) | 主窗口 Ctrl+F 聚焦设置搜索框的最小注册表 |
 | `src/settings/components/SettingRow.tsx` | [设置页](features/设置页.md) | 无 | 普通设置行布局与可选搜索锚点 |
-| `src/settings/sections/GeneralSection.tsx` | [设置页](features/设置页.md) | 通用偏好、[关闭窗口与系统托盘](features/关闭窗口与系统托盘.md) | 通用设置 UI 与搜索锚点；关闭窗口行为选择器 |
+| `src/settings/sections/GeneralSection.tsx` | [设置页](features/设置页.md) | 通用偏好、[关闭窗口与系统托盘](features/关闭窗口与系统托盘.md)、[应用更新](features/应用更新.md) | 通用设置 UI 与搜索锚点；关闭窗口行为与启动自动检查更新开关 |
 | `src/settings/sections/EditorSection.tsx` | [设置页](features/设置页.md) | 编辑器偏好 | 编辑器设置 UI、条件选项与搜索锚点 |
 | `src/settings/sections/ThemesSection.tsx` | [设置页](features/设置页.md) | 主题与窗口外观 | 主题、编辑器主题和背景设置锚点 |
 | `src/settings/components/LspServersGroup.tsx` | [设置页](features/设置页.md) | LSP 语言服务 | 语言服务器区域入口与搜索锚点 |
@@ -310,9 +318,9 @@ src/
 | `src/modules/command-palette/lib/fuzzy.ts` | [命令面板](features/命令面板.md) | 无 | 命令模糊匹配打分 |
 | `src/modules/command-palette/lib/mru.ts` | [命令面板](features/命令面板.md) | 无 | 会话内最近使用排序 |
 | `src/modules/command-palette/hooks/useContentSearch.ts` | [命令面板](features/命令面板.md) | 无 | `#` 内容搜索异步查询 |
-| `src/settings/sections/AboutSection.tsx` | [设置-关于](features/设置-关于.md) | [设置页](features/设置页.md) | 关于分区 UI、仓库链接、更新/源码搜索锚点与文件/注册表痕迹清单 |
+| `src/settings/sections/AboutSection.tsx` | [设置-关于](features/设置-关于.md) | [设置页](features/设置页.md)、[应用更新](features/应用更新.md) | 关于分区 UI、仓库链接、更新/源码搜索锚点与文件/注册表痕迹清单；复用全局更新状态并一键安装 |
 | `src-tauri/src/modules/traces.rs` | [设置-关于](features/设置-关于.md) | 无 | `app_traces`：安装、配置、数据、缓存、日志、注册表与凭据痕迹 |
-| `src/modules/updater/useUpdater.ts` | [设置-关于](features/设置-关于.md) | 应用更新、[代理](features/代理.md) | 更新状态机与手动检查，检查/下载遵循更新场景代理 |
+| `src/modules/updater/useUpdater.ts` | [应用更新](features/应用更新.md) | [设置-关于](features/设置-关于.md)、[代理](features/代理.md) | 全局更新状态机、启动自动检查、通知消息与下载安装；检查/下载遵循更新场景代理 |
 | `src/settings/sections/ProxySection.tsx` | [代理](features/代理.md) | [设置页](features/设置页.md) | 代理设置分区 UI 与搜索锚点 |
 | `src/modules/proxy/components/ProxyStatusButton.tsx` | [代理](features/代理.md) | 状态栏 | 状态栏三场景代理开关与「刷新终端生效」提示 |
 | `src/modules/proxy/components/TerminalProxyBadge.tsx` | [代理](features/代理.md) | 状态栏 | 左侧隐私徽章旁的绿色「代理：终端命令已生效」徽章 |
