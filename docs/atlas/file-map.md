@@ -3,7 +3,7 @@
 > 只收录有业务含义的源文件。自动生成文件、测试、构建脚本和纯配置不在此列。
 > 一个文件涉及多个功能时，第二列登记主归属，其余登记在第三列。
 > 表格是唯一数据源；目录树由 project-atlas 的 render-file-map-tree.sh 生成，不要手改。
-> 最后校验：2026-11-06
+> 最后校验：2026-11-08
 
 ## 按目录浏览
 
@@ -29,21 +29,24 @@ src-tauri/
 
 src/
 ├── app/
-│   ├── App.tsx — [开发者工具] 注册 DevTools 与关闭守卫接线，协调标签页、预览、搜索目标与左右对称布局；组合 AI/终端文件投放目标并触发启动更新检查（次：撤销终端窗格拆分、终端链接打开、终端命令与结果块、标签内搜索、关闭窗口与系统托盘、AI面板、应用更新）
+│   ├── App.tsx — [开发者工具] 注册 DevTools 与关闭守卫接线，协调标签页、预览、搜索目标与左右对称布局；组合 AI/终端文件投放目标并触发启动更新检查；提供左右边框拖拽阀控制器（次：撤销终端窗格拆分、终端链接打开、终端命令与结果块、标签内搜索、关闭窗口与系统托盘、无边框窗口与边框交互、AI面板、应用更新）
 │   ├── components/
 │   │   ├── CloseDialogs.tsx — [关闭窗口与系统托盘] 退出/缩小到托盘选择窗口与「记住我的选择」（次：标签关闭确认）
+│   │   ├── WindowEdgeValves.tsx — [无边框窗口与边框交互] 左右边框拖拽阀：阀段开关/拖动侧栏与 AI 面板，其余边框区域交系统原生 resize（次：AI面板、文件资源管理器）
 │   │   └── WorkspaceSurface.tsx — [终端链接打开] 透传预览与块搜索回调，并在工作区层渲染设置页（次：工作区渲染、设置页、终端命令与结果块）
 │   ├── hooks/
 │   │   └── useAppCloseGuard.ts — [关闭窗口与系统托盘] 关闭请求总入口：读取 `closeAction`、选择窗口、托盘隐藏与退出前守卫（次：会话落盘守卫）
 │   └── lib/
 │       └── appTray.ts — [关闭窗口与系统托盘] 调用 `tray_show` 后隐藏窗口，托盘不可用时回落退出（次：系统托盘）
 ├── components/
-│   ├── WindowControls.tsx — [关闭窗口与系统托盘] 最小化/最大化/关闭按钮；关闭仍只调用 `window.close()`（次：窗口外观）
+│   ├── WindowControls.tsx — [关闭窗口与系统托盘] 最小化/最大化/关闭按钮；点击区通栏标题栏；关闭仍只调用 `window.close()`（次：无边框窗口与边框交互）
 │   └── ui/
 │       └── resizable.tsx — [AI面板] 分隔线、拖拽热区与常驻六点握把；握把静止/悬停/拖拽三级对比色（次：可调整布局）
 ├── lib/
 │   ├── external-link.ts — [终端链接打开] Ctrl 或 Cmd 分支调用系统浏览器（次：外部链接）
+│   ├── maximizedChrome.ts — [无边框窗口与边框交互] 窗口最大化状态订阅：`<html data-maximized>` 镜像与 `useWindowMaximized` hook
 │   └── open-path.ts — [终端链接打开] 路径识别与文件管理器打开（次：终端路径历史）
+├── main.tsx — [无边框窗口与边框交互] 应用引导：`data-chrome="borderless"` 标记、最大化状态镜像、窗口延迟显示
 ├── modules/
 │   ├── agents/
 │   │   ├── components/
@@ -205,13 +208,16 @@ src/
 
 | 文件 | 主归属功能 | 次要归属 | 说明 |
 |---|---|---|---|
-| `src/app/App.tsx` | [开发者工具](features/开发者工具.md) | [撤销终端窗格拆分](features/撤销终端窗格拆分.md)、[终端链接打开](features/终端链接打开.md)、[终端命令与结果块](features/终端命令与结果块.md)、[标签内搜索](features/标签内搜索.md)、[关闭窗口与系统托盘](features/关闭窗口与系统托盘.md)、[AI面板](features/AI面板.md)、[应用更新](features/应用更新.md) | 注册 DevTools 与关闭守卫接线，协调标签页、预览、搜索目标与左右对称布局；组合 AI/终端文件投放目标并触发启动更新检查 |
+| `src/app/App.tsx` | [开发者工具](features/开发者工具.md) | [撤销终端窗格拆分](features/撤销终端窗格拆分.md)、[终端链接打开](features/终端链接打开.md)、[终端命令与结果块](features/终端命令与结果块.md)、[标签内搜索](features/标签内搜索.md)、[关闭窗口与系统托盘](features/关闭窗口与系统托盘.md)、[无边框窗口与边框交互](features/无边框窗口与边框交互.md)、[AI面板](features/AI面板.md)、[应用更新](features/应用更新.md) | 注册 DevTools 与关闭守卫接线，协调标签页、预览、搜索目标与左右对称布局；组合 AI/终端文件投放目标并触发启动更新检查；提供左右边框拖拽阀控制器 |
 | `src/components/ui/resizable.tsx` | [AI面板](features/AI面板.md) | 可调整布局 | 分隔线、拖拽热区与常驻六点握把；握把静止/悬停/拖拽三级对比色 |
 | `src/app/components/WorkspaceSurface.tsx` | [终端链接打开](features/终端链接打开.md) | 工作区渲染、[设置页](features/设置页.md)、[终端命令与结果块](features/终端命令与结果块.md) | 透传预览与块搜索回调，并在工作区层渲染设置页 |
 | `src/app/hooks/useAppCloseGuard.ts` | [关闭窗口与系统托盘](features/关闭窗口与系统托盘.md) | 会话落盘守卫 | 关闭请求总入口：读取 `closeAction`、选择窗口、托盘隐藏与退出前守卫 |
 | `src/app/lib/appTray.ts` | [关闭窗口与系统托盘](features/关闭窗口与系统托盘.md) | 系统托盘 | 调用 `tray_show` 后隐藏窗口，托盘不可用时回落退出 |
 | `src/app/components/CloseDialogs.tsx` | [关闭窗口与系统托盘](features/关闭窗口与系统托盘.md) | 标签关闭确认 | 退出/缩小到托盘选择窗口与「记住我的选择」 |
-| `src/components/WindowControls.tsx` | [关闭窗口与系统托盘](features/关闭窗口与系统托盘.md) | 窗口外观 | 最小化/最大化/关闭按钮；关闭仍只调用 `window.close()` |
+| `src/components/WindowControls.tsx` | [关闭窗口与系统托盘](features/关闭窗口与系统托盘.md) | [无边框窗口与边框交互](features/无边框窗口与边框交互.md) | 最小化/最大化/关闭按钮；点击区通栏标题栏；关闭仍只调用 `window.close()` |
+| `src/lib/maximizedChrome.ts` | [无边框窗口与边框交互](features/无边框窗口与边框交互.md) | 无 | 窗口最大化状态订阅：`<html data-maximized>` 镜像与 `useWindowMaximized` hook |
+| `src/app/components/WindowEdgeValves.tsx` | [无边框窗口与边框交互](features/无边框窗口与边框交互.md) | [AI面板](features/AI面板.md)、[文件资源管理器](features/文件资源管理器.md) | 左右边框拖拽阀：阀段开关/拖动侧栏与 AI 面板，其余边框区域交系统原生 resize |
+| `src/main.tsx` | [无边框窗口与边框交互](features/无边框窗口与边框交互.md) | 无 | 应用引导：`data-chrome="borderless"` 标记、最大化状态镜像、窗口延迟显示 |
 | `src-tauri/src/modules/tray.rs` | [关闭窗口与系统托盘](features/关闭窗口与系统托盘.md) | 无 | 托盘图标、左键恢复窗口、右键菜单（打开/关闭程序）；`reveal_main_window` 供托盘、二次启动与 Dock 共用 |
 | `src-tauri/src/modules/single_instance.rs` | [关闭窗口与系统托盘](features/关闭窗口与系统托盘.md) | 无 | 单实例插件封装：二次启动转发 argv、唤回主窗口后新进程退出 |
 | `src-tauri/src/lib.rs` | [开发者工具](features/开发者工具.md) | 设置窗口、原生 IPC、关闭窗口与系统托盘 | 提供 `open_devtools` 命令；单实例插件最先注册，二次启动文件参数走 macOS「打开方式」同款链路 |

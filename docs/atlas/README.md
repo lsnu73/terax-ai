@@ -1,7 +1,7 @@
 # Terax 项目地图
 
 > 本目录回答「代码做了什么、在哪里」。设计理由、硬约束与历史坑点见 [../lore/](../lore/)。
-> 最后校验：2026-11-06
+> 最后校验：2026-11-08
 
 ## 一句话
 
@@ -40,6 +40,7 @@ Terax 是面向开发者的开源桌面开发工作区，以终端为中心，�
 | 改设置左侧导航、选项搜索、结果分组或结果定位 | [features/设置页.md](features/设置页.md) | `src/settings/SettingsView.tsx`, `src/settings/components/SettingsSearch.tsx`, `src/settings/settingsSearch.ts` |
 | 改 Ctrl+F 的归属、设置页搜索聚焦或预览页查找 | [features/标签内搜索.md](features/标签内搜索.md) | `src/app/App.tsx`, `src/modules/header/SearchInline.tsx`, `src/settings/settingsSearchFocus.ts` |
 | 改关闭按钮行为、退出确认、系统托盘或二次启动唤回 | [features/关闭窗口与系统托盘.md](features/关闭窗口与系统托盘.md) | `src/app/hooks/useAppCloseGuard.ts`, `src-tauri/src/modules/tray.rs`, `src-tauri/src/modules/single_instance.rs`, `src/app/components/CloseDialogs.tsx` |
+| 改窗口圆角/最大化直角、窗口控制按钮点击区或左右边框拖拽阀 | [features/无边框窗口与边框交互.md](features/无边框窗口与边框交互.md) | `src/app/components/WindowEdgeValves.tsx`, `src/lib/maximizedChrome.ts`, `src/styles/globals.css`, `src/components/WindowControls.tsx` |
 | 改关于页的文件/注册表痕迹清单 | [features/设置-关于.md](features/设置-关于.md) | `src-tauri/src/modules/traces.rs`, `src/settings/sections/AboutSection.tsx` |
 | 改关于页链接、检查更新入口、版本同步或标签发布 | [features/设置-关于.md](features/设置-关于.md) | `src/settings/sections/AboutSection.tsx`, `src/modules/updater/useUpdater.ts`, `scripts/release-version.mjs` |
 | 改启动自动检查更新、更新提示消息或关于页一键更新 | [features/应用更新.md](features/应用更新.md) | `src/modules/updater/useUpdater.ts`, `src/app/App.tsx`, `src/settings/sections/AboutSection.tsx`, `src/settings/sections/GeneralSection.tsx` |
@@ -52,7 +53,7 @@ Terax 是面向开发者的开源桌面开发工作区，以终端为中心，�
 
 ## 当前覆盖范围
 
-首版采用种子功能法，之后按开发增量补齐。目前完整覆盖「撤销终端窗格拆分」「开发者工具」「终端链接打开」「终端输入法候选框定位」「终端路径历史」「终端命令与结果块」「标签页管理」「标签内搜索」「关闭窗口与系统托盘」「预览端口管理」「快捷键提示」「AI 面板」「AI 模型配置」「命令面板」「AI 提交信息生成」「设置-关于」「代理」「设置页」「通知中心」「文件资源管理器」「应用更新」二十一个功能。其他功能在 [features/_index.md](features/_index.md) 中登记为未覆盖，后续随开发补齐，不以目录名推测实现。
+首版采用种子功能法，之后按开发增量补齐。目前完整覆盖「撤销终端窗格拆分」「开发者工具」「终端链接打开」「终端输入法候选框定位」「终端路径历史」「终端命令与结果块」「标签页管理」「标签内搜索」「关闭窗口与系统托盘」「无边框窗口与边框交互」「预览端口管理」「快捷键提示」「AI 面板」「AI 模型配置」「命令面板」「AI 提交信息生成」「设置-关于」「代理」「设置页」「通知中心」「文件资源管理器」「应用更新」二十二个功能。其他功能在 [features/_index.md](features/_index.md) 中登记为未覆盖，后续随开发补齐，不以目录名推测实现。
 
 ## 协作约定
 
