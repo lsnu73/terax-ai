@@ -15,6 +15,11 @@ import type { PointerEvent as ReactPointerEvent } from "react";
  *   （最外圈原生 resize 边框本来就在 tao 的 NCHITTEST 手里，不会进到网页）。
  * - 最大化：窗口不可调整大小，整条左右边框统一执行侧栏操作。
  *
+ * 收起态拖阀「渐进展开」：面板库会把低于最小宽度的 resize 钳制回最小宽度，
+ * 收起态拖动原本毫无反馈。因此在收起态拖动开始时暂时解除最小宽度钳制，
+ * 拖动过程中面板宽度逐帧跟随拖动距离；松手时恢复钳制，拖动距离不足最小
+ * 宽度则补齐到最小宽度。
+ *
  * macOS 不渲染（保留原生窗口行为）。
  */
 
@@ -36,6 +41,15 @@ export type EdgeValveController = {
   toggle: () => void;
   /** 按光标位置应用宽度（布局 px）；低于最小宽度即收合。 */
   applyWidth: (px: number) => void;
+  /** 收起态拖动开始：暂时解除面板最小宽度钳制，宽度才能逐像素跟随。 */
+  beginDragOpen: () => void;
+  /** 收起态拖动中：面板宽度跟随拖动距离（布局 px）。 */
+  applyDragOpen: (px: number) => void;
+  /**
+   * 收起态拖动结束：恢复最小宽度钳制；`px` 非空时为拖动距离，不足最小
+   * 宽度补齐到最小宽度。
+   */
+  endDragOpen: (px: number | null) => void;
 };
 
 type Props = {
@@ -106,7 +120,9 @@ function EdgeStrip({
           maximized ? "inset-y-0" : "top-1/2 -translate-y-1/2",
         )}
         style={maximized ? undefined : { height: VALVE_HEIGHT }}
-        onPointerDown={(e) => beginValveDrag(e, side, controller)}
+        onPointerDown={(e) =>
+          beginValveDrag(e, side, controller, resizeActive)
+        }
       >
         <span className="pointer-events-none absolute left-1/2 top-1/2 h-10 w-0.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-border opacity-0 transition-opacity duration-[var(--dur-fast)] group-hover/valve:opacity-100" />
       </div>
@@ -129,6 +145,7 @@ function beginValveDrag(
   e: ReactPointerEvent<HTMLDivElement>,
   side: Side,
   controller: EdgeValveController,
+  collapsedAtStart: boolean,
 ): void {
   if (!controller.enabled()) {
     controller.onDisabledActivate?.();
@@ -142,6 +159,8 @@ function beginValveDrag(
   const zoom = readLayoutZoom();
   const rect = el.getBoundingClientRect();
   let moved = false;
+  let lastPx = 0;
+  if (collapsedAtStart) controller.beginDragOpen();
   const onMove = (ev: PointerEvent) => {
     if (Math.abs(ev.clientX - startX) > DRAG_THRESHOLD) moved = true;
     if (!moved) return;
@@ -149,12 +168,15 @@ function beginValveDrag(
       side === "left"
         ? (ev.clientX - rect.left) / zoom
         : (rect.right - ev.clientX) / zoom;
-    controller.applyWidth(raw);
+    lastPx = raw;
+    if (collapsedAtStart) controller.applyDragOpen(raw);
+    else controller.applyWidth(raw);
   };
   const onUp = () => {
     el.removeEventListener("pointermove", onMove);
     el.removeEventListener("pointerup", onUp);
     el.removeEventListener("pointercancel", onUp);
+    if (collapsedAtStart) controller.endDragOpen(moved ? lastPx : null);
     if (!moved) controller.toggle();
   };
   el.addEventListener("pointermove", onMove);

@@ -505,6 +505,15 @@ export default function App() {
     }
   }, [aiPanelVisible]);
 
+  // 收起态拖阀「渐进展开」：面板库会把低于最小宽度的 resize 钳制回最小
+  // 宽度（收起态则钳制回 0），拖动全程无反馈。拖阀展开期间把最小宽度临时
+  // 降为 0 让宽度逐像素跟随，松手恢复并补齐到最小宽度。见 WindowEdgeValves
+  // 组件头注释。
+  const [sidebarLiveMinSize, setSidebarLiveMinSize] =
+    useState(SIDEBAR_MIN_WIDTH);
+  const [aiPanelLiveMinSize, setAiPanelLiveMinSize] =
+    useState(AI_PANEL_MIN_WIDTH);
+
   // 左右窗口边框的「拖拽阀」：非最大化时只有阀执行侧栏打开/关闭/拖动，
   // 其余边框区域调整窗口宽度；最大化时整条边框执行侧栏操作。见
   // WindowEdgeValves 组件头注释。
@@ -525,6 +534,23 @@ export default function App() {
         // 阀拖动不经面板组的 onLayoutChanged，显式落盘。
         persistSidebarWidth(width, true);
       },
+      beginDragOpen: () => setSidebarLiveMinSize(0),
+      applyDragOpen: (px) => {
+        const panel = sidebarRef.current;
+        if (!panel) return;
+        panel.resize(`${Math.max(Math.round(px), 0)}px`);
+      },
+      endDragOpen: (px) => {
+        if (px !== null) {
+          const width = Math.min(
+            Math.max(Math.round(px), SIDEBAR_MIN_WIDTH),
+            SIDEBAR_MAX_WIDTH,
+          );
+          sidebarRef.current?.resize(`${width}px`);
+          persistSidebarWidth(width, true);
+        }
+        setSidebarLiveMinSize(SIDEBAR_MIN_WIDTH);
+      },
     }),
     [toggleSidebar, persistSidebarWidth],
   );
@@ -541,6 +567,24 @@ export default function App() {
           return;
         }
         panel.resize(`${Math.min(Math.round(px), AI_PANEL_MAX_WIDTH)}px`);
+      },
+      beginDragOpen: () => setAiPanelLiveMinSize(0),
+      applyDragOpen: (px) => {
+        const panel = aiPanelRef.current;
+        if (!panel) return;
+        panel.resize(
+          `${Math.min(Math.max(Math.round(px), 0), AI_PANEL_MAX_WIDTH)}px`,
+        );
+      },
+      endDragOpen: (px) => {
+        if (px !== null) {
+          const width = Math.min(
+            Math.max(Math.round(px), AI_PANEL_MIN_WIDTH),
+            AI_PANEL_MAX_WIDTH,
+          );
+          aiPanelRef.current?.resize(`${width}px`);
+        }
+        setAiPanelLiveMinSize(AI_PANEL_MIN_WIDTH);
       },
     }),
     [hasComposer, handleAiPanelSeparatorPointerDown],
@@ -1705,7 +1749,7 @@ export default function App() {
                       ? "0px"
                       : `${sidebarWidthRef.current}px`
                   }
-                  minSize={`${SIDEBAR_MIN_WIDTH}px`}
+                  minSize={`${sidebarLiveMinSize}px`}
                   maxSize={`${SIDEBAR_MAX_WIDTH}px`}
                   collapsible
                   collapsedSize={0}
@@ -1820,7 +1864,7 @@ export default function App() {
                   id="ai-panel"
                   panelRef={aiPanelRef}
                   defaultSize="0px"
-                  minSize="280px"
+                  minSize={`${aiPanelLiveMinSize}px`}
                   collapsible
                   collapsedSize={0}
                   onResize={(size) => {
