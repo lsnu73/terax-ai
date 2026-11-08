@@ -86,3 +86,15 @@
   - 强制点：`src-tauri/src/lib.rs:151` 的注册顺序（`modules::single_instance::plugin` 排在 clipboard 插件之前，代码内已留注释说明）。
   - ⚠️ 此条暂无自动化强制（注册顺序无法静态断言），靠评审把关。
   - 代码索引：见 [atlas/features/关闭窗口与系统托盘.md](../atlas/features/关闭窗口与系统托盘.md)。
+
+- **INV-018** 无边框透明窗口最大化时，页面根容器必须铺满不透明像素（四角直角），不得保留任何透明真空区；新增自绘透明覆盖层必须同步纳入最大化直角规则。
+  - 违反代价：最大化后窗口四角残留透明像素，WebView 对全透明像素放行命中测试，点击穿透到下层窗口（见 pitfalls/2026-11-08-最大化后四角点击穿透.md）。
+  - 强制点：`src/lib/maximizedChrome.ts` 把最大化状态镜像到 `<html data-maximized>`；`src/styles/globals.css` 的 `html[data-chrome="borderless"][data-maximized]` 规则清零 `#root`/`#settings-root`/`#ai-root` 与 `.terax-bg-surface` 的圆角和描边。
+  - ⚠️ CSS 规则与属性镜像分属两处，暂无自动化测试强制二者同步，靠评审把关。
+  - 代码索引：见 [atlas/features/无边框窗口与边框交互.md](../atlas/features/无边框窗口与边框交互.md)。
+
+- **INV-019** 窗口左右边缘的 webview 侧交互必须与 tao 的原生 resize 命中互补：非最大化时最外圈（SM_CXFRAME，约 4px）由 tao 在 `WM_NCHITTEST` 中返回 resize 命中，网页收不到该区域的指针事件，任何边缘控件不得假设能覆盖最外圈像素；最大化时 tao 不再返回 resize 命中，整条边框的事件全部进入网页。
+  - 违反代价：边缘控件在非最大化时于最外圈永远收不到事件、在最大化时却表现正常，行为随窗口状态分裂；或整条边框被侧栏操作占用，用户无法调整窗口宽度。
+  - 强制点：`src/app/components/WindowEdgeValves.tsx` 的 `maximized`/`resizeActive` 分流（非阀区域调 `startResizeDragging`）；`src-tauri/capabilities/default.json` 的 `core:window:allow-start-resize-dragging` 权限。
+  - ⚠️ 此条暂无自动化强制（依赖 tao 平台实现行为），靠评审把关。
+  - 代码索引：见 [atlas/features/无边框窗口与边框交互.md](../atlas/features/无边框窗口与边框交互.md)；决策依据见 [decisions/2026-11-08-无边框窗口边缘交互分流.md](decisions/2026-11-08-无边框窗口边缘交互分流.md)。

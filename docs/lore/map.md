@@ -43,6 +43,14 @@
 - 职责：终端仿真与渲染核心（含 WebGPU surface），被主应用引用（根包 19 处 import）。
 - 对外暴露：`lib/core.ts`。
 
+### 无边框窗口边缘交互  `src/app/components/WindowEdgeValves.tsx`、`src/lib/maximizedChrome.ts`、`src/styles/globals.css`、`src/components/WindowControls.tsx`
+- 职责：自绘无边框窗口的边缘命中与外观：最大化四角直角、窗口控制按钮通栏点击区、左右边框「阀段=侧栏操作 / 其余=原生 resize」分流。
+- 对外暴露：`useWindowMaximized()`（React 组件）；CSS 状态契约 `<html data-chrome="borderless">` 与 `<html data-maximized>`（`trackMaximizedChrome()` 镜像，仅非 macOS）。
+- 关键依赖：[无边框窗口边缘交互] →（`startResizeDragging`）→ [tao 原生窗口 resize]；[tao `WM_NCHITTEST`] →（非最大化时吃掉最外圈约 4px 指针事件、最大化时整条边框放行，INV-019）→ [无边框窗口边缘交互]。`maximizedChrome.ts` 的 DOM 属性镜像与 React hook 是同一订阅的两条消费通道，改监听逻辑必须两处同验；改 `globals.css` 圆角或新增自绘透明图层必须同步 `[data-maximized]` 直角规则（INV-018）。
+- 代码索引：见 [atlas/features/无边框窗口与边框交互.md](../atlas/features/无边框窗口与边框交互.md)
+- 决策依据：见 decisions/2026-11-08-无边框窗口边缘交互分流.md
+- 易错点：见 pitfalls/2026-11-08-最大化后四角点击穿透.md
+
 ### 终端命令与结果块  `src/modules/terminal/`、`src-tauri/src/modules/pty/scripts/`
 - 职责：所有终端统一按 OSC 133 边界呈现命令和结果块，保持原生提示符与直接输入，提供块右键操作。
 - 对外暴露：`GhosttyBlocks.blockAtLine`、`BlockContextMenu`、`GhosttyBlockOverlay`。

@@ -20,3 +20,4 @@
 - **模块级 `t()`**：`src/modules/i18n/index.ts` 导出的非 React 翻译函数，供 toast、校验函数、原生通知等组件外上下文使用；组件内一律用 `react-i18next` 的 `useTranslation()`。注意测试环境 i18next 未初始化时它返回 `undefined`，相关测试需 `vi.mock("@/modules/i18n")` 或在 `beforeAll` 初始化。
 - **双字典同构**：`locales/zh/*.ts` 用 `: typeof <en导出>` 声明，键结构被 `tsc` 强制与英文一致；en 是唯一基准语言，加键先加 en。
 - **语言偏好（language）**：`terax-settings.json` 的 `language` 键（`"system" | "en" | "zh"`），`system` 由 `resolveLanguage()` 按 `navigator.language` 判定；切换经 prefs-changed 事件跨窗口即时生效，无需重启。
+- **拖拽阀（valve）**：`src/app/components/WindowEdgeValves.tsx` 在窗口左右边框上垂直居中的一小段感应区，点击开关、拖动调整相邻侧栏/AI 面板宽度；术语来自需求方原话。易与面板之间的内置分隔线（`ResizableHandle`）混淆——分隔线在内容区内部、随面板移动；阀固定在窗口边缘，非最大化时仅 96px 高，最大化时通栏全高（INV-019）。
