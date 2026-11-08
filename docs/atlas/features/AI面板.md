@@ -21,7 +21,7 @@
 - 快捷键：`src/modules/shortcuts/shortcuts.ts` 的 `ai.toggle`（Mod+I）。
 - 主窗口协调：`src/app/App.tsx` 的 `toggleAi` / `openAi`（无可用 Provider 时打开设置页 models 分区）。
 - 面板状态：`src/modules/ai/store/aiPanelStore.ts`（open / prefill）；开关封装在 `src/modules/ai/lib/aiPanel.ts`。
-- 面板渲染：App.tsx 布局中 workspace 右侧的条件 `ResizablePanel`，懒加载 `src/modules/ai/components/AiPanel.tsx`。
+- 面板渲染：`src/app/App.tsx` 布局中 workspace 右侧的条件 `ResizablePanel`，懒加载 `src/modules/ai/components/AiPanel.tsx`。
 - 聊天引擎：`AiPanelSession` 对当前会话调用 `getOrCreateChat` + `useChat`，与 `AgentRunBridge` 共享同一 Chat 实例。
 - 附件读取与去重：`src/modules/ai/lib/composer.tsx` 的 `attachFilesByPaths` 批量读文件、按 id 去重后写入 Composer 本地状态；`ComposerPrefill` 消费 `prefill.attachmentPaths`。
 - 文件拖拽：`src/app/App.tsx` 用 `combinePathDropTargets(aiAttachmentDropTarget, terminalPathDropTarget)` 串起 AI 面板与终端；AI 目标的命中区域是 `AiPanel` 根节点上的 `data-ai-attach-drop`，高亮状态在 `src/modules/ai/store/aiAttachmentDropStore.ts`，投放时调用 `prefillAiPanel({ attachmentPaths })`。
