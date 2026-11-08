@@ -57,6 +57,14 @@ export function AboutSection() {
   const available = status.kind === "available";
   const manualAvailable = status.kind === "manual-available";
   const ready = status.kind === "ready";
+  // 下载进度显示在更新按钮内、文字右侧，不再单独占一行。
+  const downloadPercent =
+    downloading && status.contentLength
+      ? Math.min(
+          100,
+          Math.round((status.downloaded / status.contentLength) * 100),
+        )
+      : null;
   const checkLabel =
     status.kind === "uptodate"
       ? t("settings.about.update.upToDate")
@@ -175,6 +183,9 @@ export function AboutSection() {
             disabled={checking || downloading || ready}
           >
             {checkLabel}
+            {downloadPercent !== null && (
+              <span className="font-mono tabular-nums">{downloadPercent}%</span>
+            )}
           </Button>
           <Button
             variant="outline"
@@ -198,15 +209,6 @@ export function AboutSection() {
             {status.message}
           </p>
         )}
-        {downloading && status.contentLength ? (
-          <p className="text-[11px] text-muted-foreground">
-            {Math.min(
-              100,
-              Math.round((status.downloaded / status.contentLength) * 100),
-            )}
-            %
-          </p>
-        ) : null}
       </div>
 
       <div data-setting-id="about.traces" className="flex flex-col gap-3">

@@ -175,9 +175,10 @@ pub async fn lm_ping(base_url: String, proxy: Option<String>) -> Result<u16, Str
 #[tauri::command]
 pub async fn net_http_get(url: String, proxy: Option<String>) -> Result<String, String> {
     let parsed = validate_url(&url, false)?;
+    // 与更新检查请求（Tauri updater 的 timeout 选项）保持一致的 10s 超时。
     let mut builder = reqwest::Client::builder()
         .connect_timeout(Duration::from_secs(10))
-        .timeout(Duration::from_secs(30))
+        .timeout(Duration::from_secs(10))
         .redirect(reqwest::redirect::Policy::limited(5));
     builder = match proxy.as_deref().map(str::trim).filter(|p| !p.is_empty()) {
         Some(p) => builder.proxy(reqwest::Proxy::all(p).map_err(|e| e.to_string())?),

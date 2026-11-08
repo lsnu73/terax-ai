@@ -13,6 +13,8 @@ import { usePreferencesStore } from "@/modules/settings/preferences";
 
 const LAST_CHECK_KEY = "terax:updater:last-check";
 const CHECK_INTERVAL_MS = 30 * 60 * 1000;
+/** 检查更新与下载安装包两个请求的超时。 */
+const UPDATER_TIMEOUT_MS = 10000;
 const GITHUB_LATEST_RELEASE =
   "https://api.github.com/repos/lsnu73/terax-ai/releases/latest";
 
@@ -115,7 +117,10 @@ export const useUpdaterStore = create<UpdaterStore>((set, get) => ({
         return;
       }
       // proxy 随 Update 对象保留，下载阶段继续生效。
-      const update = await check({ proxy: proxy ?? undefined });
+      const update = await check({
+        proxy: proxy ?? undefined,
+        timeout: UPDATER_TIMEOUT_MS,
+      });
       if (update) {
         set({ status: { kind: "available", update }, source });
       } else {
@@ -135,25 +140,28 @@ export const useUpdaterStore = create<UpdaterStore>((set, get) => ({
     let downloaded = 0;
     set({ status: { kind: "downloading", downloaded: 0, contentLength: null } });
     try {
-      await update.downloadAndInstall((event) => {
-        if (event.event === "Started") {
-          total = event.data.contentLength ?? null;
-          set({
-            status: {
-              kind: "downloading",
-              downloaded: 0,
-              contentLength: total,
-            },
-          });
-        } else if (event.event === "Progress") {
-          downloaded += event.data.chunkLength;
-          set({
-            status: { kind: "downloading", downloaded, contentLength: total },
-          });
-        } else if (event.event === "Finished") {
-          set({ status: { kind: "ready" } });
-        }
-      });
+      await update.downloadAndInstall(
+        (event) => {
+          if (event.event === "Started") {
+            total = event.data.contentLength ?? null;
+            set({
+              status: {
+                kind: "downloading",
+                downloaded: 0,
+                contentLength: total,
+              },
+            });
+          } else if (event.event === "Progress") {
+            downloaded += event.data.chunkLength;
+            set({
+              status: { kind: "downloading", downloaded, contentLength: total },
+            });
+          } else if (event.event === "Finished") {
+            set({ status: { kind: "ready" } });
+          }
+        },
+        { timeout: UPDATER_TIMEOUT_MS },
+      );
       await relaunch();
     } catch (err) {
       set({ status: { kind: "error", message: String(err) }, source: null });
