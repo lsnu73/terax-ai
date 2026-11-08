@@ -98,3 +98,9 @@
   - 强制点：`src/app/components/WindowEdgeValves.tsx` 的 `maximized`/`resizeActive` 分流（非阀区域调 `startResizeDragging`）；`src-tauri/capabilities/default.json` 的 `core:window:allow-start-resize-dragging` 权限。
   - ⚠️ 此条暂无自动化强制（依赖 tao 平台实现行为），靠评审把关。
   - 代码索引：见 [atlas/features/无边框窗口与边框交互.md](../atlas/features/无边框窗口与边框交互.md)；决策依据见 [decisions/2026-11-08-无边框窗口边缘交互分流.md](decisions/2026-11-08-无边框窗口边缘交互分流.md)。
+
+- **INV-020** `react-resizable-panels` 的 `minSize` 是布局硬钳制：低于最小宽度的 `resize()` 会被钳回 `minSize`（收起态则按 `collapsedThreshold` 钳回 `collapsedSize`），任何需要面板展示亚最小宽度的交互（如收起态拖阀渐进展开）必须在手势期间临时把面板 `minSize` 降为 0，并在手势收尾时恢复钳制、把宽度补齐到最小宽度；`beginDragOpen()` 与 `endDragOpen()` 必须严格配对，不得只调其一。
+  - 违反代价：收起态拖阀全程无视觉反馈（拖动距离不足阈值时面板纹丝不动、过阈值后从 0 跳到最小宽度）；或钳制解除后未恢复，内置分隔线此后可把面板拖到低于最小宽度并落盘。
+  - 强制点：`src/app/components/WindowEdgeValves.tsx` 的 `EdgeValveController` 契约（`beginDragOpen`/`applyDragOpen`/`endDragOpen`，pointerdown 调 begin、pointerup/pointercancel 必调 end）；`src/app/App.tsx` 的 `sidebarLiveMinSize`/`aiPanelLiveMinSize` 状态与两个 `ResizablePanel` 的 `minSize` 属性。
+  - ⚠️ begin/end 配对靠阀组件的单一路径保证（pointerup 与 pointercancel 共用 `onUp`），暂无自动化测试强制。
+  - 代码索引：见 [atlas/features/无边框窗口与边框交互.md](../atlas/features/无边框窗口与边框交互.md)；坑点分析见 [pitfalls/2026-11-08-收起态拖阀展开被面板库最小宽度钳制吞掉.md](pitfalls/2026-11-08-收起态拖阀展开被面板库最小宽度钳制吞掉.md)。
