@@ -6,12 +6,14 @@ import ReactDOM from "react-dom/client";
 import App from "./app/App";
 import { disableNativeContextMenu } from "./lib/disableNativeContextMenu";
 import { initLaunchDir } from "./lib/launchDir";
+import { trackMaximizedChrome } from "./lib/maximizedChrome";
 import { USE_CUSTOM_WINDOW_CONTROLS } from "./lib/platform";
 import { initI18n } from "./modules/i18n";
 import { terminalDiagnosticsEnabled } from "@/modules/terminal/lib/terminalDiagnosticsEnabled";
 
 if (USE_CUSTOM_WINDOW_CONTROLS) {
   document.documentElement.dataset.chrome = "borderless";
+  trackMaximizedChrome();
 }
 
 disableNativeContextMenu();

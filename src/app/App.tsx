@@ -146,6 +146,10 @@ import {
   useState,
 } from "react";
 import { CloseDialogs } from "./components/CloseDialogs";
+import {
+  type EdgeValveController,
+  WindowEdgeValves,
+} from "./components/WindowEdgeValves";
 import { WorkspaceSurface } from "./components/WorkspaceSurface";
 import { useAppCloseGuard } from "./hooks/useAppCloseGuard";
 import {
@@ -170,12 +174,19 @@ const AiPanel = lazy(() =>
 );
 
 const AI_PANEL_WIDTH_KEY = "terax.ai-panel-width";
+const AI_PANEL_MIN_WIDTH = 280;
+const AI_PANEL_MAX_WIDTH = 1200;
 
 function readAiPanelWidth(): number {
   try {
     const raw = localStorage.getItem(AI_PANEL_WIDTH_KEY);
     const n = raw ? Number.parseInt(raw, 10) : Number.NaN;
-    if (Number.isFinite(n) && n >= 280 && n <= 1200) return n;
+    if (
+      Number.isFinite(n) &&
+      n >= AI_PANEL_MIN_WIDTH &&
+      n <= AI_PANEL_MAX_WIDTH
+    )
+      return n;
   } catch {
     /* ignore */
   }
@@ -493,6 +504,47 @@ export default function App() {
       panel.collapse();
     }
   }, [aiPanelVisible]);
+
+  // 左右窗口边框的「拖拽阀」：非最大化时只有阀执行侧栏打开/关闭/拖动，
+  // 其余边框区域调整窗口宽度；最大化时整条边框执行侧栏操作。见
+  // WindowEdgeValves 组件头注释。
+  // biome-ignore lint/correctness/useExhaustiveDependencies: sidebarRef/aiPanelRef 是稳定的面板句柄
+  const sidebarValve = useMemo<EdgeValveController>(
+    () => ({
+      enabled: () => true,
+      toggle: toggleSidebar,
+      applyWidth: (px) => {
+        const panel = sidebarRef.current;
+        if (!panel) return;
+        if (px < SIDEBAR_MIN_WIDTH) {
+          panel.collapse();
+          return;
+        }
+        const width = Math.min(Math.round(px), SIDEBAR_MAX_WIDTH);
+        panel.resize(`${width}px`);
+        // 阀拖动不经面板组的 onLayoutChanged，显式落盘。
+        persistSidebarWidth(width, true);
+      },
+    }),
+    [toggleSidebar, persistSidebarWidth],
+  );
+  const aiPanelValve = useMemo<EdgeValveController>(
+    () => ({
+      enabled: () => hasComposer,
+      onDisabledActivate: handleAiPanelSeparatorPointerDown,
+      toggle: () => useAiPanelStore.getState().togglePanel(),
+      applyWidth: (px) => {
+        const panel = aiPanelRef.current;
+        if (!panel) return;
+        if (px < AI_PANEL_MIN_WIDTH) {
+          panel.collapse();
+          return;
+        }
+        panel.resize(`${Math.min(Math.round(px), AI_PANEL_MAX_WIDTH)}px`);
+      },
+    }),
+    [hasComposer, handleAiPanelSeparatorPointerDown],
+  );
 
   // 启动空档预热 AI 面板分包：首次 Ctrl+I 不必等分包下载解析，骨架即内容。
   // 仅在存在可用 Provider（hasComposer）时预热，未配置 AI 的启动零开销。
@@ -1636,177 +1688,185 @@ export default function App() {
           )}
 
           <main className="zoom-content flex min-h-0 flex-1 flex-col">
-            <ResizablePanelGroup
-              orientation="horizontal"
-              className="min-h-0 flex-1"
-              onLayoutChanged={(_, { isUserInteraction }) => {
-                const width = sidebarRef.current?.getSize().inPixels ?? 0;
-                persistSidebarWidth(width, isUserInteraction);
-              }}
-            >
-              <ResizablePanel
-                id="sidebar"
-                panelRef={sidebarRef}
-                defaultSize={
-                  initialSidebarCollapsed
-                    ? "0px"
-                    : `${sidebarWidthRef.current}px`
-                }
-                minSize={`${SIDEBAR_MIN_WIDTH}px`}
-                maxSize={`${SIDEBAR_MAX_WIDTH}px`}
-                collapsible
-                collapsedSize={0}
-                onResize={(size) => {
-                  persistSidebarCollapsed(size.inPixels <= 0);
+            <div className="relative flex min-h-0 flex-1">
+              <ResizablePanelGroup
+                orientation="horizontal"
+                className="min-h-0 flex-1"
+                onLayoutChanged={(_, { isUserInteraction }) => {
+                  const width = sidebarRef.current?.getSize().inPixels ?? 0;
+                  persistSidebarWidth(width, isUserInteraction);
                 }}
               >
-                <div className="h-full min-h-0 pl-2 pr-0.5">
-                  <div className="terax-pane flex h-full min-h-0 flex-col">
-                    <div
-                      key={sidebarView}
-                      className="min-h-0 flex-1 terax-panel-in"
-                    >
-                      {deferredUiReady ? (
-                        sidebarView === "explorer" ? (
-                          <FileExplorer
-                            ref={explorerRef}
-                            rootPath={explorerRoot}
-                            gitStatus={
-                              explorerGitDecorations
-                                ? sourceControl.status
-                                : null
-                            }
-                            activeFilePath={explorerActiveFilePath}
-                            onOpenFile={handleOpenFile}
-                            onPathRenamed={handleExplorerPathRenamed}
-                            onPathsDeleted={handlePathsDeleted}
-                            canReplacePath={canReplaceExplorerPath}
-                            onRevealInTerminal={cdInNewTab}
-                            onOpenInSourceControl={
-                              handleOpenRepositoryInSourceControl
-                            }
-                            onOpenGitHistory={handleOpenGitHistoryForPath}
-                            onAttachToAgent={handleAttachFileToAgent}
-                            pathDropTarget={explorerPathDropTarget}
-                            visible={!sidebarCollapsed}
-                          />
-                        ) : (
-                          <SourceControlPanel
-                            open
-                            sourceControl={sourceControl}
-                            onOpenDiff={openGitDiffTab}
-                            onOpenGitGraph={openGitGraphFromContext}
-                            onOpenFile={handleOpenFile}
-                            onNavigateToPath={cdInNewTab}
-                            repositoryTarget={sourceControlRepositoryTarget}
-                            onFollowRepositoryContext={
-                              handleFollowRepositoryContext
-                            }
-                          />
-                        )
-                      ) : null}
-                    </div>
-                    <SidebarRail
-                      activeView={sidebarView}
-                      onSelectView={persistSidebarView}
-                      changedCount={sourceControl.changedCount}
-                    />
-                  </div>
-                </div>
-              </ResizablePanel>
-              <ResizableHandle
-                grip
-                className="w-1 rounded-full bg-transparent transition-colors duration-[var(--dur-fast)] after:w-4 hover:bg-border"
-              />
-              <ResizablePanel id="workspace" defaultSize="78%" minSize="30%">
-                <div className="h-full min-h-0 px-0.5">
-                  <div className="terax-pane flex h-full min-h-0 flex-col">
-                    <div className="relative min-h-0 flex-1">
-                      <WorkspaceSurface
-                        tabs={tabs}
-                        activeId={activeId}
-                        activeTab={activeTab}
-                        registerTerminalHandle={registerTerminalHandle}
-                        onSearchReady={handleSearchReady}
-                        onBlockSearch={handleBlockSearch}
-                        onBlockSearchClose={handleBlockSearchClose}
-                        onCwd={handleTerminalCwd}
-                        onExit={handleLeafExit}
-                        onOpenPreviewUrl={openPreviewTab}
-                        onFocusLeaf={handleFocusLeaf}
-                        registerEditorHandle={registerEditorHandle}
-                        onEditorDirtyChange={handleEditorDirty}
-                        onEditorCloseTab={disposeTab}
-                        registerPreviewHandle={registerPreviewHandle}
-                        onPreviewUrlChange={handlePreviewUrl}
-                        onAiDiffAccept={(id) => respondToApproval(id, true)}
-                        onAiDiffReject={(id) => respondToApproval(id, false)}
-                        onOpenCommitFile={openCommitFileDiffTab}
-                        onGitHistorySearchHandle={setGitHistoryHandle}
-                        onSetMarkdownView={setMarkdownView}
-                        onSettingsSectionChange={(section) => {
-                          const settings = tabs.find(
-                            (t) => t.kind === "settings",
-                          );
-                          if (settings) {
-                            setSettingsSection(settings.id, section);
-                          }
-                        }}
+                <ResizablePanel
+                  id="sidebar"
+                  panelRef={sidebarRef}
+                  defaultSize={
+                    initialSidebarCollapsed
+                      ? "0px"
+                      : `${sidebarWidthRef.current}px`
+                  }
+                  minSize={`${SIDEBAR_MIN_WIDTH}px`}
+                  maxSize={`${SIDEBAR_MAX_WIDTH}px`}
+                  collapsible
+                  collapsedSize={0}
+                  onResize={(size) => {
+                    persistSidebarCollapsed(size.inPixels <= 0);
+                  }}
+                >
+                  <div className="h-full min-h-0 pl-2 pr-0.5">
+                    <div className="terax-pane flex h-full min-h-0 flex-col">
+                      <div
+                        key={sidebarView}
+                        className="min-h-0 flex-1 terax-panel-in"
+                      >
+                        {deferredUiReady ? (
+                          sidebarView === "explorer" ? (
+                            <FileExplorer
+                              ref={explorerRef}
+                              rootPath={explorerRoot}
+                              gitStatus={
+                                explorerGitDecorations
+                                  ? sourceControl.status
+                                  : null
+                              }
+                              activeFilePath={explorerActiveFilePath}
+                              onOpenFile={handleOpenFile}
+                              onPathRenamed={handleExplorerPathRenamed}
+                              onPathsDeleted={handlePathsDeleted}
+                              canReplacePath={canReplaceExplorerPath}
+                              onRevealInTerminal={cdInNewTab}
+                              onOpenInSourceControl={
+                                handleOpenRepositoryInSourceControl
+                              }
+                              onOpenGitHistory={handleOpenGitHistoryForPath}
+                              onAttachToAgent={handleAttachFileToAgent}
+                              pathDropTarget={explorerPathDropTarget}
+                              visible={!sidebarCollapsed}
+                            />
+                          ) : (
+                            <SourceControlPanel
+                              open
+                              sourceControl={sourceControl}
+                              onOpenDiff={openGitDiffTab}
+                              onOpenGitGraph={openGitGraphFromContext}
+                              onOpenFile={handleOpenFile}
+                              onNavigateToPath={cdInNewTab}
+                              repositoryTarget={sourceControlRepositoryTarget}
+                              onFollowRepositoryContext={
+                                handleFollowRepositoryContext
+                              }
+                            />
+                          )
+                        ) : null}
+                      </div>
+                      <SidebarRail
+                        activeView={sidebarView}
+                        onSelectView={persistSidebarView}
+                        changedCount={sourceControl.changedCount}
                       />
                     </div>
                   </div>
-                </div>
-              </ResizablePanel>
-              <ResizableHandle
-                grip
-                disabled={!hasComposer}
-                onPointerDown={handleAiPanelSeparatorPointerDown}
-                className="w-1 rounded-full bg-transparent transition-colors duration-[var(--dur-fast)] after:w-4 hover:bg-border"
-              />
-              <ResizablePanel
-                id="ai-panel"
-                panelRef={aiPanelRef}
-                defaultSize="0px"
-                minSize="280px"
-                collapsible
-                collapsedSize={0}
-                onResize={(size) => {
-                  if (!hasComposer) {
-                    if (size.inPixels > 0) aiPanelRef.current?.collapse();
-                    return;
-                  }
-                  if (size.inPixels <= 0) {
-                    // 拖拽收合与 closePanel 同步（含清除 prefill），
-                    // 下一次 Ctrl+I 从收合位重新展开。
-                    if (useAiPanelStore.getState().open) {
-                      useAiPanelStore.getState().closePanel();
-                    }
-                    return;
-                  }
-                  try {
-                    localStorage.setItem(
-                      AI_PANEL_WIDTH_KEY,
-                      String(size.inPixels),
-                    );
-                  } catch {
-                    /* ignore */
-                  }
-                  if (!useAiPanelStore.getState().open) {
-                    openAiPanel();
-                  }
-                }}
-              >
-                {aiPanelVisible ? (
-                  <div className="h-full min-h-0 pl-0.5 pr-2">
-                    <div className="terax-pane h-full min-h-0 overflow-hidden">
-                      <Suspense fallback={<AiPanelSkeleton />}>
-                        <AiPanel onClose={closeAiPanel} />
-                      </Suspense>
+                </ResizablePanel>
+                <ResizableHandle
+                  grip
+                  className="w-1 rounded-full bg-transparent transition-colors duration-[var(--dur-fast)] after:w-4 hover:bg-border"
+                />
+                <ResizablePanel id="workspace" defaultSize="78%" minSize="30%">
+                  <div className="h-full min-h-0 px-0.5">
+                    <div className="terax-pane flex h-full min-h-0 flex-col">
+                      <div className="relative min-h-0 flex-1">
+                        <WorkspaceSurface
+                          tabs={tabs}
+                          activeId={activeId}
+                          activeTab={activeTab}
+                          registerTerminalHandle={registerTerminalHandle}
+                          onSearchReady={handleSearchReady}
+                          onBlockSearch={handleBlockSearch}
+                          onBlockSearchClose={handleBlockSearchClose}
+                          onCwd={handleTerminalCwd}
+                          onExit={handleLeafExit}
+                          onOpenPreviewUrl={openPreviewTab}
+                          onFocusLeaf={handleFocusLeaf}
+                          registerEditorHandle={registerEditorHandle}
+                          onEditorDirtyChange={handleEditorDirty}
+                          onEditorCloseTab={disposeTab}
+                          registerPreviewHandle={registerPreviewHandle}
+                          onPreviewUrlChange={handlePreviewUrl}
+                          onAiDiffAccept={(id) => respondToApproval(id, true)}
+                          onAiDiffReject={(id) => respondToApproval(id, false)}
+                          onOpenCommitFile={openCommitFileDiffTab}
+                          onGitHistorySearchHandle={setGitHistoryHandle}
+                          onSetMarkdownView={setMarkdownView}
+                          onSettingsSectionChange={(section) => {
+                            const settings = tabs.find(
+                              (t) => t.kind === "settings",
+                            );
+                            if (settings) {
+                              setSettingsSection(settings.id, section);
+                            }
+                          }}
+                        />
+                      </div>
                     </div>
                   </div>
-                ) : null}
-              </ResizablePanel>
-            </ResizablePanelGroup>
+                </ResizablePanel>
+                <ResizableHandle
+                  grip
+                  disabled={!hasComposer}
+                  onPointerDown={handleAiPanelSeparatorPointerDown}
+                  className="w-1 rounded-full bg-transparent transition-colors duration-[var(--dur-fast)] after:w-4 hover:bg-border"
+                />
+                <ResizablePanel
+                  id="ai-panel"
+                  panelRef={aiPanelRef}
+                  defaultSize="0px"
+                  minSize="280px"
+                  collapsible
+                  collapsedSize={0}
+                  onResize={(size) => {
+                    if (!hasComposer) {
+                      if (size.inPixels > 0) aiPanelRef.current?.collapse();
+                      return;
+                    }
+                    if (size.inPixels <= 0) {
+                      // 拖拽收合与 closePanel 同步（含清除 prefill），
+                      // 下一次 Ctrl+I 从收合位重新展开。
+                      if (useAiPanelStore.getState().open) {
+                        useAiPanelStore.getState().closePanel();
+                      }
+                      return;
+                    }
+                    try {
+                      localStorage.setItem(
+                        AI_PANEL_WIDTH_KEY,
+                        String(size.inPixels),
+                      );
+                    } catch {
+                      /* ignore */
+                    }
+                    if (!useAiPanelStore.getState().open) {
+                      openAiPanel();
+                    }
+                  }}
+                >
+                  {aiPanelVisible ? (
+                    <div className="h-full min-h-0 pl-0.5 pr-2">
+                      <div className="terax-pane h-full min-h-0 overflow-hidden">
+                        <Suspense fallback={<AiPanelSkeleton />}>
+                          <AiPanel onClose={closeAiPanel} />
+                        </Suspense>
+                      </div>
+                    </div>
+                  ) : null}
+                </ResizablePanel>
+              </ResizablePanelGroup>
+              <WindowEdgeValves
+                left={sidebarValve}
+                right={aiPanelValve}
+                leftCollapsed={sidebarCollapsed}
+                rightCollapsed={!aiPanelVisible}
+              />
+            </div>
           </main>
 
           {!zenMode && (

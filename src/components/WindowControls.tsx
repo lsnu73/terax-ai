@@ -1,3 +1,4 @@
+import { useWindowMaximized } from "@/lib/maximizedChrome";
 import { USE_CUSTOM_WINDOW_CONTROLS } from "@/lib/platform";
 import { cn } from "@/lib/utils";
 import {
@@ -8,7 +9,6 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 type Props = {
@@ -18,29 +18,14 @@ type Props = {
 
 export function WindowControls({ closeOnly = false }: Props) {
   const { t } = useTranslation();
-  const [maximized, setMaximized] = useState(false);
-
-  useEffect(() => {
-    if (!USE_CUSTOM_WINDOW_CONTROLS || closeOnly) return;
-    const w = getCurrentWindow();
-    let unlisten: (() => void) | undefined;
-    void w.isMaximized().then(setMaximized);
-    void w
-      .onResized(() => {
-        void w.isMaximized().then(setMaximized);
-      })
-      .then((un) => {
-        unlisten = un;
-      });
-    return () => unlisten?.();
-  }, [closeOnly]);
+  const maximized = useWindowMaximized();
 
   if (!USE_CUSTOM_WINDOW_CONTROLS) return null;
 
   const w = getCurrentWindow();
 
   return (
-    <div className="flex h-full shrink-0 items-center gap-0.5 pr-1">
+    <div className="flex h-full shrink-0">
       {!closeOnly && (
         <>
           <CtlButton
@@ -94,7 +79,11 @@ function CtlButton({
       title={ariaLabel}
       onClick={onClick}
       className={cn(
-        "grid size-7 place-items-center rounded-md text-muted-foreground transition-colors",
+        // Full titlebar height and no gaps anywhere in the control strip:
+        // every pixel from the first button to the window's right edge must
+        // be clickable (icon stays at its visual size; only the hit area
+        // grows).
+        "grid h-full w-11 place-items-center text-muted-foreground transition-colors",
         danger
           ? "hover:bg-destructive/15 hover:text-destructive"
           : "hover:bg-accent hover:text-foreground",

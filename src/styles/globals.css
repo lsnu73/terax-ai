@@ -286,6 +286,19 @@ html[data-chrome="borderless"] #ai-root {
 html[data-chrome="borderless"] #root {
   background: var(--frame);
 }
+/* Maximized: square the chrome off so it meets the screen corners. Rounded
+ * corners over a transparent window would leave dead zones there where
+ * clicks fall through to whatever is underneath (`data-maximized` is kept
+ * in sync by src/lib/maximizedChrome.ts). */
+html[data-chrome="borderless"][data-maximized] #root,
+html[data-chrome="borderless"][data-maximized] #settings-root,
+html[data-chrome="borderless"][data-maximized] #ai-root {
+  border-radius: 0;
+  border: none;
+}
+html[data-chrome="borderless"][data-maximized] .terax-bg-surface {
+  border-radius: 0;
+}
 
 
 
