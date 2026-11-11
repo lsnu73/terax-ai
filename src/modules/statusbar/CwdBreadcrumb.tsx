@@ -13,6 +13,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useCaptureOutsideDismiss } from "@/lib/useCaptureOutsideDismiss";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import { currentWorkspaceEnv } from "@/modules/workspace";
 import {
@@ -23,7 +24,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { invoke } from "@tauri-apps/api/core";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { segmentsFromCwd } from "./lib/pathUtils";
 
@@ -182,6 +183,8 @@ function CurrentSegmentDropdown({
   const [open, setOpen] = useState(false);
   const [children, setChildren] = useState<string[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  useCaptureOutsideDismiss(open, contentRef, () => setOpen(false));
 
   const load = useCallback(async () => {
     setError(null);
@@ -225,7 +228,11 @@ function CurrentSegmentDropdown({
           />
         </BreadcrumbPage>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="max-h-72 overflow-y-auto">
+      <DropdownMenuContent
+        ref={contentRef}
+        align="start"
+        className="max-h-72 overflow-y-auto"
+      >
         {children === null ? (
           <div className="px-2 py-1.5 text-xs text-muted-foreground">
             {t("common.loading")}
@@ -264,10 +271,13 @@ function CollapsedSegments({
   onCd: (p: string) => void;
 }) {
   const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+  useCaptureOutsideDismiss(open, contentRef, () => setOpen(false));
   return (
     <span className="contents md:hidden">
       <BreadcrumbItem>
-        <DropdownMenu>
+        <DropdownMenu open={open} onOpenChange={setOpen}>
           <DropdownMenuTrigger asChild>
             <button
               type="button"
@@ -281,7 +291,11 @@ function CollapsedSegments({
               />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="min-w-44">
+          <DropdownMenuContent
+            ref={contentRef}
+            align="start"
+            className="min-w-44"
+          >
             {segments.map((s) => (
               <DropdownMenuItem
                 key={s.fullPath}

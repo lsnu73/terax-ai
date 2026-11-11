@@ -6,6 +6,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { IS_WINDOWS } from "@/lib/platform";
+import { useCaptureOutsideDismiss } from "@/lib/useCaptureOutsideDismiss";
 import {
   LOCAL_WORKSPACE,
   useWorkspaceEnvStore,
@@ -13,6 +14,7 @@ import {
 } from "@/modules/workspace";
 import { Refresh01Icon, ServerStack03Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 type Props = {
@@ -32,17 +34,21 @@ function WorkspaceEnvSelectorWindows({ onSelect }: Props) {
   const loading = useWorkspaceEnvStore((s) => s.loading);
   const error = useWorkspaceEnvStore((s) => s.error);
   const refreshDistros = useWorkspaceEnvStore((s) => s.refreshDistros);
+  const [open, setOpen] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+  useCaptureOutsideDismiss(open, contentRef, () => setOpen(false));
 
-  const handleOpenChange = (open: boolean) => {
-    if (open && distros.length === 0 && !loading) {
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (nextOpen && distros.length === 0 && !loading) {
       void refreshDistros();
     }
+    setOpen(nextOpen);
   };
 
   const label = env.kind === "wsl" ? `WSL: ${env.distro}` : "Windows";
 
   return (
-    <DropdownMenu onOpenChange={handleOpenChange}>
+    <DropdownMenu open={open} onOpenChange={handleOpenChange}>
       <DropdownMenuTrigger asChild>
         <button
           type="button"
@@ -57,7 +63,7 @@ function WorkspaceEnvSelectorWindows({ onSelect }: Props) {
           <span className="max-w-28 truncate">{label}</span>
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="min-w-48">
+      <DropdownMenuContent ref={contentRef} align="start" className="min-w-48">
         <DropdownMenuItem onSelect={() => onSelect(LOCAL_WORKSPACE)}>
           {t("statusbar.windowsLocal")}
         </DropdownMenuItem>

@@ -10,6 +10,7 @@ import {
   PopoverAnchor,
   PopoverContent,
 } from "@/components/ui/popover";
+import { useCaptureOutsideDismiss } from "@/lib/useCaptureOutsideDismiss";
 import { AgentLauncherPanel } from "@/modules/agents/components/AgentLauncherPanel";
 import type { AgentLaunchRequest } from "@/modules/agents/lib/launcher";
 import {
@@ -52,8 +53,10 @@ export function NewTabMenu({
   const newTabHint = useShortcutHint("tab.new");
   const [menuOpen, setMenuOpen] = useState(false);
   const [launcherOpen, setLauncherOpen] = useState(false);
+  const menuContentRef = useRef<HTMLDivElement>(null);
   const openLauncherAfterMenuClose = useRef(false);
   const openMenuAfterLauncherClose = useRef(false);
+  useCaptureOutsideDismiss(menuOpen, menuContentRef, () => setMenuOpen(false));
 
   const onMenuOpenChange = (next: boolean) => {
     if (next) {
@@ -88,6 +91,7 @@ export function NewTabMenu({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent
+              ref={menuContentRef}
               align="start"
               className="min-w-44"
               onCloseAutoFocus={(event) => {

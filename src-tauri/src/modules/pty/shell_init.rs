@@ -560,6 +560,36 @@ mod windows {
         args: Vec<String>,
     }
 
+    const PROXY_WSLENV_TOKENS: [&str; 6] = [
+        "HTTP_PROXY/u",
+        "HTTPS_PROXY/u",
+        "ALL_PROXY/u",
+        "http_proxy/u",
+        "https_proxy/u",
+        "all_proxy/u",
+    ];
+
+    fn wslenv_with_terax(existing: &str, blocks: bool, proxy: bool) -> String {
+        let mut required = vec!["TERAX_TERMINAL/u"];
+        if blocks {
+            required.push("TERAX_BLOCKS/u");
+        }
+        if proxy {
+            required.extend(PROXY_WSLENV_TOKENS);
+        }
+
+        let mut tokens: Vec<&str> = existing
+            .split(':')
+            .filter(|token| !token.is_empty())
+            .collect();
+        for &token in &required {
+            if !tokens.contains(&token) {
+                tokens.push(token);
+            }
+        }
+        tokens.join(":")
+    }
+
     pub fn build(
         cwd: Option<String>,
         workspace: WorkspaceEnv,
@@ -569,8 +599,8 @@ mod windows {
         proxy: Option<String>,
     ) -> Result<CommandBuilder, String> {
         if let WorkspaceEnv::Wsl { distro } = workspace {
-            let _ = (blocks, shell, control);
-            return build_wsl(cwd, distro, proxy.as_deref());
+            let _ = (shell, control);
+            return build_wsl(cwd, distro, blocks, proxy.as_deref());
         }
         let shell_path = shell
             .map(|s| s.trim().to_string())
@@ -630,6 +660,7 @@ mod windows {
     fn build_wsl(
         cwd: Option<String>,
         distro: String,
+        blocks: bool,
         proxy: Option<&str>,
     ) -> Result<CommandBuilder, String> {
         crate::modules::workspace::validate_wsl_distro_name(&distro)?;
@@ -692,21 +723,16 @@ mod windows {
         cmd.env("TERM", "xterm-256color");
         cmd.env("COLORTERM", "truecolor");
         cmd.env("TERAX_TERMINAL", "1");
-        // wsl.exe 不默认转发进程环境，需经 WSLENV 把代理变量带进发行版。
-        super::apply_proxy_env(&mut cmd, proxy);
-        if proxy.is_some() {
-            const TOKENS: &str =
-                "HTTP_PROXY/u:HTTPS_PROXY/u:ALL_PROXY/u:http_proxy/u:https_proxy/u:all_proxy/u";
-            let existing = std::env::var("WSLENV").unwrap_or_default();
-            cmd.env(
-                "WSLENV",
-                if existing.is_empty() {
-                    TOKENS.to_string()
-                } else {
-                    format!("{existing}:{TOKENS}")
-                },
-            );
+        if blocks {
+            cmd.env("TERAX_BLOCKS", "1");
         }
+        super::apply_proxy_env(&mut cmd, proxy);
+        // wsl.exe 不默认转发进程环境，终端集成和代理变量都需经 WSLENV 带入发行版。
+        let existing = std::env::var("WSLENV").unwrap_or_default();
+        cmd.env(
+            "WSLENV",
+            wslenv_with_terax(&existing, blocks, proxy.is_some()),
+        );
         super::ensure_utf8_locale(&mut cmd);
         log::info!("spawning WSL shell: {distro} ({shell_path})");
         Ok(cmd)
@@ -942,6 +968,31 @@ mod windows {
     #[cfg(test)]
     mod tests {
         use super::*;
+
+        #[test]
+        fn wslenv_forwards_terminal_and_optional_blocks() {
+            assert_eq!(
+                wslenv_with_terax("", true, false),
+                "TERAX_TERMINAL/u:TERAX_BLOCKS/u"
+            );
+            assert_eq!(wslenv_with_terax("", false, false), "TERAX_TERMINAL/u");
+        }
+
+        #[test]
+        fn wslenv_preserves_existing_tokens_without_duplicates() {
+            assert_eq!(
+                wslenv_with_terax("CUSTOM/u:TERAX_TERMINAL/u", true, false),
+                "CUSTOM/u:TERAX_TERMINAL/u:TERAX_BLOCKS/u"
+            );
+        }
+
+        #[test]
+        fn wslenv_preserves_all_proxy_tokens() {
+            assert_eq!(
+                wslenv_with_terax("CUSTOM/u", false, true),
+                "CUSTOM/u:TERAX_TERMINAL/u:HTTP_PROXY/u:HTTPS_PROXY/u:ALL_PROXY/u:http_proxy/u:https_proxy/u:all_proxy/u"
+            );
+        }
 
         #[test]
         fn builds_wsl_zsh_launch_spec_with_env_and_login() {

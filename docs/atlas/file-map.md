@@ -3,7 +3,7 @@
 > 只收录有业务含义的源文件。自动生成文件、测试、构建脚本和纯配置不在此列。
 > 一个文件涉及多个功能时，第二列登记主归属，其余登记在第三列。
 > 表格是唯一数据源；目录树由 project-atlas 的 render-file-map-tree.sh 生成，不要手改。
-> 最后校验：2026-11-08
+> 最后校验：2026-11-11
 
 ## 按目录浏览
 
@@ -18,11 +18,12 @@ src-tauri/
         │   └── clients.rs — [代理] reqwest 客户端缓存，代理地址纳入缓存键（次：AI 会话）
         ├── proxy.rs — [代理] 代理软件进程检测与启动
         ├── pty/
-        │   └── scripts/
-        │       ├── bashrc.bash — [终端命令与结果块] OSC 133 标记、PS0 预执行与块头间隔空行（次：bash 集成）
-        │       ├── init.fish — [终端命令与结果块] OSC 133 标记、命令行上报与块头间隔空行（次：fish 集成）
-        │       ├── profile.ps1 — [终端命令与结果块] OSC 133 标记、命令行上报与块头间隔空行（次：PowerShell 集成）
-        │       └── zshrc.zsh — [终端命令与结果块] OSC 133 标记、命令行上报与块头间隔空行（次：zsh 集成）
+        │   ├── scripts/
+        │   │   ├── bashrc.bash — [终端命令与结果块] OSC 133 标记、PS0 预执行与块头间隔空行（次：bash 集成）
+        │   │   ├── init.fish — [终端命令与结果块] OSC 133 标记、命令行上报与块头间隔空行（次：fish 集成）
+        │   │   ├── profile.ps1 — [终端命令与结果块] OSC 133 标记、命令行上报与块头间隔空行（次：PowerShell 集成）
+        │   │   └── zshrc.zsh — [终端命令与结果块] OSC 133 标记、命令行上报与块头间隔空行（次：zsh 集成）
+        │   └── shell_init.rs — [终端命令与结果块] Windows/WSL Shell 启动与终端集成环境；`WSLENV` 合并转发（次：代理）
         ├── single_instance.rs — [关闭窗口与系统托盘] 单实例插件封装：二次启动转发 argv、唤回主窗口后新进程退出
         ├── traces.rs — [设置-关于] `app_traces`：安装、配置、数据、缓存、日志、注册表与凭据痕迹
         └── tray.rs — [关闭窗口与系统托盘] 托盘图标、左键恢复窗口、右键菜单（打开/关闭程序）；`reveal_main_window` 供托盘、二次启动与 Dock 共用
@@ -45,7 +46,8 @@ src/
 ├── lib/
 │   ├── external-link.ts — [终端链接打开] Ctrl 或 Cmd 分支调用系统浏览器（次：外部链接）
 │   ├── maximizedChrome.ts — [无边框窗口与边框交互] 窗口最大化状态订阅：`<html data-maximized>` 镜像与 `useWindowMaximized` hook
-│   └── open-path.ts — [终端链接打开] 路径识别与文件管理器打开（次：终端路径历史）
+│   ├── open-path.ts — [终端链接打开] 路径识别与文件管理器打开（次：终端路径历史）
+│   └── useCaptureOutsideDismiss.ts — [标签页管理] 受控浮层的 document 捕获阶段外部指针关闭与监听清理（次：状态栏工作区与路径）
 ├── main.tsx — [无边框窗口与边框交互] 应用引导：`data-chrome="borderless"` 标记、最大化状态镜像、窗口延迟显示
 ├── modules/
 │   ├── agents/
@@ -146,6 +148,10 @@ src/
 │   │   └── shortcuts.ts — [快捷键提示] 快捷键 ID、默认绑定、显示令牌、Ctrl+R 保留判定与设置搜索快捷键索引来源（次：撤销终端窗格拆分、开发者工具、终端命令与结果块、设置页）
 │   ├── source-control/
 │   │   └── useSourceControlPanel.ts — [AI提交信息生成] 生成流程编排与 Conventional 校验/修复重试（次：源代码管理）
+│   ├── statusbar/
+│   │   ├── CwdBreadcrumb.tsx — [状态栏工作区与路径] 路径面包屑、子目录导航与折叠路径受控菜单（次：终端路径历史）
+│   │   ├── StatusBar.tsx — [状态栏工作区与路径] 组装工作区环境、路径导航和状态操作入口（次：代理、AI面板）
+│   │   └── WorkspaceEnvSelector.tsx — [状态栏工作区与路径] Windows/WSL 工作区选择、发行版懒加载与受控菜单
 │   ├── tabs/
 │   │   ├── NewTabMenu.tsx — [标签页管理] 新建标签类型与编码代理启动入口，菜单显示快捷键（次：快捷键提示）
 │   │   ├── TabBar.tsx — [标签页管理] 标签栏、受控右键菜单与捕获阶段外部点击关闭（次：快捷键提示）
@@ -216,6 +222,7 @@ src/
 | `src/app/components/CloseDialogs.tsx` | [关闭窗口与系统托盘](features/关闭窗口与系统托盘.md) | 标签关闭确认 | 退出/缩小到托盘选择窗口与「记住我的选择」 |
 | `src/components/WindowControls.tsx` | [关闭窗口与系统托盘](features/关闭窗口与系统托盘.md) | [无边框窗口与边框交互](features/无边框窗口与边框交互.md) | 最小化/最大化/关闭按钮；点击区通栏标题栏；关闭仍只调用 `window.close()` |
 | `src/lib/maximizedChrome.ts` | [无边框窗口与边框交互](features/无边框窗口与边框交互.md) | 无 | 窗口最大化状态订阅：`<html data-maximized>` 镜像与 `useWindowMaximized` hook |
+| `src/lib/useCaptureOutsideDismiss.ts` | [标签页管理](features/标签页管理.md) | [状态栏工作区与路径](features/状态栏工作区与路径.md) | 受控浮层的 document 捕获阶段外部指针关闭与监听清理 |
 | `src/app/components/WindowEdgeValves.tsx` | [无边框窗口与边框交互](features/无边框窗口与边框交互.md) | [AI面板](features/AI面板.md)、[文件资源管理器](features/文件资源管理器.md) | 左右边框拖拽阀：阀段开关/拖动侧栏与 AI 面板，其余边框区域交系统原生 resize |
 | `src/main.tsx` | [无边框窗口与边框交互](features/无边框窗口与边框交互.md) | 无 | 应用引导：`data-chrome="borderless"` 标记、最大化状态镜像、窗口延迟显示 |
 | `src-tauri/src/modules/tray.rs` | [关闭窗口与系统托盘](features/关闭窗口与系统托盘.md) | 无 | 托盘图标、左键恢复窗口、右键菜单（打开/关闭程序）；`reveal_main_window` 供托盘、二次启动与 Dock 共用 |
@@ -235,6 +242,9 @@ src/
 | `src/modules/agents/store/agentStore.ts` | [通知中心](features/通知中心.md) | 外部编码代理管理 | 活跃 Agent、50 条通知历史、已读与稳定 ID 更新 |
 | `src/modules/agents/lib/route.ts` | [通知中心](features/通知中心.md) | 外部编码代理管理 | Agent 通知送达、正文入队和应用内显示方式 |
 | `src/modules/header/SearchInline.tsx` | [快捷键提示](features/快捷键提示.md) | [标签内搜索](features/标签内搜索.md)、[终端命令与结果块](features/终端命令与结果块.md) | Ctrl+F 与命令块查找共用的弹窗，按 target 切换全文或局部控制器；无 target 时不渲染 |
+| `src/modules/statusbar/StatusBar.tsx` | [状态栏工作区与路径](features/状态栏工作区与路径.md) | [代理](features/代理.md)、[AI面板](features/AI面板.md) | 组装工作区环境、路径导航和状态操作入口 |
+| `src/modules/statusbar/WorkspaceEnvSelector.tsx` | [状态栏工作区与路径](features/状态栏工作区与路径.md) | 无 | Windows/WSL 工作区选择、发行版懒加载与受控菜单 |
+| `src/modules/statusbar/CwdBreadcrumb.tsx` | [状态栏工作区与路径](features/状态栏工作区与路径.md) | [终端路径历史](features/终端路径历史.md) | 路径面包屑、子目录导航与折叠路径受控菜单 |
 | `src/modules/tabs/NewTabMenu.tsx` | [标签页管理](features/标签页管理.md) | [快捷键提示](features/快捷键提示.md) | 新建标签类型与编码代理启动入口，菜单显示快捷键 |
 | `src/modules/tabs/TabBar.tsx` | [标签页管理](features/标签页管理.md) | [快捷键提示](features/快捷键提示.md) | 标签栏、受控右键菜单与捕获阶段外部点击关闭 |
 | `src/modules/ai/components/AiOpenButton.tsx` | [快捷键提示](features/快捷键提示.md) | [AI面板](features/AI面板.md) | 状态栏 AI 开关与动态快捷键提示 |
@@ -271,6 +281,7 @@ src/
 | `src/modules/terminal/ghostty/GhosttyBlocks.ts` | [终端命令与结果块](features/终端命令与结果块.md) | Ghostty model 适配 | OSC 133 块边界、读取、局部文本/正则搜索、右键命中与时间线/定位 |
 | `src/modules/terminal/ghostty/search/GhosttyBlockSearchController.ts` | [终端命令与结果块](features/终端命令与结果块.md) | 标签内搜索 | 把异步块扫描、取消和匹配导航适配为 TerminalSearchController |
 | `src/modules/terminal/ghostty/GhosttyBlockOverlay.tsx` | [终端命令与结果块](features/终端命令与结果块.md) | 会话桥接 | 连接块控制器与覆盖层，清块时关闭共享搜索 |
+| `src-tauri/src/modules/pty/shell_init.rs` | [终端命令与结果块](features/终端命令与结果块.md) | [代理](features/代理.md) | Windows/WSL Shell 启动与终端集成环境；`WSLENV` 合并转发 |
 | `src-tauri/src/modules/pty/scripts/profile.ps1` | [终端命令与结果块](features/终端命令与结果块.md) | PowerShell 集成 | OSC 133 标记、命令行上报与块头间隔空行 |
 | `src-tauri/src/modules/pty/scripts/zshrc.zsh` | [终端命令与结果块](features/终端命令与结果块.md) | zsh 集成 | OSC 133 标记、命令行上报与块头间隔空行 |
 | `src-tauri/src/modules/pty/scripts/bashrc.bash` | [终端命令与结果块](features/终端命令与结果块.md) | bash 集成 | OSC 133 标记、PS0 预执行与块头间隔空行 |
