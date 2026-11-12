@@ -62,7 +62,7 @@
 ### 终端光标与 AI 焦点交接  `src/modules/terminal/ghostty/`、`src/modules/ai/lib/composer.tsx`
 - 职责：让终端光标只在真实输入焦点存在时显示并按设置闪烁，AI 面板打开和关闭时完成键盘焦点交接。
 - 对外暴露：`GhosttyInputControllerOptions.onFocusChange`、surface `setInputFocused`、`TerminalPaneHandle.focus()`。
-- 关键依赖：[终端 textarea focus/blur] → [输入控制器] → [WebGPU/WebGL surface 光标与定时器]；[AI 面板打开] → [Composer 挂载聚焦] → [终端 input blur 隐藏光标]；[AI 面板关闭] → [App 可见性边界] → [当前 activeLeafId 终端聚焦]。
+- 关键依赖：[终端 textarea focus/blur] → [输入控制器] → [WebGPU/WebGL surface 光标与定时器]；[AI 面板打开] → [Composer 挂载聚焦] → [终端 input blur 隐藏光标]；[AI 面板关闭] → [App 可见性边界] → [当前 activeLeafId 终端聚焦]；[最近路径弹窗关闭] → [App 关闭边界] → [当前 activeLeafId 终端聚焦]。
 - 代码索引：见 [atlas/features/终端光标与焦点.md](../atlas/features/终端光标与焦点.md)
 - 易错点：原生窗口聚焦、逻辑活动窗格和真实 DOM 焦点不得互相替代（INV-022）；两种渲染器必须同步修改，blur 还必须触发非闪烁光标重绘。
 - 决策依据：见 decisions/2026-11-12-终端光标使用三层焦点.md

@@ -197,7 +197,7 @@ src/
 │   │   │   ├── terminalSessionApi.ts — [撤销终端窗格拆分] 释放被撤销窗格资源；`restartSession`/`restartAllSessions` 刷新终端让新设置生效（次：终端会话生命周期、代理）
 │   │   │   └── useVisiblePathHistory.ts — [终端路径历史] 组合工作区环境与 automount root，产出当前视图可见历史（次：状态栏工作区与路径）
 │   │   └── path-history/
-│   │       └── PathHistoryDialog.tsx — [终端路径历史] Ctrl+E 最近路径弹窗
+│   │       └── PathHistoryDialog.tsx — [终端路径历史] Ctrl+E 最近路径弹窗；关闭时阻止 Radix 自动焦点还原（次：终端光标与焦点）
 │   └── updater/
 │       └── useUpdater.ts — [应用更新] 全局更新状态机、启动自动检查、通知消息与下载安装；检查/下载遵循更新场景代理（次：设置-关于、代理）
 └── settings/
@@ -347,7 +347,7 @@ src/
 | `src/modules/terminal/lib/terminalCd.ts` | [终端路径历史](features/终端路径历史.md) | [终端链接打开](features/终端链接打开.md) | cd 命令构造与提交 |
 | `src/modules/terminal/lib/pathHistory.ts` | [终端路径历史](features/终端路径历史.md) | 无 | 目录历史记录/封顶/筛选规则与跨工作区路径归一化 |
 | `src/modules/terminal/lib/useVisiblePathHistory.ts` | [终端路径历史](features/终端路径历史.md) | [状态栏工作区与路径](features/状态栏工作区与路径.md) | 组合工作区环境与 automount root，产出当前视图可见历史 |
-| `src/modules/terminal/path-history/PathHistoryDialog.tsx` | [终端路径历史](features/终端路径历史.md) | 无 | Ctrl+E 最近路径弹窗 |
+| `src/modules/terminal/path-history/PathHistoryDialog.tsx` | [终端路径历史](features/终端路径历史.md) | [终端光标与焦点](features/终端光标与焦点.md) | Ctrl+E 最近路径弹窗；关闭时阻止 Radix 自动焦点还原 |
 | `src/modules/command-palette/lib/mode.ts` | [命令面板](features/命令面板.md) | [终端路径历史](features/终端路径历史.md) | `>` 前缀路径模式解析与 `#`/`?` 查询分流 |
 | `src/modules/i18n/locales/zh/settings/models.ts` | [AI模型配置](features/AI模型配置.md) | 中文文案 | 与英文词典同构 |
 | `src/modules/source-control/useSourceControlPanel.ts` | [AI提交信息生成](features/AI提交信息生成.md) | 源代码管理 | 生成流程编排与 Conventional 校验/修复重试 |

@@ -95,6 +95,7 @@ export function PathHistoryDialog({
       <DialogContent
         className="top-1/3 w-[min(620px,calc(100vw-32px))] translate-y-0 gap-0 overflow-hidden rounded-4xl! p-0"
         showCloseButton={false}
+        onCloseAutoFocus={(event) => event.preventDefault()}
       >
         <DialogHeader className="sr-only">
           <DialogTitle>{t("terminal.pathHistory.title")}</DialogTitle>
