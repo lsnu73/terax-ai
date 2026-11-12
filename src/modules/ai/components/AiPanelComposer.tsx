@@ -161,7 +161,7 @@ function ComposerControls() {
   const composer = useComposer();
   const fileInputRef = useRef<HTMLInputElement>(null);
   return (
-    <div className="flex items-end gap-2">
+    <div className="flex items-end gap-2 rounded-lg border border-border/60 bg-white px-1.5 py-1 dark:bg-background">
       <input
         ref={fileInputRef}
         type="file"
