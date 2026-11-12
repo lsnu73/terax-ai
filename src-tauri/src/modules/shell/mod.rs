@@ -332,54 +332,150 @@ pub fn shell_bg_list(state: tauri::State<ShellState>) -> Result<Vec<BackgroundPr
     Ok(out)
 }
 
-pub(crate) fn build_oneshot_command(
-    command: &str,
-    #[cfg_attr(not(windows), allow(unused_variables))] workspace: &WorkspaceEnv,
-    #[cfg_attr(not(windows), allow(unused_variables))] cwd: Option<&str>,
-) -> Result<Command, String> {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum CommandDialect {
+    PowerShell,
+    Cmd,
+    Posix,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub struct ShellDescription {
+    pub shell: &'static str,
+    pub command_dialect: CommandDialect,
+}
+
+enum OneShotShell {
     #[cfg(windows)]
-    if let WorkspaceEnv::Wsl { distro } = workspace {
-        validate_wsl_distro_name(distro)?;
-        let mut cmd = Command::new("wsl.exe");
-        cmd.arg("-d").arg(distro);
-        if let Some(cwd) = cwd.filter(|s| !s.is_empty()) {
-            cmd.arg("--cd").arg(cwd);
+    Windows(PathBuf),
+    #[cfg(windows)]
+    Wsl { distro: String },
+    #[cfg(unix)]
+    Posix,
+}
+
+fn resolve_oneshot_shell(workspace: &WorkspaceEnv) -> Result<OneShotShell, String> {
+    #[cfg(windows)]
+    {
+        if let WorkspaceEnv::Wsl { distro } = workspace {
+            validate_wsl_distro_name(distro)?;
+            return Ok(OneShotShell::Wsl {
+                distro: distro.clone(),
+            });
         }
-        cmd.arg("--exec").arg("sh").arg("-lc").arg(command);
-        return Ok(cmd);
+        Ok(OneShotShell::Windows(
+            crate::modules::pty::shell_init::windows_shell_path(),
+        ))
     }
     #[cfg(unix)]
     {
-        let mut cmd = Command::new("/bin/sh");
-        cmd.arg("-c").arg(command);
-        for (key, value) in crate::modules::workspace::appimage_env_overrides() {
-            match value {
-                Some(v) => {
-                    cmd.env(key, v);
+        let _ = workspace;
+        Ok(OneShotShell::Posix)
+    }
+}
+
+#[cfg(windows)]
+fn windows_shell_is_cmd(path: &std::path::Path) -> bool {
+    path.file_name()
+        .and_then(|s| s.to_str())
+        .map(|s| s.eq_ignore_ascii_case("cmd.exe"))
+        .unwrap_or(false)
+}
+
+impl OneShotShell {
+    fn describe(&self) -> ShellDescription {
+        match self {
+            #[cfg(windows)]
+            Self::Windows(path) if windows_shell_is_cmd(path) => ShellDescription {
+                shell: "cmd",
+                command_dialect: CommandDialect::Cmd,
+            },
+            #[cfg(windows)]
+            Self::Windows(path) => ShellDescription {
+                shell: if path
+                    .file_name()
+                    .and_then(|s| s.to_str())
+                    .map(|s| s.eq_ignore_ascii_case("pwsh.exe"))
+                    .unwrap_or(false)
+                {
+                    "pwsh"
+                } else {
+                    "powershell"
+                },
+                command_dialect: CommandDialect::PowerShell,
+            },
+            #[cfg(windows)]
+            Self::Wsl { .. } => ShellDescription {
+                shell: "sh",
+                command_dialect: CommandDialect::Posix,
+            },
+            #[cfg(unix)]
+            Self::Posix => ShellDescription {
+                shell: "sh",
+                command_dialect: CommandDialect::Posix,
+            },
+        }
+    }
+
+    fn build(
+        &self,
+        command: &str,
+        #[cfg_attr(not(windows), allow(unused_variables))] cwd: Option<&str>,
+    ) -> Command {
+        match self {
+            #[cfg(windows)]
+            Self::Wsl { distro } => {
+                let mut cmd = Command::new("wsl.exe");
+                cmd.arg("-d").arg(distro);
+                if let Some(cwd) = cwd.filter(|s| !s.is_empty()) {
+                    cmd.arg("--cd").arg(cwd);
                 }
-                None => {
-                    cmd.env_remove(key);
+                cmd.arg("--exec").arg("sh").arg("-lc").arg(command);
+                cmd
+            }
+            #[cfg(unix)]
+            Self::Posix => {
+                let mut cmd = Command::new("/bin/sh");
+                cmd.arg("-c").arg(command);
+                for (key, value) in crate::modules::workspace::appimage_env_overrides() {
+                    match value {
+                        Some(v) => {
+                            cmd.env(key, v);
+                        }
+                        None => {
+                            cmd.env_remove(key);
+                        }
+                    }
                 }
+                cmd
+            }
+            #[cfg(windows)]
+            Self::Windows(path) => {
+                let mut cmd = Command::new(path);
+                if windows_shell_is_cmd(path) {
+                    cmd.arg("/C").arg(command);
+                } else {
+                    cmd.arg("-NoProfile").arg("-Command").arg(command);
+                }
+                cmd
             }
         }
-        Ok(cmd)
     }
-    #[cfg(windows)]
-    {
-        let shell = crate::modules::pty::shell_init::windows_shell_path();
-        let mut cmd = Command::new(&shell);
-        let is_cmd = shell
-            .file_name()
-            .and_then(|s| s.to_str())
-            .map(|s| s.eq_ignore_ascii_case("cmd.exe"))
-            .unwrap_or(false);
-        if is_cmd {
-            cmd.arg("/C").arg(command);
-        } else {
-            cmd.arg("-NoProfile").arg("-Command").arg(command);
-        }
-        Ok(cmd)
-    }
+}
+
+#[tauri::command]
+pub fn shell_describe(workspace: Option<WorkspaceEnv>) -> Result<ShellDescription, String> {
+    let workspace = WorkspaceEnv::from_option(workspace);
+    Ok(resolve_oneshot_shell(&workspace)?.describe())
+}
+
+pub(crate) fn build_oneshot_command(
+    command: &str,
+    workspace: &WorkspaceEnv,
+    cwd: Option<&str>,
+) -> Result<Command, String> {
+    Ok(resolve_oneshot_shell(workspace)?.build(command, cwd))
 }
 
 #[cfg(all(test, unix))]
@@ -434,5 +530,100 @@ mod tests {
         assert_eq!(cmd.get_program(), "/bin/sh");
         let args: Vec<_> = cmd.get_args().collect();
         assert_eq!(args, vec!["-c", "echo hi"]);
+    }
+
+    #[test]
+    fn unix_description_matches_the_command_builder() {
+        let shell = resolve_oneshot_shell(&WorkspaceEnv::Local).unwrap();
+        assert_eq!(
+            shell.describe(),
+            ShellDescription {
+                shell: "sh",
+                command_dialect: CommandDialect::Posix,
+            }
+        );
+        let cmd = shell.build("echo hi", None);
+        assert_eq!(cmd.get_program(), "/bin/sh");
+        assert_eq!(cmd.get_args().collect::<Vec<_>>(), vec!["-c", "echo hi"]);
+    }
+}
+
+#[cfg(all(test, windows))]
+mod windows_tests {
+    use super::*;
+
+    #[test]
+    fn dialect_names_match_the_typescript_contract() {
+        for (dialect, expected) in [
+            (CommandDialect::PowerShell, "powershell"),
+            (CommandDialect::Cmd, "cmd"),
+            (CommandDialect::Posix, "posix"),
+        ] {
+            assert_eq!(
+                serde_json::to_string(&dialect).unwrap(),
+                format!("\"{expected}\"")
+            );
+        }
+    }
+
+    #[test]
+    fn windows_descriptions_match_the_command_builders() {
+        for (name, expected_shell, expected_dialect, expected_args) in [
+            (
+                "pwsh.exe",
+                "pwsh",
+                CommandDialect::PowerShell,
+                vec!["-NoProfile", "-Command", "echo hi"],
+            ),
+            (
+                "powershell.exe",
+                "powershell",
+                CommandDialect::PowerShell,
+                vec!["-NoProfile", "-Command", "echo hi"],
+            ),
+            ("cmd.exe", "cmd", CommandDialect::Cmd, vec!["/C", "echo hi"]),
+        ] {
+            let shell = OneShotShell::Windows(PathBuf::from(name));
+            assert_eq!(
+                shell.describe(),
+                ShellDescription {
+                    shell: expected_shell,
+                    command_dialect: expected_dialect,
+                }
+            );
+            let cmd = shell.build("echo hi", None);
+            assert_eq!(cmd.get_program(), PathBuf::from(name));
+            assert_eq!(cmd.get_args().collect::<Vec<_>>(), expected_args);
+        }
+    }
+
+    #[test]
+    fn wsl_description_matches_the_command_builder() {
+        let workspace = WorkspaceEnv::Wsl {
+            distro: "Ubuntu".into(),
+        };
+        let shell = resolve_oneshot_shell(&workspace).unwrap();
+        assert_eq!(
+            shell.describe(),
+            ShellDescription {
+                shell: "sh",
+                command_dialect: CommandDialect::Posix,
+            }
+        );
+        let cmd = shell.build("pwd", Some("/home/user"));
+        assert_eq!(cmd.get_program(), "wsl.exe");
+        assert_eq!(
+            cmd.get_args().collect::<Vec<_>>(),
+            vec![
+                "-d",
+                "Ubuntu",
+                "--cd",
+                "/home/user",
+                "--exec",
+                "sh",
+                "-lc",
+                "pwd"
+            ]
+        );
     }
 }

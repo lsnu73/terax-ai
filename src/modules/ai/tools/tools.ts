@@ -6,6 +6,7 @@ import { buildShellTools } from "./shell";
 import { buildSubagentTools } from "./subagent";
 import { buildTerminalTools } from "./terminal";
 import { buildTodoTools } from "./todo";
+import type { ShellDescription } from "../lib/native";
 
 export { resolvePath, type ToolContext } from "./context";
 
@@ -30,12 +31,15 @@ export { resolvePath, type ToolContext } from "./context";
  * active terminal's cwd (provided via `getCwd`); it should not invent paths
  * outside that.
  */
-export function buildTools(ctx: import("./context").ToolContext) {
+export function buildTools(
+  ctx: import("./context").ToolContext,
+  shell: ShellDescription,
+) {
   return {
     ...buildFsTools(ctx),
     ...buildEditTools(ctx),
     ...buildSearchTools(ctx),
-    ...buildShellTools(ctx),
+    ...buildShellTools(ctx, shell),
     ...buildSubagentTools(ctx),
     ...buildTerminalTools(ctx),
     ...buildTodoTools(ctx),

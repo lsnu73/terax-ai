@@ -1,10 +1,14 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { native } from "../lib/native";
+import { native, type ShellDescription } from "../lib/native";
 import { aiNeedsApproval } from "../lib/approvalMode";
 import { checkShellCommand } from "../lib/security";
 import type { ToolContext } from "./context";
-import { currentWorkspaceEnv, workspaceScopeKey } from "@/modules/workspace";
+import {
+  currentWorkspaceEnv,
+  workspaceScopeKey,
+  type WorkspaceEnv,
+} from "@/modules/workspace";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import { proxyForScenario } from "@/modules/proxy/lib/proxy";
 
@@ -22,26 +26,54 @@ function terminalProxy(): string | null {
 const sessionShells = new Map<string, Promise<number>>();
 
 async function getSessionShell(
-  sessionId: string,
+  sessionKey: string,
   cwd: string | null,
+  workspace: WorkspaceEnv,
 ): Promise<number> {
-  let p = sessionShells.get(sessionId);
+  let p = sessionShells.get(sessionKey);
   if (!p) {
-    p = native.shellSessionOpen(cwd);
-    sessionShells.set(sessionId, p);
+    p = native.shellSessionOpen(cwd, workspace);
+    sessionShells.set(sessionKey, p);
   }
   return p;
 }
 
-function workspaceSessionKey(sessionId: string): string {
-  return `${sessionId}:${workspaceScopeKey(currentWorkspaceEnv())}`;
+function workspaceSessionKey(
+  sessionId: string,
+  workspace: WorkspaceEnv,
+): string {
+  return `${sessionId}:${workspaceScopeKey(workspace)}`;
 }
 
-export function buildShellTools(ctx: ToolContext) {
+function commandSyntaxInstructions(shell: ShellDescription): string {
+  switch (shell.command_dialect) {
+    case "powershell":
+      return `Commands are parsed by ${shell.shell} using PowerShell syntax, not Bash. The bash prefix in the tool name is historical. Use PowerShell syntax such as $env:VAR, -split ';', Where-Object and Join-Path. Do not use POSIX-only syntax such as export VAR=value or mkdir -p.`;
+    case "cmd":
+      return "Commands are parsed by cmd.exe /C, not Bash or PowerShell. The bash prefix in the tool name is historical. Use cmd.exe syntax such as set VAR=value and dir; do not use PowerShell or POSIX-only syntax.";
+    case "posix":
+      return `Commands are parsed by ${shell.shell} using POSIX sh syntax. Use sh-compatible syntax and do not assume Bash-only features such as arrays, [[ ... ]] or source.`;
+  }
+}
+
+function failureDetails(shell: ShellDescription) {
+  const hint =
+    shell.command_dialect === "powershell"
+      ? `If retrying, remember that ${shell.shell} parses this command as PowerShell, not Bash. Use PowerShell syntax.`
+      : shell.command_dialect === "cmd"
+        ? "If retrying, remember that cmd.exe /C parses this command. Use cmd.exe syntax, not PowerShell or POSIX syntax."
+        : `If retrying, remember that ${shell.shell} parses this command using POSIX sh syntax. Avoid Bash-only features.`;
+  return {
+    shell: shell.shell,
+    command_dialect: shell.command_dialect,
+    hint,
+  };
+}
+
+export function buildShellTools(ctx: ToolContext, shell: ShellDescription) {
   return {
     bash_run: tool({
-      description:
-        "Run a foreground shell command in this session's persistent agent shell. cwd persists across calls (so `cd foo` then `bash_run pwd` works). Use for short-lived commands (lint, test, search, build). For long-running or daemon processes (dev servers, watch tasks), use `bash_background`. NEVER invoke interactive tools (vim, less, top) — they will hang. Asks for user approval.",
+      description: `Run a foreground command in this session's agent shell. cwd persists across calls (so cd foo then bash_run pwd works). Use for short-lived commands (lint, test, search, build). For long-running or daemon processes, use bash_background. Never invoke interactive tools because they will hang. Asks for user approval. ${commandSyntaxInstructions(shell)}`,
       inputSchema: z.object({
         command: z.string(),
         timeout_secs: z.number().int().min(1).max(300).optional(),
@@ -52,17 +84,29 @@ export function buildShellTools(ctx: ToolContext) {
         if (!safety.ok) return { error: safety.reason };
         const sid = ctx.getSessionId();
         if (!sid) return { error: "no active chat session" };
+        const workspace = currentWorkspaceEnv();
+        let executionShell: ShellDescription;
+        try {
+          executionShell = await native.shellDescribe(workspace);
+        } catch (e) {
+          return { error: String(e) };
+        }
         try {
           const cwd = ctx.getCwd();
-          const shellId = await getSessionShell(workspaceSessionKey(sid), cwd);
+          const shellId = await getSessionShell(
+            workspaceSessionKey(sid, workspace),
+            cwd,
+            workspace,
+          );
           const r = await native.shellSessionRun(
             shellId,
             command,
             cwd,
             timeout_secs,
             terminalProxy(),
+            workspace,
           );
-          return {
+          const result = {
             command,
             stdout: r.stdout,
             stderr: r.stderr,
@@ -71,15 +115,18 @@ export function buildShellTools(ctx: ToolContext) {
             truncated: r.truncated,
             cwd_after: r.cwd_after,
           };
+          if (r.timed_out || r.exit_code !== 0) {
+            return { ...result, ...failureDetails(executionShell) };
+          }
+          return result;
         } catch (e) {
-          return { error: String(e) };
+          return { error: String(e), ...failureDetails(executionShell) };
         }
       },
     }),
 
     bash_background: tool({
-      description:
-        "Spawn a long-running background process (e.g. `pnpm dev`, `cargo watch`, log tailers). Returns a handle; use `bash_logs` to read its output and `bash_kill` to stop it. Output is captured into a 4MB ring buffer. Asks for user approval.",
+      description: `Spawn a long-running background process such as pnpm dev, cargo watch or a log tailer. Returns a handle; use bash_logs to read its output and bash_kill to stop it. Output is captured into a 4MB ring buffer. Asks for user approval. ${commandSyntaxInstructions(shell)}`,
       inputSchema: z.object({
         command: z.string(),
         cwd: z.string().nullable().optional(),
@@ -89,15 +136,23 @@ export function buildShellTools(ctx: ToolContext) {
         const safety = checkShellCommand(command);
         if (!safety.ok) return { error: safety.reason };
         const effectiveCwd = cwd ?? ctx.getCwd();
+        const workspace = currentWorkspaceEnv();
+        let executionShell: ShellDescription;
+        try {
+          executionShell = await native.shellDescribe(workspace);
+        } catch (e) {
+          return { error: String(e) };
+        }
         try {
           const handle = await native.shellBgSpawn(
             command,
             effectiveCwd,
             terminalProxy(),
+            workspace,
           );
           return { handle, command, cwd: effectiveCwd, ok: true };
         } catch (e) {
-          return { error: String(e) };
+          return { error: String(e), ...failureDetails(executionShell) };
         }
       },
     }),

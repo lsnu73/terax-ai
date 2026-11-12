@@ -3,6 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ToolContext } from "./context";
 
 const nativeMock = vi.hoisted(() => ({
+  shellDescribe: vi.fn(async () => ({
+    shell: "pwsh",
+    command_dialect: "powershell",
+  })),
   shellSessionOpen: vi.fn(async () => 1),
   shellSessionRun: vi.fn(),
   shellBgSpawn: vi.fn(async () => 7),
@@ -17,14 +21,25 @@ const securityMock = vi.hoisted(() => ({
   >(() => ({ ok: true })),
 }));
 
+const workspaceMock = vi.hoisted(() => ({
+  env: { kind: "local" } as { kind: "local" } | { kind: "wsl"; distro: string },
+}));
+
 vi.mock("../lib/native", () => ({ native: nativeMock }));
 vi.mock("../lib/security", () => securityMock);
 vi.mock("@/modules/workspace", () => ({
-  currentWorkspaceEnv: () => ({ kind: "local" }),
-  workspaceScopeKey: () => "local",
+  currentWorkspaceEnv: () => workspaceMock.env,
+  workspaceScopeKey: (env: typeof workspaceMock.env) =>
+    env.kind === "wsl" ? `wsl:${env.distro}` : "local",
 }));
 
 import { buildShellTools } from "./shell";
+import type { ShellDescription } from "../lib/native";
+
+const POWERSHELL: ShellDescription = {
+  shell: "pwsh",
+  command_dialect: "powershell",
+};
 
 const toolOptions: ToolExecutionOptions = {
   toolCallId: "tool-call",
@@ -58,16 +73,47 @@ async function run(
     | "bash_kill",
   ctx: ToolContext,
   input: Record<string, unknown>,
+  shell: ShellDescription = POWERSHELL,
 ): Promise<Result> {
-  const execute = buildShellTools(ctx)[toolName].execute;
+  const execute = buildShellTools(ctx, shell)[toolName].execute;
   if (!execute) throw new Error(`${toolName} has no execute`);
   return (await execute(input as never, toolOptions)) as unknown as Result;
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
+  workspaceMock.env = { kind: "local" };
   securityMock.checkShellCommand.mockReturnValue({ ok: true });
+  nativeMock.shellDescribe.mockResolvedValue(POWERSHELL);
   nativeMock.shellSessionOpen.mockResolvedValue(1);
+});
+
+describe("shell descriptions", () => {
+  it.each([
+    {
+      shell: POWERSHELL,
+      expected: "PowerShell syntax",
+      rejected: "not Bash",
+    },
+    {
+      shell: { shell: "cmd", command_dialect: "cmd" } as const,
+      expected: "cmd.exe syntax",
+      rejected: "not Bash or PowerShell",
+    },
+    {
+      shell: { shell: "sh", command_dialect: "posix" } as const,
+      expected: "POSIX sh syntax",
+      rejected: "Bash-only",
+    },
+  ])(
+    "describes $shell.command_dialect before the first call",
+    ({ shell, expected, rejected }) => {
+      const tools = buildShellTools(makeContext(), shell);
+      expect(tools.bash_run.description).toContain(expected);
+      expect(tools.bash_run.description).toContain(rejected);
+      expect(tools.bash_background.description).toContain(expected);
+    },
+  );
 });
 
 describe("bash_run", () => {
@@ -101,6 +147,63 @@ describe("bash_run", () => {
     expect(r.stdout).toBe("hi");
     expect(r.exit_code).toBe(0);
     expect(r.cwd_after).toBe("/workspace/sub");
+    expect(r.hint).toBeUndefined();
+    expect(r.shell).toBeUndefined();
+  });
+
+  it("keeps the original failure and adds the actual shell hint", async () => {
+    nativeMock.shellSessionRun.mockResolvedValue({
+      stdout: "",
+      stderr: "tr is not recognized",
+      exit_code: 1,
+      timed_out: false,
+      truncated: false,
+      cwd_after: "/workspace",
+    });
+    const r = await run("bash_run", makeContext(), {
+      command: "echo $PATH | tr ':' '\\n'",
+    });
+    expect(r.stderr).toBe("tr is not recognized");
+    expect(r.exit_code).toBe(1);
+    expect(r.shell).toBe("pwsh");
+    expect(r.command_dialect).toBe("powershell");
+    expect(r.hint).toContain("PowerShell, not Bash");
+  });
+
+  it("adds a dialect hint when execution throws", async () => {
+    nativeMock.shellSessionRun.mockRejectedValue(new Error("spawn failed"));
+    const r = await run("bash_run", makeContext(), { command: "echo hi" });
+    expect(r.error).toContain("spawn failed");
+    expect(r.hint).toContain("PowerShell");
+  });
+
+  it("uses one WSL workspace snapshot for describe, open and run", async () => {
+    const workspace = { kind: "wsl", distro: "Ubuntu" } as const;
+    const posix = { shell: "sh", command_dialect: "posix" } as const;
+    workspaceMock.env = workspace;
+    nativeMock.shellDescribe.mockResolvedValue(posix);
+    nativeMock.shellSessionRun.mockResolvedValue({
+      stdout: "ok",
+      stderr: "",
+      exit_code: 0,
+      timed_out: false,
+      truncated: false,
+      cwd_after: "/workspace",
+    });
+    await run("bash_run", makeContext(), { command: "pwd" }, posix);
+    expect(nativeMock.shellDescribe).toHaveBeenCalledWith(workspace);
+    expect(nativeMock.shellSessionOpen).toHaveBeenCalledWith(
+      "/workspace",
+      workspace,
+    );
+    expect(nativeMock.shellSessionRun).toHaveBeenCalledWith(
+      1,
+      "pwd",
+      "/workspace",
+      undefined,
+      null,
+      workspace,
+    );
   });
 });
 
@@ -128,7 +231,18 @@ describe("bash_background", () => {
       "pnpm dev",
       "/workspace",
       null,
+      { kind: "local" },
     );
+  });
+
+  it("adds the actual shell hint when spawning fails", async () => {
+    nativeMock.shellBgSpawn.mockRejectedValue(new Error("spawn failed"));
+    const r = await run("bash_background", makeContext(), {
+      command: "pnpm dev",
+    });
+    expect(r.error).toContain("spawn failed");
+    expect(r.command_dialect).toBe("powershell");
+    expect(r.hint).toContain("PowerShell");
   });
 });
 

@@ -92,6 +92,14 @@
 - 关键依赖：[agent.ts] →（authHeaders / resolveProviderFetch）→ [providerHttp.ts] → [proxyFetch] → [Rust `net::*` IPC]。
 - 易错点：模型缓存键包含密钥与完整参数 JSON；参数变化会新建实例，改缓存键时必须保留这两个维度。
 
+### AI 命令执行  `src/modules/ai/tools/shell.ts`、`src-tauri/src/modules/shell/mod.rs`
+- 职责：让 AI 前台与后台命令在首轮生成前获得真实 Shell 方言，并在失败时保留原输出、提供修正提示。
+- 对外暴露：`shell_describe`、`shell_session_*`、`shell_bg_*`；工具 `bash_run`、`bash_background`。
+- 关键依赖：[transport] → [当前 WorkspaceEnv + Rust Shell 描述] → [`<env>` 与动态工具描述]；[工具执行] → [同一工作区快照] → [session open/run 或 background spawn] → [同一 Rust Shell 解析结果构造 argv]。
+- 代码索引：见 [atlas/features/AI命令执行.md](../atlas/features/AI命令执行.md)
+- 易错点：元数据与 argv 不得分开推断（INV-021）；动态方言不能移入 stable system prompt，否则工作区切换会破坏稳定缓存边界。
+- 决策依据：见 decisions/2026-11-12-AI命令方言在执行前注入.md
+
 ### 密钥存储  `src/modules/ai/lib/keyring.ts`
 - 职责：API Key 只进操作系统钥匙串；Provider 配置里仅有 `keyringAccount` 账户名。
 - 关键依赖：[keyring.ts] →（`secrets_get` / `secrets_set` / `secrets_get_all`）→ [Rust secrets 模块]。

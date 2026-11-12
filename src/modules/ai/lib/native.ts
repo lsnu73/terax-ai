@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { currentWorkspaceEnv } from "@/modules/workspace";
+import { currentWorkspaceEnv, type WorkspaceEnv } from "@/modules/workspace";
 
 export type ReadResult =
   | { kind: "text"; content: string; size: number }
@@ -136,6 +136,11 @@ export type GitBranchListResult = {
   branches: GitBranchEntry[];
 };
 
+export type ShellDescription = {
+  shell: "pwsh" | "powershell" | "cmd" | "sh";
+  command_dialect: "powershell" | "cmd" | "posix";
+};
+
 export const native = {
   workspaceCurrentDir: () => invoke<string>("workspace_current_dir"),
   workspaceAuthorize: (path: string) =>
@@ -193,11 +198,7 @@ export const native = {
       maxResults: params.maxResults ?? null,
       workspace: currentWorkspaceEnv(),
     }),
-  runCommand: (
-    command: string,
-    cwd?: string | null,
-    timeoutSecs?: number,
-  ) =>
+  runCommand: (command: string, cwd?: string | null, timeoutSecs?: number) =>
     invoke<CommandOutput>("shell_run_command", {
       command,
       cwd: cwd ?? null,
@@ -205,10 +206,15 @@ export const native = {
       workspace: currentWorkspaceEnv(),
     }),
 
-  shellSessionOpen: (cwd?: string | null) =>
+  shellDescribe: (workspace: WorkspaceEnv = currentWorkspaceEnv()) =>
+    invoke<ShellDescription>("shell_describe", { workspace }),
+  shellSessionOpen: (
+    cwd?: string | null,
+    workspace: WorkspaceEnv = currentWorkspaceEnv(),
+  ) =>
     invoke<number>("shell_session_open", {
       cwd: cwd ?? null,
-      workspace: currentWorkspaceEnv(),
+      workspace,
     }),
   shellSessionRun: (
     id: number,
@@ -216,6 +222,7 @@ export const native = {
     cwd?: string | null,
     timeoutSecs?: number,
     proxy?: string | null,
+    workspace: WorkspaceEnv = currentWorkspaceEnv(),
   ) =>
     invoke<{
       stdout: string;
@@ -229,16 +236,21 @@ export const native = {
       command,
       cwd: cwd ?? null,
       timeoutSecs: timeoutSecs ?? null,
-      workspace: currentWorkspaceEnv(),
+      workspace,
       proxy: proxy ?? null,
     }),
   shellSessionClose: (id: number) =>
     invoke<void>("shell_session_close", { id }),
-  shellBgSpawn: (command: string, cwd?: string | null, proxy?: string | null) =>
+  shellBgSpawn: (
+    command: string,
+    cwd?: string | null,
+    proxy?: string | null,
+    workspace: WorkspaceEnv = currentWorkspaceEnv(),
+  ) =>
     invoke<number>("shell_bg_spawn", {
       command,
       cwd: cwd ?? null,
-      workspace: currentWorkspaceEnv(),
+      workspace,
       proxy: proxy ?? null,
     }),
   shellBgLogs: (handle: number, sinceOffset?: number) =>
@@ -335,7 +347,10 @@ export const native = {
       repoRoot,
       workspace: currentWorkspaceEnv(),
     }),
-  gitLog: (repoRoot: string, options?: { limit?: number; beforeSha?: string }) =>
+  gitLog: (
+    repoRoot: string,
+    options?: { limit?: number; beforeSha?: string },
+  ) =>
     invoke<GitLogEntry[]>("git_log", {
       repoRoot,
       limit: options?.limit ?? null,

@@ -24,6 +24,7 @@ import type { ProviderKeys } from "./keyring";
 import { compactModelMessagesDetailed } from "./compact";
 import { prepareAgentPrompt } from "./prompt";
 import { authHeaders, resolveProviderFetch } from "./providerHttp";
+import type { ShellDescription } from "./native";
 
 const TOOL_LABELS: Record<string, (input: Record<string, unknown>) => string> =
   {
@@ -302,6 +303,7 @@ export type RunAgentOptions = {
   customInstructions?: string;
   agentPersona?: { name: string; instructions: string } | null;
   toolContext: ToolContext;
+  shell: ShellDescription;
   onStep?: (step: string | null) => void;
   onUsage?: (delta: AgentUsageDelta) => void;
   onCompact?: (info: { droppedCount: number }) => void;
@@ -359,7 +361,7 @@ export async function runAgentStream(opts: RunAgentOptions) {
     messages: prompt.messages,
     allowSystemInMessages: false,
     maxOutputTokens: info.outputTokens,
-    tools: buildTools(opts.toolContext),
+    tools: buildTools(opts.toolContext, opts.shell),
     stopWhen: stepCountIs(MAX_AGENT_STEPS),
     abortSignal: opts.abortSignal,
     onStepFinish: (step) => {

@@ -2,14 +2,17 @@ import type { UIMessage } from "@ai-sdk/react";
 import { runAgentStream, type AgentUsageDelta } from "./agent";
 import type { ProviderKeys } from "./keyring";
 import { formatAiError } from "./errors";
-import { native } from "./native";
+import { native, type ShellDescription } from "./native";
 import type { ToolContext } from "../tools/tools";
+import { currentWorkspaceEnv } from "@/modules/workspace";
 
 const TERAX_MD_MAX_BYTES = 32 * 1024;
 type MemoryCacheEntry = { content: string | null; mtime: number };
 const projectMemoryCache = new Map<string, MemoryCacheEntry>();
 
-async function readTeraxMd(workspaceRoot: string | null): Promise<string | null> {
+async function readTeraxMd(
+  workspaceRoot: string | null,
+): Promise<string | null> {
   if (!workspaceRoot) return null;
   const path = `${workspaceRoot.replace(/\/$/, "")}/TERAX.md`;
   const cached = projectMemoryCache.get(workspaceRoot);
@@ -17,7 +20,10 @@ async function readTeraxMd(workspaceRoot: string | null): Promise<string | null>
   try {
     const r = await native.readFile(path);
     if (r.kind !== "text") {
-      projectMemoryCache.set(workspaceRoot, { content: null, mtime: Date.now() });
+      projectMemoryCache.set(workspaceRoot, {
+        content: null,
+        mtime: Date.now(),
+      });
       return null;
     }
     const content =
@@ -67,8 +73,12 @@ type SendOptions = {
 export function createContextAwareTransport(deps: Deps) {
   const run = async (options: SendOptions) => {
     const live = deps.getLive();
-    const projectMemory = await readTeraxMd(live.workspaceRoot);
-    const envBlock = formatEnvBlock(live);
+    const workspace = currentWorkspaceEnv();
+    const [projectMemory, shell] = await Promise.all([
+      readTeraxMd(live.workspaceRoot),
+      native.shellDescribe(workspace),
+    ]);
+    const envBlock = formatEnvBlock(live, shell);
     const messagesForRun = envBlock
       ? injectEnvIntoLastUser(options.messages, envBlock)
       : options.messages;
@@ -79,6 +89,7 @@ export function createContextAwareTransport(deps: Deps) {
       customInstructions: deps.getCustomInstructions(),
       agentPersona: deps.getAgentPersona(),
       toolContext: deps.toolContext,
+      shell,
       onStep: deps.onStep,
       onUsage: deps.onUsage,
       onCompact: deps.onCompact,
@@ -132,8 +143,14 @@ function injectEnvIntoLastUser(
   return messages;
 }
 
-function formatEnvBlock(live: LiveSnapshot): string | null {
-  const lines: string[] = [];
+function formatEnvBlock(
+  live: LiveSnapshot,
+  shell: ShellDescription,
+): string | null {
+  const lines: string[] = [
+    `shell: ${shell.shell}`,
+    `command_dialect: ${shell.command_dialect}`,
+  ];
   if (live.workspaceRoot) lines.push(`workspace_root: ${live.workspaceRoot}`);
   if (live.cwd) lines.push(`active_terminal_cwd: ${live.cwd}`);
   if (live.activeFile) lines.push(`active_file: ${live.activeFile}`);

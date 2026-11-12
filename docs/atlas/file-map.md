@@ -3,7 +3,7 @@
 > 只收录有业务含义的源文件。自动生成文件、测试、构建脚本和纯配置不在此列。
 > 一个文件涉及多个功能时，第二列登记主归属，其余登记在第三列。
 > 表格是唯一数据源；目录树由 project-atlas 的 render-file-map-tree.sh 生成，不要手改。
-> 最后校验：2026-11-11
+> 最后校验：2026-11-12
 
 ## 按目录浏览
 
@@ -24,6 +24,8 @@ src-tauri/
         │   │   ├── profile.ps1 — [终端命令与结果块] OSC 133 标记、命令行上报与块头间隔空行（次：PowerShell 集成）
         │   │   └── zshrc.zsh — [终端命令与结果块] OSC 133 标记、命令行上报与块头间隔空行（次：zsh 集成）
         │   └── shell_init.rs — [终端命令与结果块] Windows/WSL Shell 启动与终端集成环境；`WSLENV` 合并转发（次：代理）
+        ├── shell/
+        │   └── mod.rs — [AI命令执行] Shell 元数据与真实 argv 共用 `OneShotShell`；提供 describe、前台 session 与后台进程 IPC（次：代理）
         ├── single_instance.rs — [关闭窗口与系统托盘] 单实例插件封装：二次启动转发 argv、唤回主窗口后新进程退出
         ├── traces.rs — [设置-关于] `app_traces`：安装、配置、数据、缓存、日志、注册表与凭据痕迹
         └── tray.rs — [关闭窗口与系统托盘] 托盘图标、左键恢复窗口、右键菜单（打开/关闭程序）；`reveal_main_window` 供托盘、二次启动与 Dock 共用
@@ -77,16 +79,21 @@ src/
 │   │   │   ├── prompts.ts — [AI提交信息生成] 内置提示词全文与取值（会话 full/lite + 提交信息）（次：AI模型配置）
 │   │   │   └── types.ts — [AI模型配置] `ParamDef` / `EffortConfig` 等数据模型
 │   │   ├── lib/
-│   │   │   ├── agent.ts — [AI模型配置] withRequestParams 把解析后的参数合并进出站请求（次：AI 对话与工具审批）
+│   │   │   ├── agent.ts — [AI模型配置] withRequestParams 把解析后的参数合并进出站请求；把本轮 Shell 描述传给工具构建器（次：AI 对话与工具审批、AI命令执行）
 │   │   │   ├── aiAttachmentDrop.ts — [AI面板] AI 面板投放目标：命中 `data-ai-attach-drop`、drop 时写 prefill（次：文件资源管理器）
 │   │   │   ├── aiPanel.ts — [AI面板] 面板开关封装与 Provider 检查（次：选区与文件 prefill）
 │   │   │   ├── aiPanelBridge.ts — [AI面板] prefill 类型契约
 │   │   │   ├── approvalMode.ts — [AI面板] 工具 needsApproval 按偏好动态判定（次：AI 对话与工具审批）
 │   │   │   ├── composer.tsx — [AI面板] 附件读取、按 id 去重、批量路径附加与跳过/失败提示；`terax:ai-attach-file` 监听（次：AI 对话）
-│   │   │   └── composerMessage.ts — [AI面板] Composer 到 AI SDK parts 的纯转换（次：AI 对话）
-│   │   └── store/
-│   │       ├── aiAttachmentDropStore.ts — [AI面板] 拖动进入面板时的高亮状态
-│   │       └── aiPanelStore.ts — [AI面板] 面板开关与 prefill 状态
+│   │   │   ├── composerMessage.ts — [AI面板] Composer 到 AI SDK parts 的纯转换（次：AI 对话）
+│   │   │   ├── native.ts — [AI命令执行] `ShellDescription` 契约、`shell_describe` 封装及 Shell 调用的工作区快照参数（次：原生 IPC）
+│   │   │   └── transport.ts — [AI命令执行] 每轮查询真实 Shell，注入 `<env>` 并把描述传给 Agent（次：AI 对话与工具审批）
+│   │   ├── store/
+│   │   │   ├── aiAttachmentDropStore.ts — [AI面板] 拖动进入面板时的高亮状态
+│   │   │   └── aiPanelStore.ts — [AI面板] 面板开关与 prefill 状态
+│   │   └── tools/
+│   │       ├── shell.ts — [AI命令执行] 前台/后台工具的动态方言描述、工作区快照、失败提示及会话/进程调用（次：AI 对话与工具审批、代理）
+│   │       └── tools.ts — [AI命令执行] 汇总 AI 工具并将 Shell 描述传给 Shell 工具构建器（次：AI 对话与工具审批）
 │   ├── command-palette/
 │   │   ├── CommandPalette.tsx — [命令面板] 面板 UI、查询模式分流与主题预览（次：主题切换）
 │   │   ├── commands.ts — [命令面板] 命令清单注册与禁用态
@@ -184,7 +191,7 @@ src/
 │   │   │   ├── terminalCd.ts — [终端路径历史] cd 命令构造与提交（次：终端链接打开）
 │   │   │   ├── terminalLinks.ts — [终端链接打开] 定义链接修饰键与打开契约（次：终端输入）
 │   │   │   ├── terminalSessionApi.ts — [撤销终端窗格拆分] 释放被撤销窗格资源；`restartSession`/`restartAllSessions` 刷新终端让新设置生效（次：终端会话生命周期、代理）
-│   │   │   └── useVisiblePathHistory.ts — [终端路径历史] 按当前工作区归一化最近路径（次：状态栏工作区与路径）
+│   │   │   └── useVisiblePathHistory.ts — [终端路径历史] 组合工作区环境与 automount root，产出当前视图可见历史（次：状态栏工作区与路径）
 │   │   └── path-history/
 │   │       └── PathHistoryDialog.tsx — [终端路径历史] Ctrl+E 最近路径弹窗
 │   └── updater/
@@ -315,7 +322,12 @@ src/
 | `src/modules/ai/config/normalize.ts` | [AI模型配置](features/AI模型配置.md) | 无 | 配置收敛与旧 thinking/ParamDef 迁移 |
 | `src/modules/ai/config/params.ts` | [AI模型配置](features/AI模型配置.md) | AI 对话与工具审批 | 请求参数引擎：params、effort 档位、extra 合并 |
 | `src/modules/ai/config/persist.ts` | [AI模型配置](features/AI模型配置.md) | 无 | terax-ai-models.json 读写 |
-| `src/modules/ai/lib/agent.ts` | [AI模型配置](features/AI模型配置.md) | AI 对话与工具审批 | withRequestParams 把解析后的参数合并进出站请求 |
+| `src/modules/ai/lib/agent.ts` | [AI模型配置](features/AI模型配置.md) | AI 对话与工具审批、[AI命令执行](features/AI命令执行.md) | withRequestParams 把解析后的参数合并进出站请求；把本轮 Shell 描述传给工具构建器 |
+| `src/modules/ai/lib/native.ts` | [AI命令执行](features/AI命令执行.md) | 原生 IPC | `ShellDescription` 契约、`shell_describe` 封装及 Shell 调用的工作区快照参数 |
+| `src/modules/ai/lib/transport.ts` | [AI命令执行](features/AI命令执行.md) | AI 对话与工具审批 | 每轮查询真实 Shell，注入 `<env>` 并把描述传给 Agent |
+| `src/modules/ai/tools/tools.ts` | [AI命令执行](features/AI命令执行.md) | AI 对话与工具审批 | 汇总 AI 工具并将 Shell 描述传给 Shell 工具构建器 |
+| `src/modules/ai/tools/shell.ts` | [AI命令执行](features/AI命令执行.md) | AI 对话与工具审批、[代理](features/代理.md) | 前台/后台工具的动态方言描述、工作区快照、失败提示及会话/进程调用 |
+| `src-tauri/src/modules/shell/mod.rs` | [AI命令执行](features/AI命令执行.md) | [代理](features/代理.md) | Shell 元数据与真实 argv 共用 `OneShotShell`；提供 describe、前台 session 与后台进程 IPC |
 | `src/settings/sections/ModelsSection.tsx` | [AI模型配置](features/AI模型配置.md) | [设置页](features/设置页.md) | 模型/Provider 编辑器、校验与配置/默认项/Provider 搜索锚点 |
 | `src/settings/sections/models/StructuredFields.tsx` | [AI模型配置](features/AI模型配置.md) | [设置页](features/设置页.md) | ParamsForm / EffortForm 等结构化表单 |
 | `src/modules/ai/components/ModelPicker.tsx` | [AI模型配置](features/AI模型配置.md) | AI 面板 | 思考强度滑条与模型选择 |

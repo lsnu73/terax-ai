@@ -50,4 +50,5 @@
 - 2026-11-08：为「无边框窗口与边框交互」补充 lore 交叉引用：边缘交互分流决策、INV-018/INV-019 硬约束与最大化四角穿透坑点。
 - 2026-11-08：修订「无边框窗口与边框交互」：新增收起态拖阀渐进展开（minSize 手势期间临时降为 0，逐像素跟随，松手补齐最小宽度），更新调用链、数据流与行号；修订「应用更新」与「设置-关于」：检查/下载请求统一 10s 超时（`UPDATER_TIMEOUT_MS` + Linux `net_http_get`），下载百分比移入关于页更新按钮内文字右侧，补充整请求超时语义的已知限制。
 - 2026-11-11：新增「状态栏工作区与路径」功能文档；修订「标签页管理」接入共享捕获阶段菜单关闭，修订「终端命令与结果块」「代理」登记 WSL 的 `TERAX_BLOCKS`、`TERAX_TERMINAL` 与代理 `WSLENV` 合并转发；更新任务导航、覆盖度和文件反查表。
-- 2026-11-12：修订「终端路径历史」跨工作区归一化：历史保留 shell 原始格式存储，Windows 视图把 `/mnt` 或自定义挂载根路径折回盘符格式并隐藏 Linux 专属目录，WSL 视图给 Windows 路径加 `/etc/wsl.conf` `[automount] root` 前缀（缺省 `/mnt`）；新增 Rust 命令 `wsl_automount_root`、前端 `useVisiblePathHistory` 与 `workspace/automount.ts`；更新文件反查表。
+- 2026-11-12：修订「终端路径历史」跨工作区归一化：历史保留 shell 原始格式存储，Windows 视图把 `/mnt` 或自定义挂载根路径折回盘符格式并隐藏 Linux 专属目录，WSL 视图给 Windows 路径加 `/etc/wsl.conf` `[automount] root` 前缀（缺省 `/mnt`）；新增 Rust 命令 `wsl_automount_root`、前端 `useVisiblePathHistory` 与 `src/modules/workspace/automount.ts`；更新文件反查表。
+- 2026-11-12：新增「AI 命令执行」功能文档和术语表：登记 `shell_describe`、首轮 `<env>` 方言注入、动态前台/后台工具描述、工作区快照与失败提示；Shell 元数据和真实 argv 统一由 Rust 解析。更新任务导航、覆盖度和文件反查表。

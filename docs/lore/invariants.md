@@ -104,3 +104,8 @@
   - 强制点：`src/app/components/WindowEdgeValves.tsx` 的 `EdgeValveController` 契约（`beginDragOpen`/`applyDragOpen`/`endDragOpen`，pointerdown 调 begin、pointerup/pointercancel 必调 end）；`src/app/App.tsx` 的 `sidebarLiveMinSize`/`aiPanelLiveMinSize` 状态与两个 `ResizablePanel` 的 `minSize` 属性。
   - ⚠️ begin/end 配对靠阀组件的单一路径保证（pointerup 与 pointercancel 共用 `onUp`），暂无自动化测试强制。
   - 代码索引：见 [atlas/features/无边框窗口与边框交互.md](../atlas/features/无边框窗口与边框交互.md)；坑点分析见 [pitfalls/2026-11-08-收起态拖阀展开被面板库最小宽度钳制吞掉.md](pitfalls/2026-11-08-收起态拖阀展开被面板库最小宽度钳制吞掉.md)。
+
+- **INV-021** AI 命令的 `{ shell, command_dialect }` 元数据与真实进程 argv 必须来自 Rust 的同一个 `OneShotShell` 解析结果；前端不得根据平台、PATH 或工作区另写一份 Shell 推断。
+  - 违反代价：模型收到的方言提示与实际解释器分叉，例如提示 PowerShell 而实际回退到 cmd，导致首轮命令继续失败且错误方向更难排查。
+  - 强制点：`src-tauri/src/modules/shell/mod.rs` 的 `resolve_oneshot_shell` 同时供 `shell_describe` 和 `build_oneshot_command` 使用；Windows/WSL/Unix 单元测试断言描述与 argv 一致，方言序列化测试锁定前端字符串契约。
+  - 代码索引：见 [atlas/features/AI命令执行.md](../atlas/features/AI命令执行.md)；决策依据见 [decisions/2026-11-12-AI命令方言在执行前注入.md](decisions/2026-11-12-AI命令方言在执行前注入.md)。
