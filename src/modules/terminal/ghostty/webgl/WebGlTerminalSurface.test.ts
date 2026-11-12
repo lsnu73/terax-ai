@@ -78,6 +78,32 @@ describe("WebGL surface renderer ownership", () => {
   });
 });
 
+describe("WebGL cursor focus", () => {
+  it("shows the cursor only while the window, pane and terminal input are focused", () => {
+    const h = harness();
+    const renderedCursor = () => {
+      h.surface.renderFrame(h.renderer as unknown as WebGlCellRenderer);
+      return h.renderer.render.mock.lastCall?.[0].cursorVisible;
+    };
+
+    h.surface.setFocused(true);
+    expect(renderedCursor()).toBe(false);
+    h.surface.setInputFocused(true);
+    expect(renderedCursor()).toBe(true);
+    h.surface.setInputFocused(false);
+    expect(renderedCursor()).toBe(false);
+    h.surface.setInputFocused(true);
+    expect(renderedCursor()).toBe(true);
+
+    h.schedule.mockClear();
+    h.surface.handleWindowFocus(false);
+    expect(h.schedule).toHaveBeenCalledOnce();
+    expect(renderedCursor()).toBe(false);
+    h.surface.handleWindowFocus(true);
+    expect(renderedCursor()).toBe(true);
+  });
+});
+
 describe("WebGL surface resizing", () => {
   it("keeps the model, the PTY and the renderer still during a gesture and applies the final size once", () => {
     const h = harness();
@@ -152,7 +178,7 @@ function renderer() {
   return {
     resize: vi.fn(() => false),
     resetModel: vi.fn(),
-    render: vi.fn(() => true),
+    render: vi.fn((_options: { cursorVisible: boolean }) => true),
     diagnostics: vi.fn(() => ({})),
     requestPresentation: vi.fn(),
     hasBlinkingCells: false,
@@ -213,11 +239,12 @@ function harness() {
   );
   const current = renderer();
   const acquire = vi.fn(() => current);
+  const schedule = vi.fn();
   bridge.runtime = {
     acquire,
     release: vi.fn(),
     discard: vi.fn(),
-    schedule: vi.fn(),
+    schedule,
     interact: vi.fn(),
     trimForHiddenDocument: vi.fn(),
   };
@@ -271,6 +298,7 @@ function harness() {
     },
     renderer: current,
     acquire,
+    schedule,
     onError,
     resize: () => resize(),
     trigger(trigger: "theme" | "font" | "resume" | "dpr") {

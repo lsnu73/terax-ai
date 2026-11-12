@@ -4,6 +4,7 @@ export {
   defaultAiConfig,
 } from "./defaults";
 export { normalizeAiConfig, normalizeParam } from "./normalize";
+export { renameProvider } from "./providerRename";
 export {
   effortConfig,
   effortDefaultLevelId,

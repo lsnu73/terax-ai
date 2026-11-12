@@ -4,6 +4,7 @@ import {
   getBindingTokens,
   type KeyBinding,
   matchBinding,
+  SHORTCUT_GROUPS,
   SHORTCUTS,
 } from "./shortcuts";
 
@@ -135,6 +136,15 @@ describe("matchBinding", () => {
 });
 
 describe("SHORTCUTS registry", () => {
+  it("covers every customizable shortcut group in the settings list", () => {
+    const customizableGroups = new Set(
+      SHORTCUTS.filter((shortcut) => shortcut.id !== "tab.selectByIndex").map(
+        (shortcut) => shortcut.group,
+      ),
+    );
+    expect(new Set(SHORTCUT_GROUPS)).toEqual(customizableGroups);
+  });
+
   it("binds only Mod+I to the native AI window", () => {
     const ai = SHORTCUTS.find((shortcut) => shortcut.id === "ai.toggle");
     expect(ai?.defaultBindings).toEqual([{ key: "i", [MOD_PROP]: true }]);

@@ -275,7 +275,7 @@ GLM-5.2（`low/medium → high`，`xhigh → max`，`none/minimal → 放弃思�
 ### 4.3 校验策略
 
 - 读盘后一律经过 `normalizeAiConfig()`；坏字段被丢弃并进入设置页顶部的 warning 列表，不会导致整个文件失效。
-- 唯一性：`provider.id` 与 `model.id`（全局）必须唯一；重复项保留第一条并 warning。
+- 唯一性：`provider.id` 与 `model.id`（全局）必须唯一；重复项保留第一条并 warning。设置页允许修改 `provider.id`，改名会校验空值和重名并保留 `keyringAccount`，因此已有钥匙串密钥不需要重新录入；自动补全中对旧 ID 的引用会同步迁移。
 - 数值钳制：`inputTokens ≥ 1000`、`outputTokens ≥ 1`；非法值回落默认。
 - `thinking.levels` 为空 → 视为 `null`；`default` 不存在 → 回落到第一档。
 - **密钥头清洗**：`headers` 中出现 `Authorization` / `x-api-key` / `api-key` / `x-goog-api-key` 时直接移除并 warning。
@@ -288,10 +288,10 @@ GLM-5.2（`low/medium → high`，`xhigh → max`，`none/minimal → 放弃思�
 ### 5.1 设置页（推荐，0 代码）
 
 1. 设置 → Models → **Add provider**，选择内置厂商或“自定义 Provider”。
-2. 填 **Base URL**；需要鉴权的填 API Key（写入钥匙串）。
+2. 填 **Base URL**；需要鉴权的填 API Key（写入钥匙串）。Provider 卡片展开区可修改稳定 ID；改名不会改变钥匙串账户或已有密钥。
 3. 点 **Test**：成功会显示状态；401/403 提示鉴权失败；404 提示“端点可达但无模型列表接口”；网络错误会带原始原因。
 4. 点 **Fetch model list** 拉取模型；选中即添加。没有列表接口的厂商在 **Add model** 里手动填写 Model ID、输入 token、输出 token。
-5. 需要厂商专有参数时展开 **高级**，编辑 `Params` / `Thinking` JSON；模型行内的编辑面板可覆盖 Provider 级配置。
+5. 需要厂商专有参数时展开 **高级**，编辑 `Params` / `Thinking` JSON；模型行内的编辑面板可覆盖 Provider 级配置。Provider 高级表单和已有模型编辑表单停止输入后自动保存，底部不再需要保存按钮；离开模型设置分区、切换标签或关闭设置页时会等待保存完成并提示结果。新增模型仍需显式创建。
 6. 在顶部 Defaults 里把新模型设为默认。
 
 ### 5.2 直接改 JSON
@@ -359,6 +359,9 @@ GLM-5.2（`low/medium → high`，`xhigh → max`，`none/minimal → 放弃思�
 | 议题 | 决定 | 理由 |
 | --- | --- | --- |
 | 模型 ID 是否全局唯一 | 唯一；冲突保留第一条并 warning | 选择器、收藏、最近使用、默认模型都以单个字符串为键，编码简单；同名模型应通过 label 区分 |
+| Provider ID 是否可改 | 可改；拒绝空值和重名，保留 `keyringAccount` | ID 是配置查找与自动补全引用键，改名必须迁移引用；钥匙串账户若随 ID 推导会孤立已保存的密钥 |
+| Provider 与已有模型编辑保存 | 防抖自动保存，移除保存按钮；新增模型仍显式创建 | 编辑表单字段多，保存按钮容易被滚动区域遮住；新模型在 ID 与必填参数完整前不能生成有效配置 |
+| 配置并发写入 | 所有 Provider 与模型更新经单队列串行执行 | 多个展开卡片和模型编辑器的自动保存若并行读取旧配置，会互相覆盖 |
 | 滑块是否每个模型单独声明 | 是；Provider 级仅作兜底 | 厂商/型号档位差异大，模型级才能准确表达 |
 | 无思考能力的模型 | 不显示滑块 | 不伪造“关闭”档位，避免误导用户以为已关闭思考 |
 | 手工改 JSON 的生效时机 | 显式 Reload，不监听文件 | 监听会与设置页未保存草稿竞争，造成“编辑被覆盖” |

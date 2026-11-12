@@ -9,6 +9,7 @@ import {
 import type { WindowPresentation } from "@/modules/terminal/ghostty/WindowPresentationPolicy";
 import type { TerminalSurface } from "@/modules/terminal/backend/contracts";
 import { noteTerminalHostResize } from "@/modules/terminal/lib/terminalResizeGesture";
+import { shouldCursorBlink } from "@/modules/terminal/lib/cursorBlink";
 import {
   linkModifierHeld,
   type TerminalLinkModifiers,
@@ -117,6 +118,7 @@ export class WebGlTerminalSurface
   private readonly scrollbarSync = new TerminalScrollbarSync();
   private scrollbarViewportHeight = 0;
   private focused = false;
+  private inputFocused = false;
   private documentSuspended = !terminalWindowPresentation().visible;
   private resizeInteractionActive = terminalResizeInteractionActive();
   /** The window's inner size when the current gesture began; a change means the window is the one moving. */
@@ -295,14 +297,28 @@ export class WebGlTerminalSurface
   }
 
   handleWindowFocus(focused: boolean): void {
+    const focusChanged = this.windowFocused !== focused;
     this.windowFocused = focused;
     const wasVisible = this.cursorVisible;
     const textWasVisible = this.textBlinkVisible;
     this.cursorVisible = true;
     this.armCursorBlink();
     this.syncTextBlink();
-    if ((!wasVisible && this.nativeCursorVisible) || !textWasVisible)
+    if (
+      focusChanged ||
+      (!wasVisible && this.nativeCursorVisible) ||
+      !textWasVisible
+    )
       this.runtime.schedule(this);
+  }
+
+  setInputFocused(focused: boolean): void {
+    if (this.inputFocused === focused) return;
+    this.inputFocused = focused;
+    this.cursorVisible = true;
+    if (focused) this.armCursorBlink();
+    else this.clearCursorTimer();
+    this.runtime.schedule(this);
   }
 
   setFocused(focused: boolean): void {
@@ -480,7 +496,12 @@ export class WebGlTerminalSurface
     const rendered = renderer.render({
       model: this.options.model,
       damage: this.options.model.consumeDamage(),
-      cursorVisible: this.cursorEnabled && this.cursorVisible,
+      cursorVisible:
+        this.cursorEnabled &&
+        this.cursorVisible &&
+        this.windowFocused &&
+        this.focused &&
+        this.inputFocused,
       textBlinkVisible: this.textBlinkVisible,
       selection: this.selection.normalizedBounds(),
       searchMatchAt: (row, column) => this.search.matchAt(row, column),
@@ -843,10 +864,13 @@ export class WebGlTerminalSurface
     if (
       !this.cursorEnabled ||
       !this.nativeCursorVisible ||
-      !this.windowFocused ||
+      !shouldCursorBlink(
+        this.cursorBlinking,
+        this.windowFocused,
+        this.focused,
+        this.inputFocused,
+      ) ||
       this.documentSuspended ||
-      !this.cursorBlinking ||
-      !this.focused ||
       !this.visible ||
       !this.host ||
       !terminalWindowPresentation().visible

@@ -131,10 +131,18 @@ export const settingsModelsZh: typeof settingsModels = {
       info: "最后合并进请求体的原始 JSON，用于厂商专有字段。优先级最高，但 model、messages、stream、tools 等传输键会被忽略。",
     },
     cancel: "取消",
-    saving: "保存中…",
-    save: "保存模型",
+    close: "关闭编辑器",
+    create: "添加模型",
+    creating: "添加中…",
   },
   advanced: {
+    id: {
+      label: "ID",
+      info: "Provider 的稳定标识，用于配置查找、模型归属和自动补全引用；不参与请求。修改后自动补全中的旧引用会同步到新 ID，钥匙串账户与已有 API Key 保持不变。ID 不能为空且不能与其他 Provider 重复。",
+    },
+    idRequired: "Provider ID 不能为空。",
+    idDuplicate: "Provider ID “{{id}}” 已被使用。",
+    idUnknown: "找不到要修改的 Provider。",
     label: {
       label: "Label",
       info: "Provider 在设置页与模型选择窗中的显示名；不参与请求。",
@@ -183,8 +191,14 @@ export const settingsModelsZh: typeof settingsModels = {
       info: "描述厂商的模型列表接口。关闭（null）后该 Provider 只能手动添加模型；path 是接口路径，itemsPath 是响应中数组的位置，idPath 是数组中模型 ID 的字段。",
     },
     errorJson: "JSON 无效：{{error}}",
+  },
+  autosave: {
+    hint: "修改会自动保存",
     saving: "保存中…",
-    save: "保存 Provider 设置",
+    saved: "已保存",
+    failed: "自动保存失败",
+    savedOnLeave: "模型配置已自动保存",
+    failedOnLeave: "部分模型配置未保存，请返回模型设置检查填写内容",
   },
   defaults: {
     label: "默认",

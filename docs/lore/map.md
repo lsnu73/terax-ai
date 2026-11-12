@@ -59,6 +59,14 @@
 - 决策依据：见 decisions/2026-10-30-终端统一命令与结果块.md
 - 易错点：选区菜单与块菜单必须互斥（INV-013）；Ctrl+R 必须同时受全局分发和设置保存两层保护（INV-014）；全文与块内查找必须共享 SearchInline（INV-016），独立输入框会被菜单焦点恢复覆盖，见 [pitfalls/2026-11-02-命令块查找焦点被终端抢回.md](pitfalls/2026-11-02-命令块查找焦点被终端抢回.md)；`TERAX_BLOCKS=1` 只预留块头间隔空行，绝不能隐藏原生提示符；WSL 必须经 `WSLENV` 转发该变量与 `TERAX_TERMINAL`，否则 OSC 133 仍存在但提示符间隔缺失，见 [pitfalls/2026-11-11-WSL丢失块模式环境变量.md](pitfalls/2026-11-11-WSL丢失块模式环境变量.md)；`plain` 表示缺少命令边界上报，不是独立终端类型。
 
+### 终端光标与 AI 焦点交接  `src/modules/terminal/ghostty/`、`src/modules/ai/lib/composer.tsx`
+- 职责：让终端光标只在真实输入焦点存在时显示并按设置闪烁，AI 面板打开和关闭时完成键盘焦点交接。
+- 对外暴露：`GhosttyInputControllerOptions.onFocusChange`、surface `setInputFocused`、`TerminalPaneHandle.focus()`。
+- 关键依赖：[终端 textarea focus/blur] → [输入控制器] → [WebGPU/WebGL surface 光标与定时器]；[AI 面板打开] → [Composer 挂载聚焦] → [终端 input blur 隐藏光标]；[AI 面板关闭] → [App 可见性边界] → [当前 activeLeafId 终端聚焦]。
+- 代码索引：见 [atlas/features/终端光标与焦点.md](../atlas/features/终端光标与焦点.md)
+- 易错点：原生窗口聚焦、逻辑活动窗格和真实 DOM 焦点不得互相替代（INV-022）；两种渲染器必须同步修改，blur 还必须触发非闪烁光标重绘。
+- 决策依据：见 decisions/2026-11-12-终端光标使用三层焦点.md
+
 ### 终端链接打开  `src/modules/terminal/lib/terminalLinks.ts`、`src/modules/terminal/ghostty/`
 - 职责：把终端中的 URL 分到系统浏览器或 Terax 内置预览。
 - 对外暴露：surface 的 `onOpenLink(uri, modifiers)`；应用侧的 `openPreviewTab(url)`。
@@ -73,18 +81,18 @@
 ## AI 与模型配置
 
 ### AI 面板（主窗口右侧）  `src/modules/ai/components/AiPanel.tsx`、`src/modules/ai/store/aiPanelStore.ts`
-- 职责：把完整 Composer 和对话视图放进可跨屏移动的原生窗口，同时保持唯一聊天运行时。
+- 职责：把完整 Composer 和对话视图放进主窗口右侧面板，同时保持唯一聊天运行时。
 - 对外暴露：快捷键 `ai.toggle`；zustand 状态 `useAiPanelStore`（open / prefill）。
-- 关键依赖：[AI webview] →（结构化命令）→ [主窗口 AgentRunBridge] → [唯一 Chat] →（定向快照）→ [AI webview]。
+- 关键依赖：[AI 面板与 AgentRunBridge] →（`getOrCreateChat` + `useChat` 直连）→ [唯一 Chat]；[面板开关] → [Composer 与终端焦点交接]。
 - 代码索引：见 [atlas/features/AI面板.md](../atlas/features/AI面板.md)
-- 易错点：同步命令创建或销毁窗口会阻塞 Windows 事件循环，见 pitfalls/2026-10-30-同步命令创建AI窗口阻塞事件循环.md。
-- 决策依据：见 decisions/2026-10-30-AI窗口采用单聊天引擎跨Webview镜像.md
+- 易错点：AI 输入框聚焦不会改变原生窗口或 activeLeafId 状态，终端光标必须另读真实 DOM 焦点（INV-022）；面板分包必须保持懒加载。
+- 决策依据：见 decisions/2026-10-31-AI面板与设置页迁入主窗口.md、decisions/2026-11-12-终端光标使用三层焦点.md
 
 ### 模型配置（数据驱动层）  `src/modules/ai/config/`
 - 职责：把 Provider、模型、请求参数、思考档位全部收敛为一份可手工编辑的 JSON（`terax-ai-models.json`），让「新增厂商」变成配置操作而不是代码分支。
 - 对外暴露：`registry.ts` 的同步查询（`resolveModel` / `listModels` / `providerNeedsKey` 等）、`params.ts` 的 `resolveRequestParams`、`store.ts` 的 `useAiConfigStore`。
-- 关键依赖：[设置页 ModelsSection] → [config/store + persist] → [terax-ai-models.json]；[请求链路 agent.ts] →（resolveModel / resolveRequestParams）→ [config/registry + params]；[Ctrl+I 模型选择窗] →（thinkingLevels / thinkingLevelIndex）→ [config/params]。
-- 易错点：见 pitfalls/2026-10-28-models-json-no-reload.md、pitfalls/2026-10-28-keys-before-config-hydration.md
+- 关键依赖：[设置页 ModelsSection] → [config/store + persist] → [terax-ai-models.json]；[请求链路 agent.ts] →（resolveModel / resolveRequestParams）→ [config/registry + params]；[Ctrl+I 模型选择窗] →（thinkingLevels / thinkingLevelIndex）→ [config/params]；[Provider 与已有模型自动保存] → [modelSettingsAutosave 协调器] → [SettingsView 离页等待与提示]；Provider 与模型写入共用单队列。
+- 易错点：见 pitfalls/2026-10-28-models-json-no-reload.md、pitfalls/2026-10-28-keys-before-config-hydration.md；Provider ID 是配置查找、模型归属与自动补全的引用键，改名必须保留 `keyringAccount` 并迁移相关引用（INV-023）；离开模型页必须先完成自动保存再提示成功（INV-024）。
 - 决策依据：见 decisions/2026-10-28-data-driven-model-config.md、decisions/2026-10-28-thinking-ladder-per-model.md
 
 ### 请求发送与协议适配  `src/modules/ai/lib/agent.ts`、`providerHttp.ts`
@@ -136,6 +144,7 @@
 - 职责：跨分区检索稳定设置项与快捷键，按分区归组展示结果，并定位到当前分区中的目标设置。
 - 对外暴露：`SETTING_SEARCH_ITEMS` 搜索元数据、`SettingsSearch` 查询组件、设置行 `data-setting-id` 锚点。
 - 关键依赖：[搜索组件] → [当前语言词典 + 快捷键注册表 + 偏好可见性]；[命中项] → [按 item.section 的局部 Map 归组]；[结果选择] → [分区切换] → [同 ID 锚点]。
+- 易错点：快捷键全局搜索直接读取 `SHORTCUTS`，分区列表则按 `SHORTCUT_GROUPS` 渲染；分组漏登记会让已匹配项静默消失，见 [pitfalls/2026-11-12-快捷键分组遗漏导致搜索无结果.md](pitfalls/2026-11-12-快捷键分组遗漏导致搜索无结果.md)。
 - 代码索引：见 [atlas/features/设置页.md](../atlas/features/设置页.md)
 - 易错点：新增可搜索选项必须同步索引与锚点，不能按翻译文本或 DOM 序号定位，见 INV-015；分类分组由前端命中结果派生，不能反向写入或假设静态索引顺序展示。
 - 决策依据：见 decisions/2026-11-02-设置搜索使用静态索引.md、decisions/2026-11-04-设置页左侧导航与结果分组.md

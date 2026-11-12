@@ -143,8 +143,10 @@ updates upload only the uniform. WebGL background and decoration geometry uses
 row range uploads while rectangle counts are stable; structural changes rebuild
 the compact stream. Scrollbar synchronization never reads the DOM on presented
 frames; moving the thumb under a bottom-pinned view costs at most ten position
-writes and four ARIA updates a second. Blink timers stop in unfocused windows,
-and native cursor hiding stops cursor timers. Selection is a uniform and needs no
+writes and four ARIA updates a second. Cursor drawing and blink timers require
+a focused native window, the active pane, and actual terminal textarea focus;
+losing any of them hides the cursor, and native cursor hiding stops cursor timers.
+Selection is a uniform and needs no
 row damage; streaming search invalidations coalesce instead of rebuilding per
 output chunk.
 WebGL surface and renderer code load only when selected, needed for fallback,
@@ -363,11 +365,11 @@ ConPTY on Windows requires `CONPTY_LIFECYCLE_LOCK` (Mutex) around `openpty + spa
 
 Each ConPTY child is also assigned to a per-session **Job Object** with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` (`pty/job.rs`). When the Job HANDLE drops - clean shutdown, panic, or even SIGKILL'd Terax process - the kernel kills every descendant of the shell (e.g. `npm run dev` spawned from inside pwsh). Without this Windows orphans the entire process subtree because `TerminateProcess` only kills the immediate child. macOS/Linux rely on `Drop for Session → killer.kill()`; on dev-`Ctrl-C` of `cargo run` destructors don't fire and orphans are possible there too - acceptable for now since dev only.
 
-`AiComposerProvider` is mounted inside the independent AI window, not at the App.tsx root. The main window keeps the only chat engine and mirrors snapshots to the AI webview, so Composer mounts and keychain reads never remount the main terminal tree.
+`AiComposerProvider` is mounted inside the main window's right-side AI panel, not at the App.tsx root. The panel and `AgentRunBridge` subscribe to the same chat engine directly, without a snapshot bridge, so Composer mounts and keychain reads never remount the main terminal tree. Opening the panel focuses the Composer textarea; closing it restores focus to the current active terminal pane.
 
 ### Frontend (`src/`)
 
-Multi-window React app with main, settings, and native AI entry points. Path alias `@/*` → `src/*`. Main-window tabs are a tagged union (`kind`: `terminal` | `editor` | `preview` | `markdown` | `ai-diff` | `git-diff` | `git-history` | `git-commit-file`) and **not** unmounted on switch - they're hidden via `invisible pointer-events-none` so PTYs and dev servers keep streaming in the background.
+React app with main and settings entry points; the AI panel lives inside the main window. Path alias `@/*` → `src/*`. Main-window tabs are a tagged union (`kind`: `terminal` | `editor` | `preview` | `markdown` | `ai-diff` | `git-diff` | `git-history` | `git-commit-file`) and **not** unmounted on switch - they're hidden via `invisible pointer-events-none` so PTYs and dev servers keep streaming in the background.
 
 `App.tsx` wires modules together - keep it a coordinator. New features go inside the appropriate `modules/<area>/`.
 

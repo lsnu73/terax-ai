@@ -187,6 +187,7 @@ export function WorkspaceSurface({
                 ? activeTab.section
                 : settingsTab.section
             }
+            visible={isSettingsTab}
             onSectionChange={onSettingsSectionChange}
           />
         </div>

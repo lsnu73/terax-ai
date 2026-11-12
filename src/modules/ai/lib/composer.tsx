@@ -85,8 +85,8 @@ export function AiComposerProvider({
   const focusSignal = useChatStore((s) => s.focusSignal);
 
   useEffect(() => {
-    if (focusSignal === 0) return;
-    textareaRef.current?.focus();
+    const frame = requestAnimationFrame(() => textareaRef.current?.focus());
+    return () => cancelAnimationFrame(frame);
   }, [focusSignal]);
 
   const prevIsBusyRef = useRef(false);

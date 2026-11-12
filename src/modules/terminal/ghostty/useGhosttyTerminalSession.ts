@@ -223,6 +223,7 @@ export function useGhosttyTerminalSession({
     ghosttyBlocks(leafId)?.setVisible(visible);
     const surface = session.surface;
     if (!surface || session.rendererError) return;
+    surface.setFocused(focused);
     if (visible && session.container) {
       try {
         attachGhosttySurface(session, surface);
@@ -927,6 +928,7 @@ function createGhosttyInput(
       height: surface.cellSize().height,
     }),
     gridShiftY: () => surface.gridShiftY(),
+    onFocusChange: (focused) => surface.setInputFocused(focused),
     onData: (bytes) => {
       session.writer.enqueue(bytes);
     },

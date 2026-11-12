@@ -178,7 +178,11 @@
       "additionalProperties": false,
       "required": ["id"],
       "properties": {
-        "id": { "type": "string", "minLength": 1 },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable provider identifier. Must be unique. Renaming from Settings rejects empty/duplicate ids, preserves keyringAccount and migrates autocomplete references."
+        },
         "label": { "type": "string" },
         "protocol": {
           "type": "string",

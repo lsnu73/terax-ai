@@ -26,6 +26,7 @@ import {
   type ParamDef,
   type ProviderEntry,
   providerSupportsKey,
+  renameProvider,
   type SystemPromptKind,
   type EffortConfig,
   effortLevels,
@@ -55,6 +56,7 @@ import {
   setFavoriteModelIds,
   setRecentModelIds,
 } from "@/modules/settings/store";
+import { registerModelAutosaveFlush, trackModelAutosave } from "@/settings/modelSettingsAutosave";
 import {
   Add01Icon,
   ArrowDown01Icon,
@@ -68,7 +70,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SectionHeader } from "../components/SectionHeader";
 import {
@@ -91,6 +93,22 @@ type TestState =
   | { status: "testing" }
   | { status: "ok"; message: string }
   | { status: "fail"; message: string };
+
+type FormSaveState = "idle" | "saving" | "saved" | "error";
+
+const FORM_AUTOSAVE_DELAY_MS = 600;
+
+/** Serializes provider and model writes so concurrent autosaves cannot overwrite each other. */
+let configWriteQueue: Promise<void> = Promise.resolve();
+
+function enqueueConfigWrite<T>(operation: () => Promise<T>): Promise<T> {
+  const queued = configWriteQueue.then(operation);
+  configWriteQueue = queued.then(
+    () => undefined,
+    () => undefined,
+  );
+  return queued;
+}
 
 function parseJson<T>(text: string): { value?: T; error?: string } {
   const trimmed = text.trim();
@@ -178,35 +196,90 @@ export function ModelsSection() {
     void getAllKeys().then(setKeys);
   }, [config]);
 
-  const updateProvider = async (
+  const updateProvider = (
     id: string,
     patch: Partial<ProviderEntry>,
-  ): Promise<void> => {
-    await replace({
-      ...config,
-      providers: config.providers.map((p) =>
-        p.id === id ? { ...p, ...patch } : p,
-      ),
+  ): Promise<void> =>
+    enqueueConfigWrite(async () => {
+      const currentConfig = useAiConfigStore.getState().config;
+      const requestedId = patch.id;
+      let nextConfig = currentConfig;
+      let targetId = id;
+      let renamed = false;
+      if (requestedId !== undefined) {
+        const result = renameProvider(currentConfig, id, requestedId);
+        if ("error" in result) {
+          const message =
+            result.error === "empty"
+              ? t("settings.models.advanced.idRequired")
+              : result.error === "duplicate"
+                ? t("settings.models.advanced.idDuplicate", {
+                    id: requestedId.trim(),
+                  })
+                : t("settings.models.advanced.idUnknown");
+          throw new Error(message);
+        }
+        nextConfig = result.config;
+        targetId = requestedId.trim();
+        renamed = result.changed;
+      }
+      const changes = { ...patch };
+      delete changes.id;
+      await replace({
+        ...nextConfig,
+        providers: nextConfig.providers.map((provider) =>
+          provider.id === targetId
+            ? { ...provider, ...changes }
+            : provider,
+        ),
+      });
+      if (renamed) {
+        setKeys((previous) => {
+          if (!(id in previous)) return previous;
+          const next = { ...previous };
+          next[targetId] = previous[id];
+          delete next[id];
+          return next;
+        });
+        if (usePreferencesStore.getState().autocompleteProvider === id) {
+          await setAutocompleteProvider(targetId);
+        }
+      }
     });
-  };
 
   const updateModel = async (
     providerId: string,
     modelId: string,
     model: ModelEntry,
-  ): Promise<void> => {
-    await replace({
-      ...config,
-      providers: config.providers.map((p) =>
-        p.id === providerId
-          ? {
-              ...p,
-              models: p.models.map((m) => (m.id === modelId ? model : m)),
-            }
-          : p,
-      ),
+  ): Promise<void> =>
+    enqueueConfigWrite(async () => {
+      const currentConfig = useAiConfigStore.getState().config;
+      const duplicate = currentConfig.providers.some((provider) =>
+        provider.models.some(
+          (entry) =>
+            entry.id === model.id &&
+            !(provider.id === providerId && entry.id === modelId),
+        ),
+      );
+      if (duplicate) {
+        throw new Error(
+          t("settings.models.modelEditor.duplicateId", { id: model.id }),
+        );
+      }
+      await replace({
+        ...currentConfig,
+        providers: currentConfig.providers.map((provider) =>
+          provider.id === providerId
+            ? {
+                ...provider,
+                models: provider.models.map((entry) =>
+                  entry.id === modelId ? model : entry,
+                ),
+              }
+            : provider,
+        ),
+      });
     });
-  };
 
   const addModel = async (
     providerId: string,
@@ -512,6 +585,17 @@ function ProviderCard({
 }) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(provider.models.length === 0);
+  const [idDraft, setIdDraft] = useState(provider.id);
+  const [idError, setIdError] = useState<string | null>(null);
+  const committedIdRef = useRef(provider.id);
+  const idDraftRef = useRef(idDraft);
+  const idSaveInFlightRef = useRef<Promise<boolean> | null>(null);
+  const commitIdRef = useRef<() => Promise<boolean>>(async () => true);
+  const committedBaseURLRef = useRef(provider.baseURL);
+  const baseURLDraftRef = useRef(provider.baseURL);
+  const baseURLSaveInFlightRef = useRef<Promise<boolean> | null>(null);
+  const commitBaseURLRef = useRef<() => Promise<boolean>>(async () => true);
+  const flushProviderRef = useRef<() => Promise<boolean>>(async () => true);
   const [baseURLDraft, setBaseURLDraft] = useState(provider.baseURL);
   const [keyDraft, setKeyDraft] = useState("");
   const [test, setTest] = useState<TestState>({ status: "idle" });
@@ -520,7 +604,103 @@ function ProviderCard({
   const [adding, setAdding] = useState(false);
   const [advanced, setAdvanced] = useState(false);
 
-  useEffect(() => setBaseURLDraft(provider.baseURL), [provider.baseURL]);
+  useEffect(() => {
+    setIdDraft(provider.id);
+    setIdError(null);
+    committedIdRef.current = provider.id;
+  }, [provider.id]);
+
+  useEffect(() => {
+    idDraftRef.current = idDraft;
+  }, [idDraft]);
+
+  useEffect(() => {
+    setBaseURLDraft(provider.baseURL);
+    committedBaseURLRef.current = provider.baseURL;
+  }, [provider.baseURL]);
+
+  useEffect(() => {
+    baseURLDraftRef.current = baseURLDraft;
+  }, [baseURLDraft]);
+
+  const commitId = async (): Promise<boolean> => {
+    const nextId = idDraft.trim();
+    if (nextId === provider.id) {
+      setIdDraft(provider.id);
+      setIdError(null);
+      committedIdRef.current = provider.id;
+      return true;
+    }
+    if (idSaveInFlightRef.current) return idSaveInFlightRef.current;
+    setIdError(null);
+    const saving = onUpdate({ id: nextId })
+      .then(() => {
+        committedIdRef.current = nextId;
+        return true;
+      })
+      .catch((error: unknown) => {
+        setIdError(error instanceof Error ? error.message : String(error));
+        return false;
+      });
+    const tracked = trackModelAutosave(saving);
+    idSaveInFlightRef.current = tracked;
+    try {
+      return await tracked;
+    } finally {
+      if (idSaveInFlightRef.current === tracked) {
+        idSaveInFlightRef.current = null;
+      }
+    }
+  };
+  commitIdRef.current = commitId;
+
+  const commitBaseURL = async (): Promise<boolean> => {
+    const value = baseURLDraft.trim();
+    if (value === provider.baseURL) {
+      setBaseURLDraft(provider.baseURL);
+      committedBaseURLRef.current = provider.baseURL;
+      return true;
+    }
+    if (baseURLSaveInFlightRef.current) return baseURLSaveInFlightRef.current;
+    const saving = onUpdate({ baseURL: value })
+      .then(() => {
+        committedBaseURLRef.current = value;
+        return true;
+      })
+      .catch(() => false);
+    const tracked = trackModelAutosave(saving);
+    baseURLSaveInFlightRef.current = tracked;
+    try {
+      return await tracked;
+    } finally {
+      if (baseURLSaveInFlightRef.current === tracked) {
+        baseURLSaveInFlightRef.current = null;
+      }
+    }
+  };
+  commitBaseURLRef.current = commitBaseURL;
+
+  const flushProvider = async (): Promise<boolean> => {
+    let saved = true;
+    if (idDraftRef.current.trim() !== committedIdRef.current) {
+      saved = (await commitIdRef.current()) && saved;
+    }
+    if (baseURLDraftRef.current.trim() !== committedBaseURLRef.current) {
+      saved = (await commitBaseURLRef.current()) && saved;
+    }
+    return saved;
+  };
+  flushProviderRef.current = flushProvider;
+
+  useEffect(() => {
+    const unregister = registerModelAutosaveFlush(() =>
+      flushProviderRef.current(),
+    );
+    return () => {
+      unregister();
+      void flushProviderRef.current();
+    };
+  }, []);
 
   const configured =
     provider.baseURL.trim().length > 0 &&
@@ -629,6 +809,33 @@ function ProviderCard({
       {expanded ? (
         <div className="flex flex-col gap-2.5 border-t border-border/40 px-3 py-2.5">
           <FieldRow
+            label={t("settings.models.advanced.id.label")}
+            info={t("settings.models.advanced.id.info")}
+          >
+            <div className="flex flex-1 flex-col gap-1">
+              <Input
+                value={idDraft}
+                onChange={(event) => setIdDraft(event.target.value)}
+                onBlur={() => void commitId()}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") event.currentTarget.blur();
+                }}
+                aria-invalid={Boolean(idError)}
+                spellCheck={false}
+                className="h-8 flex-1 font-mono text-[11.5px]"
+              />
+              {idError ? (
+                <span
+                  role="alert"
+                  className="text-[10.5px] text-destructive/80"
+                >
+                  {idError}
+                </span>
+              ) : null}
+            </div>
+          </FieldRow>
+
+          <FieldRow
             label={t("settings.models.provider.baseUrl.label")}
             info={t("settings.models.provider.baseUrl.info")}
           >
@@ -636,11 +843,7 @@ function ProviderCard({
               <Input
                 value={baseURLDraft}
                 onChange={(e) => setBaseURLDraft(e.target.value)}
-                onBlur={() => {
-                  const value = baseURLDraft.trim();
-                  if (value !== provider.baseURL)
-                    void onUpdate({ baseURL: value });
-                }}
+                onBlur={() => void commitBaseURL()}
                 placeholder="https://api.example.com/v1"
                 spellCheck={false}
                 className="h-8 flex-1 font-mono text-[11.5px]"
@@ -949,11 +1152,9 @@ function ModelRow({
           <ModelEditor
             title={t("settings.models.modelEditor.editTitle")}
             initial={model}
+            autoSave
             onCancel={() => setEditing(false)}
-            onSave={async (next) => {
-              await onSave(next);
-              setEditing(false);
-            }}
+            onSave={onSave}
           />
         </div>
       ) : null}
@@ -964,11 +1165,13 @@ function ModelRow({
 function ModelEditor({
   title,
   initial,
+  autoSave = false,
   onSave,
   onCancel,
 }: {
   title: string;
   initial: ModelEntry;
+  autoSave?: boolean;
   onSave: (model: ModelEntry) => Promise<void>;
   onCancel: () => void;
 }) {
@@ -997,24 +1200,52 @@ function ModelEditor({
     Object.keys(initial.extra).length > 0 ? stringify(initial.extra) : "",
   );
   const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [saveState, setSaveState] = useState<FormSaveState>("idle");
 
-  const submit = async () => {
+  const draftKey = JSON.stringify([
+    id,
+    label,
+    inputTokens,
+    outputTokens,
+    temperature,
+    autocomplete,
+    systemPrompt,
+    tags,
+    paramsText,
+    effortText,
+    extraText,
+  ]);
+  const savedDraftRef = useRef(draftKey);
+  const saveRef = useRef<() => Promise<boolean>>(async () => true);
+  const flushRef = useRef<() => Promise<boolean>>(async () => true);
+  const inFlightRef = useRef<Promise<boolean> | null>(null);
+  const timerRef = useRef<number | null>(null);
+  const mountedRef = useRef(true);
+
+  const saveDraft = async (): Promise<boolean> => {
+    if (inFlightRef.current) {
+      const settled = await inFlightRef.current;
+      if (!settled) return false;
+    }
+    if (draftKey === savedDraftRef.current) return true;
     setError(null);
     const trimmedId = id.trim();
     if (!trimmedId) {
       setError(t("settings.models.modelEditor.errorIdRequired"));
-      return;
+      setSaveState("error");
+      return false;
     }
     const input = parseInt(inputTokens, 10);
     const output = parseInt(outputTokens, 10);
     if (!Number.isFinite(input) || input < 1_000) {
       setError(t("settings.models.modelEditor.errorInput"));
-      return;
+      setSaveState("error");
+      return false;
     }
     if (!Number.isFinite(output) || output < 1) {
       setError(t("settings.models.modelEditor.errorOutput"));
-      return;
+      setSaveState("error");
+      return false;
     }
     const params = parseJson<ParamDef[]>(paramsText);
     if (params.error) {
@@ -1023,12 +1254,14 @@ function ModelEditor({
           error: params.error,
         }),
       );
-      return;
+      setSaveState("error");
+      return false;
     }
     const paramsError = validateParamKeys(params.value);
     if (paramsError) {
       setError(paramsError);
-      return;
+      setSaveState("error");
+      return false;
     }
     const effort = parseJson<EffortConfig | null>(effortText);
     if (effort.error) {
@@ -1037,12 +1270,14 @@ function ModelEditor({
           error: effort.error,
         }),
       );
-      return;
+      setSaveState("error");
+      return false;
     }
     const effortError = validateEffortConfig(effort.value);
     if (effortError) {
       setError(effortError);
-      return;
+      setSaveState("error");
+      return false;
     }
     const extra = parseJson<JsonObject>(extraText);
     if (extra.error) {
@@ -1051,38 +1286,164 @@ function ModelEditor({
           error: extra.error,
         }),
       );
-      return;
+      setSaveState("error");
+      return false;
     }
-    setSaving(true);
-    try {
-      await onSave({
-        id: trimmedId,
-        label: label.trim() || trimmedId,
-        inputTokens: Math.round(input),
-        outputTokens: Math.round(output),
-        supportsTemperature: temperature,
-        supportsAutocomplete: autocomplete,
-        ...(systemPrompt === "inherit" ? {} : { systemPrompt }),
-        params: params.value ?? [],
-        effort: effort.value ?? null,
-        extra: extra.value ?? {},
-        tags: tags
-          .split(",")
-          .map((tag) => tag.trim())
-          .filter(Boolean),
+    const key = draftKey;
+    const model: ModelEntry = {
+      id: trimmedId,
+      label: label.trim() || trimmedId,
+      inputTokens: Math.round(input),
+      outputTokens: Math.round(output),
+      supportsTemperature: temperature,
+      supportsAutocomplete: autocomplete,
+      ...(systemPrompt === "inherit" ? {} : { systemPrompt }),
+      params: params.value ?? [],
+      effort: effort.value ?? null,
+      extra: extra.value ?? {},
+      tags: tags
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter(Boolean),
+    };
+    setSaveState("saving");
+    const saving = onSave(model)
+      .then(() => {
+        savedDraftRef.current = key;
+        if (mountedRef.current) {
+          setError(null);
+          setSaveState("saved");
+        }
+        return true;
+      })
+      .catch((e: unknown) => {
+        if (mountedRef.current) {
+          setError(e instanceof Error ? e.message : String(e));
+          setSaveState("error");
+        }
+        return false;
       });
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+    const tracked = trackModelAutosave(saving);
+    inFlightRef.current = tracked;
+    try {
+      return await tracked;
     } finally {
-      setSaving(false);
+      if (inFlightRef.current === tracked) inFlightRef.current = null;
     }
   };
+  saveRef.current = saveDraft;
+
+  const flush = async (): Promise<boolean> => {
+    if (timerRef.current !== null) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    return saveRef.current();
+  };
+  flushRef.current = flush;
+
+  useEffect(() => {
+    if (!autoSave) return;
+    if (draftKey === savedDraftRef.current) {
+      setError(null);
+      setSaveState((state) =>
+        state === "saving" || state === "error" ? "idle" : state,
+      );
+      return;
+    }
+    setError(null);
+    setSaveState("saving");
+    const timer = window.setTimeout(() => {
+      timerRef.current = null;
+      void saveRef.current();
+    }, FORM_AUTOSAVE_DELAY_MS);
+    timerRef.current = timer;
+    return () => {
+      if (timerRef.current === timer) {
+        window.clearTimeout(timer);
+        timerRef.current = null;
+      }
+    };
+  }, [autoSave, draftKey]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    if (!autoSave) {
+      return () => {
+        mountedRef.current = false;
+      };
+    }
+    const unregister = registerModelAutosaveFlush(() => flushRef.current());
+    return () => {
+      unregister();
+      mountedRef.current = false;
+      void flushRef.current();
+    };
+  }, [autoSave]);
+
+  const submit = () => saveDraft();
+  const autoSaveLabel =
+    saveState === "saving"
+      ? t("settings.models.autosave.saving")
+      : saveState === "error"
+        ? t("settings.models.autosave.failed")
+        : saveState === "saved"
+          ? t("settings.models.autosave.saved")
+          : t("settings.models.autosave.hint");
 
   return (
     <div className="flex flex-col gap-2 rounded-md border border-border/60 bg-muted/20 p-2.5">
-      <span className="text-[11px] font-medium text-muted-foreground">
-        {title}
-      </span>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[11px] font-medium text-muted-foreground">
+          {title}
+        </span>
+        {autoSave ? (
+          <span className="flex items-center gap-2">
+            <span
+              className={cn(
+                "text-[10px] text-muted-foreground",
+                saveState === "error" && "text-destructive/80",
+              )}
+            >
+              {autoSaveLabel}
+            </span>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={onCancel}
+              className="h-6 px-2 text-[10.5px]"
+            >
+              {t("settings.models.modelEditor.close")}
+            </Button>
+          </span>
+        ) : (
+          <span className="flex items-center gap-1.5">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={onCancel}
+              className="h-6 px-2 text-[10.5px]"
+            >
+              {t("settings.models.modelEditor.cancel")}
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => void submit()}
+              disabled={saveState === "saving"}
+              className="h-6 px-2.5 text-[10.5px]"
+            >
+              {saveState === "saving"
+                ? t("settings.models.modelEditor.creating")
+                : t("settings.models.modelEditor.create")}
+            </Button>
+          </span>
+        )}
+      </div>
+      {error ? (
+        <span role="alert" className="text-[10.5px] text-destructive/80">
+          {error}
+        </span>
+      ) : null}
       <FieldRow
         label={t("settings.models.modelEditor.modelId.label")}
         info={t("settings.models.modelEditor.modelId.info")}
@@ -1262,29 +1623,6 @@ function ModelEditor({
 }`}
         />
       </div>
-      {error ? (
-        <span className="text-[10.5px] text-destructive/80">{error}</span>
-      ) : null}
-      <div className="flex items-center justify-end gap-1.5">
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={onCancel}
-          className="h-7 px-2.5 text-[11px]"
-        >
-          {t("settings.models.modelEditor.cancel")}
-        </Button>
-        <Button
-          size="sm"
-          onClick={() => void submit()}
-          disabled={saving}
-          className="h-7 px-3 text-[11px]"
-        >
-          {saving
-            ? t("settings.models.modelEditor.saving")
-            : t("settings.models.modelEditor.save")}
-        </Button>
-      </div>
     </div>
   );
 }
@@ -1321,55 +1659,145 @@ function ProviderAdvancedEditor({
     provider.modelsApi ? stringify(provider.modelsApi) : "",
   );
   const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [saveState, setSaveState] = useState<FormSaveState>("idle");
 
-  const save = async () => {
+  const draftKey = JSON.stringify([
+    label,
+    protocol,
+    authMode,
+    authHeader,
+    authRequired,
+    keyringAccount,
+    consoleUrl,
+    icon,
+    systemPrompt,
+    paramsText,
+    effortText,
+    headersText,
+    apiText,
+  ]);
+  const savedDraftRef = useRef(draftKey);
+  const saveRef = useRef<() => Promise<boolean>>(async () => true);
+  const flushRef = useRef<() => Promise<boolean>>(async () => true);
+  const inFlightRef = useRef<Promise<boolean> | null>(null);
+  const timerRef = useRef<number | null>(null);
+  const mountedRef = useRef(true);
+
+  const saveDraft = async (): Promise<boolean> => {
+    if (inFlightRef.current) {
+      const settled = await inFlightRef.current;
+      if (!settled) return false;
+    }
+    if (draftKey === savedDraftRef.current) return true;
     setError(null);
     const params = parseJson<ParamDef[]>(paramsText);
     const effort = parseJson<EffortConfig | null>(effortText);
     const headers = parseJson<Record<string, string>>(headersText);
     const api = parseJson<ProviderEntry["modelsApi"]>(apiText);
-    const failure =
-      params.error ?? effort.error ?? headers.error ?? api.error;
+    const failure = params.error ?? effort.error ?? headers.error ?? api.error;
     if (failure) {
       setError(t("settings.models.advanced.errorJson", { error: failure }));
-      return;
+      setSaveState("error");
+      return false;
     }
     const paramsError = validateParamKeys(params.value);
     if (paramsError) {
       setError(paramsError);
-      return;
+      setSaveState("error");
+      return false;
     }
     const effortError = validateEffortConfig(effort.value);
     if (effortError) {
       setError(effortError);
-      return;
+      setSaveState("error");
+      return false;
     }
-    setSaving(true);
-    try {
-      await onSave({
-        label: label.trim() || provider.id,
-        protocol,
-        auth: {
-          mode: authMode,
-          required: authMode === "none" ? false : authRequired,
-          ...(authHeader.trim() ? { header: authHeader.trim() } : {}),
-        },
-        keyringAccount: keyringAccount.trim() || `${provider.id}-api-key`,
-        consoleUrl: consoleUrl.trim() || undefined,
-        icon: icon.trim() || "plug",
-        systemPrompt: systemPrompt === "inherit" ? undefined : systemPrompt,
-        params: params.value ?? [],
-        effort: effort.value ?? null,
-        headers: headers.value ?? {},
-        modelsApi: api.value ?? null,
+    const patch: Partial<ProviderEntry> = {
+      label: label.trim() || provider.id,
+      protocol,
+      auth: {
+        mode: authMode,
+        required: authMode === "none" ? false : authRequired,
+        ...(authHeader.trim() ? { header: authHeader.trim() } : {}),
+      },
+      keyringAccount: keyringAccount.trim() || `${provider.id}-api-key`,
+      consoleUrl: consoleUrl.trim() || undefined,
+      icon: icon.trim() || "plug",
+      systemPrompt: systemPrompt === "inherit" ? undefined : systemPrompt,
+      params: params.value ?? [],
+      effort: effort.value ?? null,
+      headers: headers.value ?? {},
+      modelsApi: api.value ?? null,
+    };
+    const key = draftKey;
+    setSaveState("saving");
+    const saving = onSave(patch)
+      .then(() => {
+        savedDraftRef.current = key;
+        if (mountedRef.current) {
+          setError(null);
+          setSaveState("saved");
+        }
+        return true;
+      })
+      .catch((e: unknown) => {
+        if (mountedRef.current) {
+          setError(e instanceof Error ? e.message : String(e));
+          setSaveState("error");
+        }
+        return false;
       });
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+    const tracked = trackModelAutosave(saving);
+    inFlightRef.current = tracked;
+    try {
+      return await tracked;
     } finally {
-      setSaving(false);
+      if (inFlightRef.current === tracked) inFlightRef.current = null;
     }
   };
+  saveRef.current = saveDraft;
+
+  const flush = async (): Promise<boolean> => {
+    if (timerRef.current !== null) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    return saveRef.current();
+  };
+  flushRef.current = flush;
+
+  useEffect(() => {
+    if (draftKey === savedDraftRef.current) {
+      setError(null);
+      setSaveState((state) =>
+        state === "saving" || state === "error" ? "idle" : state,
+      );
+      return;
+    }
+    setError(null);
+    setSaveState("saving");
+    const timer = window.setTimeout(() => {
+      timerRef.current = null;
+      void saveRef.current();
+    }, FORM_AUTOSAVE_DELAY_MS);
+    timerRef.current = timer;
+    return () => {
+      if (timerRef.current === timer) {
+        window.clearTimeout(timer);
+        timerRef.current = null;
+      }
+    };
+  }, [draftKey]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    const unregister = registerModelAutosaveFlush(() => flushRef.current());
+    return () => {
+      unregister();
+      mountedRef.current = false;
+      void flushRef.current();
+    };
+  }, []);
 
   return (
     <div className="flex flex-col gap-2 rounded-md border border-border/60 bg-muted/20 p-2.5">
@@ -1579,17 +2007,21 @@ function ProviderAdvancedEditor({
       {error ? (
         <span className="text-[10.5px] text-destructive/80">{error}</span>
       ) : null}
-      <div className="flex justify-end">
-        <Button
-          size="sm"
-          onClick={() => void save()}
-          disabled={saving}
-          className="h-7 px-3 text-[11px]"
-        >
-          {saving
-            ? t("settings.models.advanced.saving")
-            : t("settings.models.advanced.save")}
-        </Button>
+      <div className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
+        <span>{t("settings.models.autosave.hint")}</span>
+        {saveState !== "idle" ? (
+          <span
+            className={cn(
+              saveState === "error" && "text-destructive/80",
+            )}
+          >
+            {saveState === "saving"
+              ? t("settings.models.autosave.saving")
+              : saveState === "saved"
+                ? t("settings.models.autosave.saved")
+                : t("settings.models.autosave.failed")}
+          </span>
+        ) : null}
       </div>
     </div>
   );

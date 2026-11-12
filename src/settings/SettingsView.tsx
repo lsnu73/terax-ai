@@ -12,7 +12,20 @@ import {
   UserMultiple02Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { type JSX, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { t as i18nT } from "@/modules/i18n";
+import {
+  isLeavingModelsSettings,
+  settleModelAutosave,
+} from "@/settings/modelSettingsAutosave";
+import { toast } from "sonner";
+import {
+  type JSX,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { SettingsSearch } from "./components/SettingsSearch";
 import { AboutSection } from "./sections/AboutSection";
@@ -87,9 +100,11 @@ const TABS: {
  */
 export function SettingsView({
   section,
+  visible,
   onSectionChange,
 }: {
   section: SettingsTab;
+  visible: boolean;
   onSectionChange?: (section: SettingsTab) => void;
 }) {
   const { t } = useTranslation();
@@ -100,8 +115,56 @@ export function SettingsView({
   } | null>(null);
   const mainRef = useRef<HTMLElement>(null);
   const targetRequest = useRef(0);
+  const activeRef = useRef(active);
+  const visibleRef = useRef(visible);
+  const previousLocationRef = useRef({ active, visible });
+  const leaveNoticeShownRef = useRef(false);
   const init = usePreferencesStore((s) => s.init);
   const ActiveSection = TABS.find((t) => t.id === active)?.component;
+  activeRef.current = active;
+  visibleRef.current = visible;
+
+  const notifyModelsLeave = useCallback(() => {
+    if (activeRef.current !== "models" || leaveNoticeShownRef.current) return;
+    leaveNoticeShownRef.current = true;
+    void settleModelAutosave().then((saved) => {
+      if (saved) {
+        toast.success(i18nT("settings.models.autosave.savedOnLeave"), {
+          id: "settings-models-autosave",
+        });
+      } else {
+        toast.error(i18nT("settings.models.autosave.failedOnLeave"), {
+          id: "settings-models-autosave",
+        });
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    const previous = previousLocationRef.current;
+    previousLocationRef.current = { active, visible };
+    if (
+      isLeavingModelsSettings(
+        previous.active,
+        previous.visible,
+        active,
+        visible,
+      )
+    ) {
+      notifyModelsLeave();
+    } else if (active === "models" && visible) {
+      leaveNoticeShownRef.current = false;
+    }
+  }, [active, visible, notifyModelsLeave]);
+
+  useEffect(
+    () => () => {
+      if (activeRef.current === "models" && visibleRef.current) {
+        notifyModelsLeave();
+      }
+    },
+    [notifyModelsLeave],
+  );
 
   useEffect(() => {
     void init();

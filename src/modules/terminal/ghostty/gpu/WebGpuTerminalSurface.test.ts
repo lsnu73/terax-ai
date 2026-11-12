@@ -98,6 +98,8 @@ describe("WebGPU surface data path", () => {
 
   it("uploads only the uniform for cursor movement and redraws", async () => {
     const h = await harness();
+    h.surface.setFocused(true);
+    h.surface.setInputFocused(true);
     h.render();
     h.writeBuffer.mockClear();
     h.cursor.x++;
@@ -692,11 +694,45 @@ describe("WebGPU surface resource lifecycle", () => {
     ).toHaveLength(0);
   });
 
+  it("draws the cursor only while the window, pane and terminal input are focused", async () => {
+    const h = await harness();
+    const cursorSize = () => {
+      h.writeBuffer.mockClear();
+      h.render();
+      const upload = h.writeBuffer.mock.calls.find(
+        ([buffer]) => buffer === h.lastUniformBuffer(),
+      );
+      if (!upload) throw new Error("cursor uniform was not uploaded");
+      const floats = upload[2] as Float32Array;
+      return [
+        floats[SCREEN_OFFSET.cursorSize / 4],
+        floats[SCREEN_OFFSET.cursorSize / 4 + 1],
+      ];
+    };
+
+    h.surface.setFocused(true);
+    h.surface.setInputFocused(true);
+    expect(cursorSize()[0]).toBeGreaterThan(0);
+
+    h.surface.setInputFocused(false);
+    expect(cursorSize()).toEqual([0, 0]);
+    h.surface.setInputFocused(true);
+    expect(cursorSize()[0]).toBeGreaterThan(0);
+
+    h.schedule.mockClear();
+    h.surface.handleWindowFocus(false);
+    expect(h.schedule).toHaveBeenCalledOnce();
+    expect(cursorSize()).toEqual([0, 0]);
+    h.surface.handleWindowFocus(true);
+    expect(cursorSize()[0]).toBeGreaterThan(0);
+  });
+
   it("stops cursor timers for an application-hidden cursor and unfocused window", async () => {
     vi.useFakeTimers();
     const h = await harness();
     h.cursor.blinking = true;
     h.surface.setFocused(true);
+    h.surface.setInputFocused(true);
     h.render();
     expect(vi.getTimerCount()).toBe(1);
     h.cursor.visible = false;

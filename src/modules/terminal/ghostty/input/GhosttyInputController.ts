@@ -144,6 +144,7 @@ export type GhosttyInputControllerOptions = {
   readonly onPaste?: (text: string) => boolean;
   readonly onText?: (text: string) => boolean;
   readonly onKeyDown?: (event: KeyboardEvent) => boolean;
+  readonly onFocusChange?: (focused: boolean) => void;
   readonly macOptionIsMeta?: boolean;
   readonly isMac?: boolean;
   /** Selected-placeholder input proxy (a macOS WebKit fix); defaults to `isMac`. */
@@ -399,12 +400,14 @@ export class GhosttyInputController {
   };
 
   private readonly handleFocus = (): void => {
+    this.options.onFocusChange?.(true);
     if (this.options.model.modes().focusReporting) {
       this.emitText("\x1b[I", "keydown", false, false);
     }
   };
 
   private readonly handleBlur = (): void => {
+    this.options.onFocusChange?.(false);
     this.pressedKeys.clear();
     this.composing = false;
     if (this.options.model.modes().focusReporting) {

@@ -479,6 +479,18 @@ export default function App() {
   const aiPanelWidthRef = useRef(readAiPanelWidth());
   const aiPanelRef = useRef<PanelImperativeHandle | null>(null);
   const aiPanelVisible = aiPanelOpen && hasComposer;
+  const previousAiPanelVisible = useRef(aiPanelVisible);
+  useEffect(() => {
+    const wasVisible = previousAiPanelVisible.current;
+    previousAiPanelVisible.current = aiPanelVisible;
+    if (!wasVisible || aiPanelVisible) return;
+    const frame = requestAnimationFrame(() => {
+      const tab = tabsRef.current.find((x) => x.id === activeIdRef.current);
+      if (tab?.kind !== "terminal") return;
+      terminalRefs.current.get(tab.activeLeafId)?.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [aiPanelVisible]);
 
   const handleAiPanelSeparatorPointerDown = useCallback(() => {
     if (hasComposer) return;

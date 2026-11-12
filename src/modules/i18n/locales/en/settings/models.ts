@@ -132,10 +132,18 @@ export const settingsModels = {
       info: "Raw JSON merged into the request body last, for provider-specific fields. Highest precedence, but transport keys like model, messages, stream and tools are ignored.",
     },
     cancel: "Cancel",
-    saving: "Saving…",
-    save: "Save model",
+    close: "Close editor",
+    create: "Add model",
+    creating: "Adding…",
   },
   advanced: {
+    id: {
+      label: "ID",
+      info: "Stable provider identifier used for config lookup, model ownership and autocomplete references; it is not sent in requests. Renaming migrates existing autocomplete references while keeping the keychain account and saved API key unchanged. The ID must be non-empty and unique.",
+    },
+    idRequired: "Provider ID cannot be empty.",
+    idDuplicate: "Provider ID “{{id}}” is already in use.",
+    idUnknown: "The provider being renamed no longer exists.",
     label: {
       label: "Label",
       info: "The provider's display name in the settings page and model picker; not part of any request.",
@@ -184,8 +192,15 @@ export const settingsModels = {
       info: "Describes the provider's model list endpoint. Disabled (null) means models can only be added manually; path is the endpoint path, itemsPath is the array location in the response, idPath is the model ID field in array entries.",
     },
     errorJson: "Invalid JSON: {{error}}",
+  },
+  autosave: {
+    hint: "Changes save automatically",
     saving: "Saving…",
-    save: "Save provider settings",
+    saved: "Saved",
+    failed: "Autosave failed",
+    savedOnLeave: "Model configuration saved automatically",
+    failedOnLeave:
+      "Some model settings were not saved. Return to Models settings to check the fields.",
   },
   defaults: {
     label: "Defaults",

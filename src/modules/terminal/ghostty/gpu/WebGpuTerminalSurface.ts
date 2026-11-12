@@ -9,6 +9,7 @@ import { terminalWindowPresentation } from "@/modules/terminal/ghostty/windowPre
 import type { TerminalSurface } from "@/modules/terminal/backend/contracts";
 import { smoothHooks } from "@/bench/smoothHooks";
 import { noteTerminalHostResize } from "@/modules/terminal/lib/terminalResizeGesture";
+import { shouldCursorBlink } from "@/modules/terminal/lib/cursorBlink";
 import {
   linkModifierHeld,
   type TerminalLinkModifiers,
@@ -176,6 +177,7 @@ export class WebGpuTerminalSurface
   private readonly scrollbarSync = new TerminalScrollbarSync();
   private scrollbarViewportHeight = 0;
   private focused = false;
+  private inputFocused = false;
   private documentSuspended = !terminalWindowPresentation().visible;
   private runtimeRegistered = false;
   private resizeInteractionActive = terminalResizeInteractionActive();
@@ -368,14 +370,28 @@ export class WebGpuTerminalSurface
   }
 
   handleWindowFocus(focused: boolean): void {
+    const focusChanged = this.windowFocused !== focused;
     this.windowFocused = focused;
     const wasVisible = this.cursorVisible;
     const textWasVisible = this.textBlinkVisible;
     this.cursorVisible = true;
     this.armCursorBlink();
     this.syncTextBlink();
-    if ((!wasVisible && this.nativeCursorVisible) || !textWasVisible)
+    if (
+      focusChanged ||
+      (!wasVisible && this.nativeCursorVisible) ||
+      !textWasVisible
+    )
       this.runtime.schedule(this);
+  }
+
+  setInputFocused(focused: boolean): void {
+    if (this.inputFocused === focused) return;
+    this.inputFocused = focused;
+    this.cursorVisible = true;
+    if (focused) this.armCursorBlink();
+    else this.clearCursorTimer();
+    this.runtime.schedule(this);
   }
 
   setFocused(focused: boolean): void {
@@ -1444,7 +1460,12 @@ export class WebGpuTerminalSurface
     }
     this.armCursorBlink();
     const showCursor =
-      this.cursorEnabled && this.cursorVisible && this.nativeCursorVisible;
+      this.cursorEnabled &&
+      this.cursorVisible &&
+      this.nativeCursorVisible &&
+      this.windowFocused &&
+      this.focused &&
+      this.inputFocused;
     const bounds = this.selection.normalizedBounds();
     const theme = this.theme;
     const state: ScreenUniformState = {
@@ -1530,10 +1551,13 @@ export class WebGpuTerminalSurface
     if (
       !this.cursorEnabled ||
       !this.nativeCursorVisible ||
-      !this.windowFocused ||
+      !shouldCursorBlink(
+        this.cursorBlinking,
+        this.windowFocused,
+        this.focused,
+        this.inputFocused,
+      ) ||
       this.documentSuspended ||
-      !this.cursorBlinking ||
-      !this.focused ||
       !this.visible ||
       !this.host ||
       !terminalWindowPresentation().visible

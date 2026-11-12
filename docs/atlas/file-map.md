@@ -32,11 +32,11 @@ src-tauri/
 
 src/
 ├── app/
-│   ├── App.tsx — [开发者工具] 注册 DevTools 与关闭守卫接线，协调标签页、预览、搜索目标与左右对称布局；组合 AI/终端文件投放目标并触发启动更新检查；提供左右边框拖拽阀控制器（次：撤销终端窗格拆分、终端链接打开、终端命令与结果块、标签内搜索、关闭窗口与系统托盘、无边框窗口与边框交互、AI面板、应用更新）
+│   ├── App.tsx — [开发者工具] 注册 DevTools 与关闭守卫接线，协调标签页、预览、搜索目标与左右对称布局；组合 AI/终端文件投放目标并触发启动更新检查；提供左右边框拖拽阀控制器；AI 关闭后恢复当前终端焦点（次：撤销终端窗格拆分、终端链接打开、终端命令与结果块、标签内搜索、关闭窗口与系统托盘、无边框窗口与边框交互、AI面板、终端光标与焦点、应用更新）
 │   ├── components/
 │   │   ├── CloseDialogs.tsx — [关闭窗口与系统托盘] 退出/缩小到托盘选择窗口与「记住我的选择」（次：标签关闭确认）
 │   │   ├── WindowEdgeValves.tsx — [无边框窗口与边框交互] 左右边框拖拽阀：阀段开关/拖动侧栏与 AI 面板，其余边框区域交系统原生 resize（次：AI面板、文件资源管理器）
-│   │   └── WorkspaceSurface.tsx — [终端链接打开] 透传预览与块搜索回调，并在工作区层渲染设置页（次：工作区渲染、设置页、终端命令与结果块）
+│   │   └── WorkspaceSurface.tsx — [终端链接打开] 透传预览与块搜索回调，并在工作区层渲染设置页；把设置 tab 可见性传给离页保存提示（次：工作区渲染、设置页、终端命令与结果块）
 │   ├── hooks/
 │   │   └── useAppCloseGuard.ts — [关闭窗口与系统托盘] 关闭请求总入口：读取 `closeAction`、选择窗口、托盘隐藏与退出前守卫（次：会话落盘守卫）
 │   └── lib/
@@ -77,6 +77,7 @@ src/
 │   │   │   ├── params.ts — [AI模型配置] 请求参数引擎：params、effort 档位、extra 合并（次：AI 对话与工具审批）
 │   │   │   ├── persist.ts — [AI模型配置] terax-ai-models.json 读写
 │   │   │   ├── prompts.ts — [AI提交信息生成] 内置提示词全文与取值（会话 full/lite + 提交信息）（次：AI模型配置）
+│   │   │   ├── providerRename.ts — [AI模型配置] Provider ID 改名校验与纯配置转换
 │   │   │   └── types.ts — [AI模型配置] `ParamDef` / `EffortConfig` 等数据模型
 │   │   ├── lib/
 │   │   │   ├── agent.ts — [AI模型配置] withRequestParams 把解析后的参数合并进出站请求；把本轮 Shell 描述传给工具构建器（次：AI 对话与工具审批、AI命令执行）
@@ -84,7 +85,7 @@ src/
 │   │   │   ├── aiPanel.ts — [AI面板] 面板开关封装与 Provider 检查（次：选区与文件 prefill）
 │   │   │   ├── aiPanelBridge.ts — [AI面板] prefill 类型契约
 │   │   │   ├── approvalMode.ts — [AI面板] 工具 needsApproval 按偏好动态判定（次：AI 对话与工具审批）
-│   │   │   ├── composer.tsx — [AI面板] 附件读取、按 id 去重、批量路径附加与跳过/失败提示；`terax:ai-attach-file` 监听（次：AI 对话）
+│   │   │   ├── composer.tsx — [AI面板] Composer 挂载及 focus signal 时自动聚焦；附件读取、按 id 去重、批量路径附加与跳过/失败提示；`terax:ai-attach-file` 监听（次：AI 对话、终端光标与焦点）
 │   │   │   ├── composerMessage.ts — [AI面板] Composer 到 AI SDK parts 的纯转换（次：AI 对话）
 │   │   │   ├── native.ts — [AI命令执行] `ShellDescription` 契约、`shell_describe` 封装及 Shell 调用的工作区快照参数（次：原生 IPC）
 │   │   │   └── transport.ts — [AI命令执行] 每轮查询真实 Shell，注入 `<env>` 并把描述传给 Agent（次：AI 对话与工具审批）
@@ -178,14 +179,17 @@ src/
 │   │   │   ├── core/
 │   │   │   │   └── terminalLinks.ts — [终端链接打开] URL 与绝对路径文本检测（次：终端路径历史）
 │   │   │   ├── gpu/
-│   │   │   │   └── WebGpuTerminalSurface.ts — [终端链接打开] WebGPU 链接点击、修饰键透传与输入法锚点同步（次：终端输入法候选框定位、终端渲染）
+│   │   │   │   └── WebGpuTerminalSurface.ts — [终端链接打开] WebGPU 链接点击、修饰键透传与输入法锚点同步；按三层焦点绘制光标并控制闪烁和重绘（次：终端输入法候选框定位、终端光标与焦点、终端渲染）
+│   │   │   ├── input/
+│   │   │   │   └── GhosttyInputController.ts — [终端光标与焦点] 上报终端 textarea 真实 focus/blur，保留 focus reporting、IME 与按键状态处理（次：终端输入）
 │   │   │   ├── search/
 │   │   │   │   └── GhosttyBlockSearchController.ts — [终端命令与结果块] 把异步块扫描、取消和匹配导航适配为 TerminalSearchController（次：标签内搜索）
-│   │   │   ├── useGhosttyTerminalSession.ts — [终端链接打开] 分流链接并为所有终端初始化块会话（次：终端命令与结果块、终端会话与渲染）
+│   │   │   ├── useGhosttyTerminalSession.ts — [终端链接打开] 分流链接并初始化块会话；同步逻辑窗格焦点，把终端输入 focus/blur 接到 surface（次：终端命令与结果块、终端光标与焦点、终端会话与渲染）
 │   │   │   └── webgl/
-│   │   │       └── WebGlTerminalSurface.ts — [终端链接打开] WebGL 链接点击、修饰键透传与输入法锚点同步（次：终端输入法候选框定位、终端渲染回退）
+│   │   │       └── WebGlTerminalSurface.ts — [终端链接打开] WebGL 链接点击、修饰键透传与输入法锚点同步；按三层焦点传递光标可见性并控制闪烁和重绘（次：终端输入法候选框定位、终端光标与焦点、终端渲染回退）
 │   │   ├── lib/
 │   │   │   ├── blockAnchorProbe.ts — [终端命令与结果块] 检测会话缺失 OSC 133;C 命令锚点（PS 5.1 无 PSReadLine 时提示安装）（次：终端会话与渲染）
+│   │   │   ├── cursorBlink.ts — [终端光标与焦点] 统一用户闪烁开关、原生窗口、活动窗格和真实输入焦点条件
 │   │   │   ├── panes.ts — [撤销终端窗格拆分] 叶节点查询、拆分与移除（次：终端链接打开）
 │   │   │   ├── pathHistory.ts — [终端路径历史] 目录历史记录/封顶/筛选规则与跨工作区路径归一化
 │   │   │   ├── terminalCd.ts — [终端路径历史] cd 命令构造与提交（次：终端链接打开）
@@ -197,17 +201,18 @@ src/
 │   └── updater/
 │       └── useUpdater.ts — [应用更新] 全局更新状态机、启动自动检查、通知消息与下载安装；检查/下载遵循更新场景代理（次：设置-关于、代理）
 └── settings/
-    ├── SettingsView.tsx — [设置页] 左侧搜索框与竖向分区导航、右侧内容区、结果定位与高亮（次：偏好同步）
+    ├── SettingsView.tsx — [设置页] 左侧搜索框与竖向分区导航、右侧内容区、结果定位与高亮；离开模型分区或设置 tab 时等待自动保存并提示（次：偏好同步、AI模型配置）
     ├── components/
     │   ├── LspServersGroup.tsx — [设置页] 语言服务器区域入口与搜索锚点（次：LSP 语言服务）
     │   ├── SettingRow.tsx — [设置页] 普通设置行布局与可选搜索锚点
     │   └── SettingsSearch.tsx — [设置页] 跨分区查询、翻译后过滤、按分区分组、结果浮层排版与键盘交互；注册 Ctrl+F 聚焦（次：标签内搜索）
+    ├── modelSettingsAutosave.ts — [AI模型配置] 模型表单自动保存注册、离页刷新与进行中保存等待（次：设置页）
     ├── sections/
     │   ├── AboutSection.tsx — [设置-关于] 关于分区 UI、仓库链接、更新/源码搜索锚点与文件/注册表痕迹清单；复用全局更新状态并一键安装（次：设置页、应用更新）
     │   ├── AgentsSection.tsx — [AI提交信息生成] AI 行为设置、提示词模块与各区域搜索锚点（次：设置页）
     │   ├── EditorSection.tsx — [设置页] 编辑器设置 UI、条件选项与搜索锚点（次：编辑器偏好）
     │   ├── GeneralSection.tsx — [设置页] 通用设置 UI 与搜索锚点；关闭窗口行为与启动自动检查更新开关（次：通用偏好、关闭窗口与系统托盘、应用更新）
-    │   ├── ModelsSection.tsx — [AI模型配置] 模型/Provider 编辑器、校验与配置/默认项/Provider 搜索锚点（次：设置页）
+    │   ├── ModelsSection.tsx — [AI模型配置] 模型/Provider 编辑器、校验、自动保存与串行写入、配置/默认项/Provider 搜索锚点（次：设置页）
     │   ├── ProxySection.tsx — [代理] 代理设置分区 UI 与搜索锚点（次：设置页）
     │   ├── ShortcutsSection.tsx — [撤销终端窗格拆分] 保存用户覆盖键位、警告 Ctrl+R 冲突并提供逐行搜索锚点（次：终端命令与结果块、快捷键自定义、设置页）
     │   ├── ThemesSection.tsx — [设置页] 主题、编辑器主题和背景设置锚点（次：主题与窗口外观）
@@ -222,9 +227,9 @@ src/
 
 | 文件 | 主归属功能 | 次要归属 | 说明 |
 |---|---|---|---|
-| `src/app/App.tsx` | [开发者工具](features/开发者工具.md) | [撤销终端窗格拆分](features/撤销终端窗格拆分.md)、[终端链接打开](features/终端链接打开.md)、[终端命令与结果块](features/终端命令与结果块.md)、[标签内搜索](features/标签内搜索.md)、[关闭窗口与系统托盘](features/关闭窗口与系统托盘.md)、[无边框窗口与边框交互](features/无边框窗口与边框交互.md)、[AI面板](features/AI面板.md)、[应用更新](features/应用更新.md) | 注册 DevTools 与关闭守卫接线，协调标签页、预览、搜索目标与左右对称布局；组合 AI/终端文件投放目标并触发启动更新检查；提供左右边框拖拽阀控制器 |
+| `src/app/App.tsx` | [开发者工具](features/开发者工具.md) | [撤销终端窗格拆分](features/撤销终端窗格拆分.md)、[终端链接打开](features/终端链接打开.md)、[终端命令与结果块](features/终端命令与结果块.md)、[标签内搜索](features/标签内搜索.md)、[关闭窗口与系统托盘](features/关闭窗口与系统托盘.md)、[无边框窗口与边框交互](features/无边框窗口与边框交互.md)、[AI面板](features/AI面板.md)、[终端光标与焦点](features/终端光标与焦点.md)、[应用更新](features/应用更新.md) | 注册 DevTools 与关闭守卫接线，协调标签页、预览、搜索目标与左右对称布局；组合 AI/终端文件投放目标并触发启动更新检查；提供左右边框拖拽阀控制器；AI 关闭后恢复当前终端焦点 |
 | `src/components/ui/resizable.tsx` | [AI面板](features/AI面板.md) | 可调整布局 | 分隔线、拖拽热区与常驻六点握把；握把静止/悬停/拖拽三级对比色 |
-| `src/app/components/WorkspaceSurface.tsx` | [终端链接打开](features/终端链接打开.md) | 工作区渲染、[设置页](features/设置页.md)、[终端命令与结果块](features/终端命令与结果块.md) | 透传预览与块搜索回调，并在工作区层渲染设置页 |
+| `src/app/components/WorkspaceSurface.tsx` | [终端链接打开](features/终端链接打开.md) | 工作区渲染、[设置页](features/设置页.md)、[终端命令与结果块](features/终端命令与结果块.md) | 透传预览与块搜索回调，并在工作区层渲染设置页；把设置 tab 可见性传给离页保存提示 |
 | `src/app/hooks/useAppCloseGuard.ts` | [关闭窗口与系统托盘](features/关闭窗口与系统托盘.md) | 会话落盘守卫 | 关闭请求总入口：读取 `closeAction`、选择窗口、托盘隐藏与退出前守卫 |
 | `src/app/lib/appTray.ts` | [关闭窗口与系统托盘](features/关闭窗口与系统托盘.md) | 系统托盘 | 调用 `tray_show` 后隐藏窗口，托盘不可用时回落退出 |
 | `src/app/components/CloseDialogs.tsx` | [关闭窗口与系统托盘](features/关闭窗口与系统托盘.md) | 标签关闭确认 | 退出/缩小到托盘选择窗口与「记住我的选择」 |
@@ -260,7 +265,7 @@ src/
 | `src/modules/ai/components/AiPanelSkeleton.tsx` | [AI面板](features/AI面板.md) | AI 对话 | 懒加载分包就绪前的同构骨架占位 |
 | `src/modules/ai/components/AiChat.tsx` | [AI面板](features/AI面板.md) | AI 对话 | 消息渲染、请求失败展示、重试与关闭操作 |
 | `src/modules/ai/components/AiPanelComposer.tsx` | [AI面板](features/AI面板.md) | AI 对话 | 完整 Composer 与 prefill；元信息行组装；附件 chip 与「N 个附件」标题 |
-| `src/modules/ai/lib/composer.tsx` | [AI面板](features/AI面板.md) | AI 对话 | 附件读取、按 id 去重、批量路径附加与跳过/失败提示；`terax:ai-attach-file` 监听 |
+| `src/modules/ai/lib/composer.tsx` | [AI面板](features/AI面板.md) | AI 对话、[终端光标与焦点](features/终端光标与焦点.md) | Composer 挂载及 focus signal 时自动聚焦；附件读取、按 id 去重、批量路径附加与跳过/失败提示；`terax:ai-attach-file` 监听 |
 | `src/modules/ai/lib/aiAttachmentDrop.ts` | [AI面板](features/AI面板.md) | [文件资源管理器](features/文件资源管理器.md) | AI 面板投放目标：命中 `data-ai-attach-drop`、drop 时写 prefill |
 | `src/modules/ai/store/aiAttachmentDropStore.ts` | [AI面板](features/AI面板.md) | 无 | 拖动进入面板时的高亮状态 |
 | `src/modules/ai/components/ApprovalModeToggle.tsx` | [AI面板](features/AI面板.md) | AI 对话与工具审批 | 执行审批模式切换（review/auto） |
@@ -277,11 +282,13 @@ src/
 | `src/modules/tabs/lib/useTabs.ts` | [撤销终端窗格拆分](features/撤销终端窗格拆分.md) | [终端命令与结果块](features/终端命令与结果块.md)、标签与分屏状态、[AI面板](features/AI面板.md) | 记录拆分历史、恢复焦点、维护终端标签与 settings tab 单例 |
 | `src/modules/terminal/lib/panes.ts` | [撤销终端窗格拆分](features/撤销终端窗格拆分.md) | [终端链接打开](features/终端链接打开.md) | 叶节点查询、拆分与移除 |
 | `src/modules/terminal/lib/terminalSessionApi.ts` | [撤销终端窗格拆分](features/撤销终端窗格拆分.md) | 终端会话生命周期、[代理](features/代理.md) | 释放被撤销窗格资源；`restartSession`/`restartAllSessions` 刷新终端让新设置生效 |
+| `src/modules/terminal/lib/cursorBlink.ts` | [终端光标与焦点](features/终端光标与焦点.md) | 无 | 统一用户闪烁开关、原生窗口、活动窗格和真实输入焦点条件 |
 | `src/modules/terminal/lib/terminalLinks.ts` | [终端链接打开](features/终端链接打开.md) | 终端输入 | 定义链接修饰键与打开契约 |
-| `src/modules/terminal/ghostty/useGhosttyTerminalSession.ts` | [终端链接打开](features/终端链接打开.md) | [终端命令与结果块](features/终端命令与结果块.md)、终端会话与渲染 | 分流链接并为所有终端初始化块会话 |
+| `src/modules/terminal/ghostty/input/GhosttyInputController.ts` | [终端光标与焦点](features/终端光标与焦点.md) | 终端输入 | 上报终端 textarea 真实 focus/blur，保留 focus reporting、IME 与按键状态处理 |
+| `src/modules/terminal/ghostty/useGhosttyTerminalSession.ts` | [终端链接打开](features/终端链接打开.md) | [终端命令与结果块](features/终端命令与结果块.md)、[终端光标与焦点](features/终端光标与焦点.md)、终端会话与渲染 | 分流链接并初始化块会话；同步逻辑窗格焦点，把终端输入 focus/blur 接到 surface |
 | `src/modules/terminal/lib/blockAnchorProbe.ts` | [终端命令与结果块](features/终端命令与结果块.md) | 终端会话与渲染 | 检测会话缺失 OSC 133;C 命令锚点（PS 5.1 无 PSReadLine 时提示安装） |
-| `src/modules/terminal/ghostty/gpu/WebGpuTerminalSurface.ts` | [终端链接打开](features/终端链接打开.md) | [终端输入法候选框定位](features/终端输入法候选框定位.md)、终端渲染 | WebGPU 链接点击、修饰键透传与输入法锚点同步 |
-| `src/modules/terminal/ghostty/webgl/WebGlTerminalSurface.ts` | [终端链接打开](features/终端链接打开.md) | [终端输入法候选框定位](features/终端输入法候选框定位.md)、终端渲染回退 | WebGL 链接点击、修饰键透传与输入法锚点同步 |
+| `src/modules/terminal/ghostty/gpu/WebGpuTerminalSurface.ts` | [终端链接打开](features/终端链接打开.md) | [终端输入法候选框定位](features/终端输入法候选框定位.md)、[终端光标与焦点](features/终端光标与焦点.md)、终端渲染 | WebGPU 链接点击、修饰键透传与输入法锚点同步；按三层焦点绘制光标并控制闪烁和重绘 |
+| `src/modules/terminal/ghostty/webgl/WebGlTerminalSurface.ts` | [终端链接打开](features/终端链接打开.md) | [终端输入法候选框定位](features/终端输入法候选框定位.md)、[终端光标与焦点](features/终端光标与焦点.md)、终端渲染回退 | WebGL 链接点击、修饰键透传与输入法锚点同步；按三层焦点传递光标可见性并控制闪烁和重绘 |
 | `src/modules/terminal/TerminalPane.tsx` | [终端命令与结果块](features/终端命令与结果块.md) | [终端链接打开](features/终端链接打开.md)、终端会话与渲染 | 选区优先、块右键命中，创建局部搜索控制器并打开共享弹窗 |
 | `src/modules/terminal/block/BlockContextMenu.tsx` | [终端命令与结果块](features/终端命令与结果块.md) | AI prefill 与剪贴板 | 六项块操作右键菜单 |
 | `src/modules/terminal/block/BlockOverlay.tsx` | [终端命令与结果块](features/终端命令与结果块.md) | 终端块展示 | 块尾分隔线、失败退出码、命令时间线；块清空时关闭共享搜索 |
@@ -306,7 +313,8 @@ src/
 | `src/modules/i18n/locales/zh/preview.ts` | [预览端口管理](features/预览端口管理.md) | 中文文案 | 与英文词典同构 |
 | `src/modules/i18n/locales/en/shortcuts.ts` | [快捷键提示](features/快捷键提示.md) | 英文文案 | 快捷键名称 |
 | `src/modules/i18n/locales/zh/shortcuts.ts` | [快捷键提示](features/快捷键提示.md) | 中文文案 | 与英文词典同构 |
-| `src/settings/SettingsView.tsx` | [设置页](features/设置页.md) | 偏好同步 | 左侧搜索框与竖向分区导航、右侧内容区、结果定位与高亮 |
+| `src/settings/SettingsView.tsx` | [设置页](features/设置页.md) | 偏好同步、[AI模型配置](features/AI模型配置.md) | 左侧搜索框与竖向分区导航、右侧内容区、结果定位与高亮；离开模型分区或设置 tab 时等待自动保存并提示 |
+| `src/settings/modelSettingsAutosave.ts` | [AI模型配置](features/AI模型配置.md) | [设置页](features/设置页.md) | 模型表单自动保存注册、离页刷新与进行中保存等待 |
 | `src/settings/components/SettingsSearch.tsx` | [设置页](features/设置页.md) | [标签内搜索](features/标签内搜索.md) | 跨分区查询、翻译后过滤、按分区分组、结果浮层排版与键盘交互；注册 Ctrl+F 聚焦 |
 | `src/settings/settingsSearch.ts` | [设置页](features/设置页.md) | 无 | 设置搜索静态索引、目标 ID、关键词与条件可见性 |
 | `src/settings/settingsSearchFocus.ts` | [标签内搜索](features/标签内搜索.md) | [设置页](features/设置页.md) | 主窗口 Ctrl+F 聚焦设置搜索框的最小注册表 |
@@ -322,13 +330,14 @@ src/
 | `src/modules/ai/config/normalize.ts` | [AI模型配置](features/AI模型配置.md) | 无 | 配置收敛与旧 thinking/ParamDef 迁移 |
 | `src/modules/ai/config/params.ts` | [AI模型配置](features/AI模型配置.md) | AI 对话与工具审批 | 请求参数引擎：params、effort 档位、extra 合并 |
 | `src/modules/ai/config/persist.ts` | [AI模型配置](features/AI模型配置.md) | 无 | terax-ai-models.json 读写 |
+| `src/modules/ai/config/providerRename.ts` | [AI模型配置](features/AI模型配置.md) | 无 | Provider ID 改名校验与纯配置转换 |
 | `src/modules/ai/lib/agent.ts` | [AI模型配置](features/AI模型配置.md) | AI 对话与工具审批、[AI命令执行](features/AI命令执行.md) | withRequestParams 把解析后的参数合并进出站请求；把本轮 Shell 描述传给工具构建器 |
 | `src/modules/ai/lib/native.ts` | [AI命令执行](features/AI命令执行.md) | 原生 IPC | `ShellDescription` 契约、`shell_describe` 封装及 Shell 调用的工作区快照参数 |
 | `src/modules/ai/lib/transport.ts` | [AI命令执行](features/AI命令执行.md) | AI 对话与工具审批 | 每轮查询真实 Shell，注入 `<env>` 并把描述传给 Agent |
 | `src/modules/ai/tools/tools.ts` | [AI命令执行](features/AI命令执行.md) | AI 对话与工具审批 | 汇总 AI 工具并将 Shell 描述传给 Shell 工具构建器 |
 | `src/modules/ai/tools/shell.ts` | [AI命令执行](features/AI命令执行.md) | AI 对话与工具审批、[代理](features/代理.md) | 前台/后台工具的动态方言描述、工作区快照、失败提示及会话/进程调用 |
 | `src-tauri/src/modules/shell/mod.rs` | [AI命令执行](features/AI命令执行.md) | [代理](features/代理.md) | Shell 元数据与真实 argv 共用 `OneShotShell`；提供 describe、前台 session 与后台进程 IPC |
-| `src/settings/sections/ModelsSection.tsx` | [AI模型配置](features/AI模型配置.md) | [设置页](features/设置页.md) | 模型/Provider 编辑器、校验与配置/默认项/Provider 搜索锚点 |
+| `src/settings/sections/ModelsSection.tsx` | [AI模型配置](features/AI模型配置.md) | [设置页](features/设置页.md) | 模型/Provider 编辑器、校验、自动保存与串行写入、配置/默认项/Provider 搜索锚点 |
 | `src/settings/sections/models/StructuredFields.tsx` | [AI模型配置](features/AI模型配置.md) | [设置页](features/设置页.md) | ParamsForm / EffortForm 等结构化表单 |
 | `src/modules/ai/components/ModelPicker.tsx` | [AI模型配置](features/AI模型配置.md) | AI 面板 | 思考强度滑条与模型选择 |
 | `src/modules/i18n/locales/en/settings/models.ts` | [AI模型配置](features/AI模型配置.md) | 英文文案 | Params/Effort 字段与规则文案 |

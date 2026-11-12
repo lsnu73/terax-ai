@@ -467,6 +467,27 @@ describe("GhosttyInputController", () => {
     );
     controller.dispose();
   });
+  it("reports the terminal input's actual focus transitions", () => {
+    const input = new FakeTextArea();
+    const onFocusChange = vi.fn();
+    const controller = new GhosttyInputController({
+      model: inputModel(),
+      input: input as unknown as HTMLTextAreaElement,
+      pointerTarget: new FakeElement() as unknown as HTMLElement,
+      cellSize: () => ({ width: 10, height: 20 }),
+      onCopy: () => false,
+      onData: () => {},
+      onFocusChange,
+    });
+
+    input.dispatchEvent(new Event("focus"));
+    input.dispatchEvent(new Event("blur"));
+    expect(onFocusChange.mock.calls).toEqual([[true], [false]]);
+
+    controller.dispose();
+    input.dispatchEvent(new Event("focus"));
+    expect(onFocusChange).toHaveBeenCalledTimes(2);
+  });
 });
 
 function inputModel(

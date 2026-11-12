@@ -1,6 +1,6 @@
 # AI 面板
 
-- 最后校验：2026-11-06
+- 最后校验：2026-11-12
 - 状态：已覆盖
 - 关联 lore：[AI 面板与设置页迁入主窗口](../../lore/decisions/2026-10-31-AI面板与设置页迁入主窗口.md)（取代 2026-10-30 的跨 Webview 镜像方案）
 
@@ -8,7 +8,7 @@
 
 用户按 Ctrl/Cmd+I 在主窗口右侧打开或关闭 AI 面板。面板与终端/编辑器共用同一个窗口，打开即渲染（React 挂载），不再创建原生窗口。面板可拖拽调宽，宽度持久化到 localStorage。工作区右侧分隔线与六点握把常驻：存在可用 Provider 时，向左拖拽直接展开面板、向右拖过收合阈值直接收合，与 Ctrl/Cmd+I 共用同一开关状态；未配置可用模型时禁用拖拽，按下分隔线会通知用户先配置 AI 模型，并提供跳转模型设置的入口。侧栏与工作区的间距左右对称：侧栏、工作区、AI 面板各自留 2px，分隔线与握把位于实际间隔中央，因此终端与左侧栏、终端与 AI 面板的可见间距一致。六点握把静止为 35% 中性灰、悬停 55%、拖拽或聚焦时为主色，与页面背景保持区分。面板分包在启动空档预热，首次打开先显示同构骨架再过渡到内容，不再出现整块空白。
 
-面板内容与原独立窗口一致：会话切换、聊天视图、Todo、计划模式横幅、完整 Composer（图片/附件/@文件/snippet/slash command）、输入框下方元信息行（角色、执行审批模式、上下文用量、模型切换）。Escape（非输入焦点）或关闭按钮关闭面板。
+面板内容与原独立窗口一致：会话切换、聊天视图、Todo、计划模式横幅、完整 Composer（图片/附件/@文件/snippet/slash command）、输入框下方元信息行（角色、执行审批模式、上下文用量、模型切换）。打开面板后自动聚焦提示词输入框，终端光标随真实键盘焦点离开而隐藏；关闭面板后焦点返回当前活动终端。Escape（非输入焦点）或关闭按钮关闭面板。
 
 附件在输入框上方以「N 个附件」标题和文件 chip 展示；添加成功不再弹通知，chip 本身就是反馈。二进制、超出内联大小限制或读取失败的文件不会出现在列表里，因此分别给出跳过/失败提示，避免静默丢失。附件入口有三条：Composer 的加号选择文件、`@` 文件选择、左侧资源管理器右键「附加到 Agent」或直接把文件拖到 AI 面板。把文件拖到面板上时面板整体高亮并提示「松开即可添加到对话」，松开后走与右键/加号相同的 prefill + 附件读取链路；拖到终端区域仍然粘贴 shell 引号包裹的路径，两者由同一条投放目标链分流。
 
@@ -22,6 +22,7 @@
 - 主窗口协调：`src/app/App.tsx` 的 `toggleAi` / `openAi`（无可用 Provider 时打开设置页 models 分区）。
 - 面板状态：`src/modules/ai/store/aiPanelStore.ts`（open / prefill）；开关封装在 `src/modules/ai/lib/aiPanel.ts`。
 - 面板渲染：`src/app/App.tsx` 布局中 workspace 右侧的条件 `ResizablePanel`，懒加载 `src/modules/ai/components/AiPanel.tsx`。
+- 焦点交接：`src/modules/ai/lib/composer.tsx:87` 在 Composer 挂载时聚焦输入框；`src/app/App.tsx:482` 在面板关闭边界恢复当前活动终端，详见[终端光标与焦点](终端光标与焦点.md)。
 - 聊天引擎：`AiPanelSession` 对当前会话调用 `getOrCreateChat` + `useChat`，与 `AgentRunBridge` 共享同一 Chat 实例。
 - 附件读取与去重：`src/modules/ai/lib/composer.tsx` 的 `attachFilesByPaths` 批量读文件、按 id 去重后写入 Composer 本地状态；`ComposerPrefill` 消费 `prefill.attachmentPaths`。
 - 文件拖拽：`src/app/App.tsx` 用 `combinePathDropTargets(aiAttachmentDropTarget, terminalPathDropTarget)` 串起 AI 面板与终端；AI 目标的命中区域是 `AiPanel` 根节点上的 `data-ai-attach-drop`，高亮状态在 `src/modules/ai/store/aiAttachmentDropStore.ts`，投放时调用 `prefillAiPanel({ attachmentPaths })`。
@@ -57,7 +58,7 @@ AiChatView 请求失败卡片“重试”
 | `src/modules/ai/components/AiPanelSkeleton.tsx` | 骨架占位 | 分包未就绪时渲染，与真实布局同构（头部/消息/输入区） |
 | `src/modules/ai/components/AiChat.tsx` | 聊天视图 | 消息与流式状态渲染；请求失败卡片提供重试和关闭 |
 | `src/modules/ai/components/AiPanelComposer.tsx` | 完整输入区 | 与旧 AiWindowComposer 同构；prefill 直接走 props；附件 chip 与「N 个附件」标题 |
-| `src/modules/ai/lib/composer.tsx` | Composer 状态与附件 | 文本/图片附件读取、按 id 去重、批量路径附加、跳过/失败提示；`terax:ai-attach-file` 事件监听 |
+| `src/modules/ai/lib/composer.tsx` | Composer 状态、焦点与附件 | 挂载及 focus signal 时自动聚焦；文本/图片附件读取、按 id 去重、批量路径附加、跳过/失败提示；`terax:ai-attach-file` 事件监听 |
 | `src/modules/ai/lib/aiAttachmentDrop.ts` | AI 面板投放目标 | 命中 `data-ai-attach-drop` 的元素，drop 时写 prefill；与终端目标组合 |
 | `src/modules/ai/store/aiAttachmentDropStore.ts` | 投放高亮状态 | 拖动进入面板时置 true，离开/投放/取消时复位 |
 | `src/modules/ai/store/aiPanelStore.ts` | 面板开关与 prefill | zustand；主窗口内共享，无事件桥 |
@@ -65,7 +66,7 @@ AiChatView 请求失败卡片“重试”
 | `src/modules/ai/lib/aiPanelBridge.ts` | prefill 类型契约 | 仅剩 selection/attachment/text 类型 |
 | `src/modules/ai/components/AgentRunBridge.tsx` | 主窗口聊天桥 | 持有唯一 Chat、agentMeta、持久化、AI diff tab 管理；审批待决时自动开面板 |
 | `src/components/ui/resizable.tsx` | 分隔线与握把 | `ResizableHandle grip` 渲染常驻六点握把；静止/悬停/拖拽有三级对比色 |
-| `src/app/App.tsx` | 布局与快捷键接线 | 右侧 ResizablePanel、左右对称间距、宽度持久化、`registerSettingsOpener`；组合 AI/终端投放目标 |
+| `src/app/App.tsx` | 布局、快捷键与关闭焦点恢复 | 右侧 ResizablePanel、左右对称间距、宽度持久化、`registerSettingsOpener`；组合 AI/终端投放目标；关闭面板后聚焦当前 activeLeafId |
 
 已删除（不再存在，仅作历史记录）：src/ai/、ai.html、src/modules/ai/lib/aiWindow.ts、aiWindowBridge.ts、src-tauri/src/modules/ai_window.rs，以及 open_ai_window / close_ai_window 命令。
 
@@ -80,6 +81,7 @@ AiChatView 请求失败卡片“重试”
 7. 失败重试直接调用同一 Chat 的 `regenerate`：保留原用户消息和此前上下文，若已有部分助手回答则替换该回答；SDK 发起请求时清除旧错误并复用现有加载、停止和持久化链路。
 8. 附件入口统一收口到 `attachFilesByPaths`：加号选择得到 `File` 对象、`@` 选择/右键/拖拽得到绝对路径；路径附件经 `fs_read_file` 读取，文本内联、图片由文件选择生成 data URL，按 `path-*` 或文件名+大小+修改时间去重。成功只更新 chip 与「N 个附件」，失败/跳过才弹提示。
 9. 拖拽分流先判断 AI 面板：`combinePathDropTargets` 的 primary 命中时清空终端高亮，未命中才交给终端投放（粘贴 shell 引号路径）；两边互斥，不会同时高亮。
+10. 普通打开、快捷键、拖拽展开和 prefill 打开都汇聚到 Composer 挂载聚焦；关闭只看 `aiPanelVisible` 的 true → false 边界，下一帧聚焦当前活动终端。快速重开取消待执行恢复，非终端标签不聚焦隐藏终端。
 
 ## 5. 对外接口
 
@@ -116,3 +118,4 @@ AiChatView 请求失败卡片“重试”
 - 2026-11-04：修正工作区与 AI 面板分隔线的视觉居中：工作区右侧与 AI 面板左侧均留 4px 间距，分隔线及六点握把位于两块面板实际间隔的中央，不再偏向 AI 面板。
 - 2026-11-06：间距改为左右完全对称（侧栏/工作区/AI 面板各 2px），使终端到左侧栏与到 AI 面板的距离一致；六点握把改用中性灰 35%/55% 与主色高亮，避免与页面背景融为一体。
 - 2026-11-06：附件反馈与拖拽入口：附件 chip 提高对比度并增加「N 个附件」标题，成功添加不再弹通知，只对二进制/超大/读取失败的文件给出跳过或错误提示；新增从资源管理器拖文件到 AI 面板即附加（面板高亮 + 松开提示），与终端投放目标组合成分流链。新增 `composer.attachFilesByPaths`、`aiAttachmentDrop` 与其高亮 store，`@` 选择/右键/拖拽统一走批量读取。
+- 2026-11-12：Composer 挂载时自动聚焦提示词输入框；面板关闭后恢复当前活动终端，快速重开取消延迟恢复。终端光标随真实输入焦点隐藏或显示。

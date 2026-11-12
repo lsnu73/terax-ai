@@ -109,3 +109,18 @@
   - 违反代价：模型收到的方言提示与实际解释器分叉，例如提示 PowerShell 而实际回退到 cmd，导致首轮命令继续失败且错误方向更难排查。
   - 强制点：`src-tauri/src/modules/shell/mod.rs` 的 `resolve_oneshot_shell` 同时供 `shell_describe` 和 `build_oneshot_command` 使用；Windows/WSL/Unix 单元测试断言描述与 argv 一致，方言序列化测试锁定前端字符串契约。
   - 代码索引：见 [atlas/features/AI命令执行.md](../atlas/features/AI命令执行.md)；决策依据见 [decisions/2026-11-12-AI命令方言在执行前注入.md](decisions/2026-11-12-AI命令方言在执行前注入.md)。
+
+- **INV-022** 终端光标的绘制与闪烁必须同时受原生窗口焦点、标签内逻辑活动窗格和终端 textarea 真实 DOM 焦点门控；不得用 textarea blur 改写逻辑 `focused`，也不得用焦点状态改写 Ghostty 原生光标设置。
+  - 违反代价：AI Composer 或搜索框已经持有键盘焦点时终端仍显示光标；或块编辑器等应用内焦点变化错误降低 pane pacing、丢失活动窗格语义，恢复焦点时还会覆盖 Shell 的原生光标状态。
+  - 强制点：`src/modules/terminal/lib/cursorBlink.ts` 的 `shouldCursorBlink`；WebGPU/WebGL surface 的绘制条件、`setInputFocused` 与 blink timer；输入控制器和两种 surface 测试覆盖焦点组合与重绘。
+  - 代码索引：见 [atlas/features/终端光标与焦点.md](../atlas/features/终端光标与焦点.md)；决策依据见 [decisions/2026-11-12-终端光标使用三层焦点.md](decisions/2026-11-12-终端光标使用三层焦点.md)。
+
+- **INV-023** 修改 `ProviderEntry.id` 必须经过 `renameProvider`，拒绝空值和重名，并且不得由新 ID 重新推导 `keyringAccount`；改名后必须同步迁移 `autocompleteProvider` 与运行时密钥快照。
+  - 违反代价：重名会被配置归一化静默丢弃，导致 Provider 和模型消失；重算钥匙串账户会让已保存 API Key 变成未配置；未迁移自动补全偏好会继续指向不存在的旧 ID。
+  - 强制点：`src/modules/ai/config/providerRename.ts` 的 `renameProvider` 只替换 ID 并保留其余字段；`src/settings/sections/ModelsSection.tsx` 的 `updateProvider` 在保存后迁移偏好和密钥快照；`src/modules/ai/config/providerRename.test.ts` 覆盖空值、重名、未知 Provider、trim 与数据保留。
+  - 代码索引：见 [atlas/features/AI模型配置.md](../atlas/features/AI模型配置.md)。
+
+- **INV-024** 离开可见的模型设置分区、切换设置标签或关闭设置标签时，必须先刷新所有 Provider 与已有模型的自动保存表单并等待进行中的写入结束，再显示保存结果；任何表单保存失败时不得提示“已保存”。
+  - 违反代价：用户刚修改字段就切走时会看到未落盘的旧配置；多个展开卡片和模型编辑器的并行写入会互相覆盖；校验失败却提示成功会让用户误以为配置已生效。
+  - 强制点：`src/settings/modelSettingsAutosave.ts` 的 `isLeavingModelsSettings` 与 `settleModelAutosave`；`src/settings/SettingsView.tsx` 统一处理分区切换、标签可见性和卸载；`src/settings/sections/ModelsSection.tsx` 的配置写入队列与 Provider/模型表单 flush 注册；`src/settings/modelSettingsAutosave.test.ts` 覆盖离开判定、失败汇总与进行中保存等待。
+  - 代码索引：见 [atlas/features/AI模型配置.md](../atlas/features/AI模型配置.md)、[atlas/features/设置页.md](../atlas/features/设置页.md)。
