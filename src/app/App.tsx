@@ -65,6 +65,7 @@ import {
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import { setShowHidden, setPathHistory } from "@/modules/settings/store";
 import { recordPathHistory } from "@/modules/terminal/lib/pathHistory";
+import { useVisiblePathHistory } from "@/modules/terminal/lib/useVisiblePathHistory";
 import { cdTerminalLeafTo } from "@/modules/terminal/lib/terminalCd";
 import { PathHistoryDialog } from "@/modules/terminal/path-history/PathHistoryDialog";
 import {
@@ -1380,7 +1381,10 @@ export default function App() {
     [setLeafCwd],
   );
 
-  const pathHistory = usePreferencesStore((s) => s.pathHistory);
+  const visiblePathHistory = useVisiblePathHistory(
+    usePreferencesStore((s) => s.pathHistory),
+    commandPaletteOpen,
+  );
 
   const handlePathHistoryPick = useCallback(
     (path: string) => {
@@ -1973,7 +1977,7 @@ export default function App() {
             commandItems={commandPaletteItems}
             workspaceRoot={explorerRoot}
             onOpenContentHit={openContentHit}
-            pathHistory={pathHistory}
+            pathHistory={visiblePathHistory}
             onOpenHistoryPath={handlePathHistoryPick}
           />
 

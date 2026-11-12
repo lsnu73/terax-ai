@@ -24,3 +24,4 @@
 - 2026-11-08 归档无边框窗口边缘交互：decisions 新增 1 条（阀段与原生 resize 分流，最大化时整条边框让渡给侧栏操作）；invariants 新增 2 条（INV-018 最大化四角不得留透明真空、INV-019 边缘交互必须与 tao 原生 resize 命中互补，均暂无自动化强制）；pitfalls 新增 1 条（最大化后四角点击穿透，根因为透明窗口上的 CSS 圆角真空像素）；map 新增「无边框窗口边缘交互」条目（含 DOM 镜像与 React hook 双通道依赖）；glossary 新增「拖拽阀」术语。同步 atlas 功能文档的 lore 交叉引用。
 - 2026-11-08 归档收起态拖阀渐进展开与更新器超时语义：pitfalls 新增 2 条（面板库 minSize 硬钳制吞掉渐进展开、Tauri updater 的 timeout 是整请求超时）；invariants 新增 1 条（INV-020 亚最小宽度展示必须手势期降 0 + begin/end 配对，暂无自动化强制）；map 修订无边框窗口边缘交互条目的易错点。同步 atlas「无边框窗口与边框交互」「应用更新」的 lore 交叉引用。
 - 2026-11-11 归档浮层外部关闭与 WSL 块模式环境传递：pitfalls 新增 2 条（终端停止冒泡导致菜单残留、WSL 丢失 `TERAX_BLOCKS` 导致分隔线错位）；map 补充 Radix 冒泡监听与终端选区、WSLENV 与 Shell 间隔的隐性依赖。无新增约束与决策。
+- 2026-11-12 归档最近路径跨工作区归一化：pitfalls 新增 1 条（路径历史混格式存储，归一化只能在读取侧）；map 新增「最近路径跨工作区归一化」条目，覆盖 `normalizePathHistoryForEnv` 与 `wsl.conf` automount root 缓存依赖。无新增约束与决策。

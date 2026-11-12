@@ -180,10 +180,11 @@ src/
 │   │   ├── lib/
 │   │   │   ├── blockAnchorProbe.ts — [终端命令与结果块] 检测会话缺失 OSC 133;C 命令锚点（PS 5.1 无 PSReadLine 时提示安装）（次：终端会话与渲染）
 │   │   │   ├── panes.ts — [撤销终端窗格拆分] 叶节点查询、拆分与移除（次：终端链接打开）
-│   │   │   ├── pathHistory.ts — [终端路径历史] 目录历史记录/封顶/筛选规则
+│   │   │   ├── pathHistory.ts — [终端路径历史] 目录历史记录/封顶/筛选规则与跨工作区路径归一化
 │   │   │   ├── terminalCd.ts — [终端路径历史] cd 命令构造与提交（次：终端链接打开）
 │   │   │   ├── terminalLinks.ts — [终端链接打开] 定义链接修饰键与打开契约（次：终端输入）
-│   │   │   └── terminalSessionApi.ts — [撤销终端窗格拆分] 释放被撤销窗格资源；`restartSession`/`restartAllSessions` 刷新终端让新设置生效（次：终端会话生命周期、代理）
+│   │   │   ├── terminalSessionApi.ts — [撤销终端窗格拆分] 释放被撤销窗格资源；`restartSession`/`restartAllSessions` 刷新终端让新设置生效（次：终端会话生命周期、代理）
+│   │   │   └── useVisiblePathHistory.ts — [终端路径历史] 按当前工作区归一化最近路径（次：状态栏工作区与路径）
 │   │   └── path-history/
 │   │       └── PathHistoryDialog.tsx — [终端路径历史] Ctrl+E 最近路径弹窗
 │   └── updater/
@@ -323,7 +324,8 @@ src/
 | `src/lib/open-path.ts` | [终端链接打开](features/终端链接打开.md) | 终端路径历史 | 路径识别与文件管理器打开 |
 | `src-tauri/src/modules/file_manager.rs` | [终端链接打开](features/终端链接打开.md) | 无 | 第三方文件管理器探测与打开命令 |
 | `src/modules/terminal/lib/terminalCd.ts` | [终端路径历史](features/终端路径历史.md) | [终端链接打开](features/终端链接打开.md) | cd 命令构造与提交 |
-| `src/modules/terminal/lib/pathHistory.ts` | [终端路径历史](features/终端路径历史.md) | 无 | 目录历史记录/封顶/筛选规则 |
+| `src/modules/terminal/lib/pathHistory.ts` | [终端路径历史](features/终端路径历史.md) | 无 | 目录历史记录/封顶/筛选规则与跨工作区路径归一化 |
+| `src/modules/terminal/lib/useVisiblePathHistory.ts` | [终端路径历史](features/终端路径历史.md) | [状态栏工作区与路径](features/状态栏工作区与路径.md) | 组合工作区环境与 automount root，产出当前视图可见历史 |
 | `src/modules/terminal/path-history/PathHistoryDialog.tsx` | [终端路径历史](features/终端路径历史.md) | 无 | Ctrl+E 最近路径弹窗 |
 | `src/modules/command-palette/lib/mode.ts` | [命令面板](features/命令面板.md) | [终端路径历史](features/终端路径历史.md) | `>` 前缀路径模式解析与 `#`/`?` 查询分流 |
 | `src/modules/i18n/locales/zh/settings/models.ts` | [AI模型配置](features/AI模型配置.md) | 中文文案 | 与英文词典同构 |

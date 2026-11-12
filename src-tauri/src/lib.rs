@@ -300,6 +300,7 @@ pub fn run() {
             shell::shell_bg_list,
             workspace::wsl_list_distros,
             workspace::wsl_default_distro,
+            workspace::wsl_automount_root,
             workspace::ipc::wsl_home,
             workspace::workspace_authorize,
             workspace::workspace_current_dir,

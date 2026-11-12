@@ -8,3 +8,7 @@ export {
   workspaceScopeKey,
   type WorkspaceEnv,
 } from "./env";
+export {
+  fetchWslAutomountRoot,
+  useWslAutomountRoot,
+} from "./automount";

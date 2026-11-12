@@ -445,8 +445,10 @@ pub fn decode_command_output(bytes: &[u8]) -> String {
             0
         };
         let units: Vec<u16> = bytes[start..]
-            .chunks_exact(2)
-            .map(|c| u16::from_le_bytes([c[0], c[1]]))
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .map(|c| u16::from_le_bytes(*c))
             .collect();
         String::from_utf16_lossy(&units)
     } else {
@@ -602,6 +604,73 @@ pub fn wsl_home(distro: String) -> Result<String, String> {
     }
 }
 
+pub const WSL_DEFAULT_AUTOMOUNT_ROOT: &str = "/mnt/";
+
+/// Returns the `[automount] root` value from a wsl.conf body; `None` keeps
+/// WSL's own `/mnt/` default.
+#[cfg(windows)]
+fn automount_root_from_conf(conf: &str) -> Option<String> {
+    let mut in_automount = false;
+    for raw in conf.lines() {
+        let line = raw.trim();
+        if line.starts_with('[') && line.ends_with(']') {
+            in_automount = line[1..line.len() - 1]
+                .trim()
+                .eq_ignore_ascii_case("automount");
+            continue;
+        }
+        if !in_automount {
+            continue;
+        }
+        let Some((key, value)) = line.split_once('=') else {
+            continue;
+        };
+        if !key.trim().eq_ignore_ascii_case("root") {
+            continue;
+        }
+        let value = value.trim().trim_matches('"').trim();
+        if !value.is_empty() {
+            return Some(value.to_string());
+        }
+    }
+    None
+}
+
+// wsl.conf edits only take effect after `wsl --shutdown`, so one value per
+// distro per app run is the whole lifetime of the setting.
+#[cfg(windows)]
+fn wsl_automount_root_blocking(distro: &str) -> Result<String, String> {
+    static CACHE: OnceLock<Mutex<HashMap<String, String>>> = OnceLock::new();
+    let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+    if let Ok(guard) = cache.lock() {
+        if let Some(root) = guard.get(distro) {
+            return Ok(root.clone());
+        }
+    }
+    let out = run_wsl_sh(distro, "cat /etc/wsl.conf 2>/dev/null || true")?;
+    let root = automount_root_from_conf(&out)
+        .unwrap_or_else(|| WSL_DEFAULT_AUTOMOUNT_ROOT.to_string());
+    if let Ok(mut guard) = cache.lock() {
+        guard.insert(distro.to_string(), root.clone());
+    }
+    Ok(root)
+}
+
+/// Drive-letter mount prefix for a WSL distro, from `/etc/wsl.conf`
+/// `[automount] root`; falls back to `/mnt/` when unset or unreadable.
+#[tauri::command]
+pub async fn wsl_automount_root(distro: String) -> Result<String, String> {
+    #[cfg(not(windows))]
+    {
+        let _ = distro;
+        Ok(WSL_DEFAULT_AUTOMOUNT_ROOT.to_string())
+    }
+    #[cfg(windows)]
+    {
+        crate::modules::fs::blocking(move || wsl_automount_root_blocking(&distro)).await
+    }
+}
+
 /// IPC entry points whose names are fixed by the frontend but whose blocking
 /// counterparts are also called synchronously from the PTY spawn path.
 pub mod ipc {
@@ -644,6 +713,31 @@ mod tests {
     #[test]
     fn decode_command_output_reads_plain_utf8() {
         assert_eq!(decode_command_output(b"hello world"), "hello world");
+    }
+
+    #[test]
+    fn automount_root_missing_or_empty_conf_uses_default() {
+        assert_eq!(automount_root_from_conf(""), None);
+        assert_eq!(automount_root_from_conf("[boot]\nsystemd=true"), None);
+        assert_eq!(automount_root_from_conf("[automount]\nroot =\n"), None);
+    }
+
+    #[test]
+    fn automount_root_reads_configured_root() {
+        let conf = "[automount]\nenabled=true\nroot = /w/\n";
+        assert_eq!(
+            automount_root_from_conf(conf),
+            Some("/w/".to_string())
+        );
+    }
+
+    #[test]
+    fn automount_root_accepts_quoted_value_and_stops_at_next_section() {
+        let conf = "[automount]\nroot=\"/windir\"\n[boot]\nroot=/ignored\n";
+        assert_eq!(
+            automount_root_from_conf(conf),
+            Some("/windir".to_string())
+        );
     }
 
     #[test]

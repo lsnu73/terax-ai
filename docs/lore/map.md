@@ -105,6 +105,12 @@
 
 ## 界面交互与预览配置
 
+### 最近路径跨工作区归一化  `src/modules/terminal/lib/pathHistory.ts`、`src/modules/terminal/lib/useVisiblePathHistory.ts`
+- 职责：让共享的终端目录历史在 Windows 与 WSL 工作区都显示为本地可用格式并可直接 cd。
+- 关键依赖：[偏好 pathHistory 混合格式存储] →（读取侧 `normalizePathHistoryForEnv`）→ [当前工作区可见列表]；[WSL 视图的 Windows 路径] →（`wsl_automount_root` 读 `/etc/wsl.conf` `[automount] root`，按发行版缓存）→ [挂载前缀]。
+- 代码索引：见 [atlas/features/终端路径历史.md](../atlas/features/终端路径历史.md)
+- 易错点：见 [pitfalls/2026-11-12-路径历史跨工作区格式混存.md](pitfalls/2026-11-12-路径历史跨工作区格式混存.md)；归一化只能在读取侧，存储格式被改写会让另一工作区丢历史或重复。
+
 ### 弹出菜单与终端指针  `src/lib/useCaptureOutsideDismiss.ts`
 - 职责：让标签栏与状态栏受控菜单在终端停止指针冒泡时仍能响应外部点击。
 - 关键依赖：[Radix 外部关闭] →（依赖 document 冒泡）→ [终端选区停止冒泡]；[useCaptureOutsideDismiss] →（document 捕获阶段先执行）→ [受控菜单关闭]，原事件继续流向终端。

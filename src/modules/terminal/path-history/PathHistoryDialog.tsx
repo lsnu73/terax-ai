@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import { filterPathHistory } from "@/modules/terminal/lib/pathHistory";
+import { useVisiblePathHistory } from "@/modules/terminal/lib/useVisiblePathHistory";
 import { Clock01Icon, FolderOpenIcon, Search01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -39,7 +40,10 @@ export function PathHistoryDialog({
   const [index, setIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
-  const history = usePreferencesStore((s) => s.pathHistory);
+  const history = useVisiblePathHistory(
+    usePreferencesStore((s) => s.pathHistory),
+    open,
+  );
   const limit = usePreferencesStore((s) => s.pathHistoryLimit);
 
   const filtered = useMemo(
