@@ -57,7 +57,7 @@
 - 关键依赖：[Shell OSC 133] → [Ghostty tracked pins] → [块控制器与覆盖层]；[终端右键] → [选区优先判断] → [块命中与菜单]；[块内查找] → [局部 TerminalSearchController] → [App searchTarget] → [共享 SearchInline]；[Ctrl+R] → [全局分发跳过] → [Shell 原生历史搜索]。
 - 代码索引：见 [atlas/features/终端命令与结果块.md](../atlas/features/终端命令与结果块.md)
 - 决策依据：见 decisions/2026-10-30-终端统一命令与结果块.md
-- 易错点：选区菜单与块菜单必须互斥（INV-013）；Ctrl+R 必须同时受全局分发和设置保存两层保护（INV-014）；全文与块内查找必须共享 SearchInline（INV-016），独立输入框会被菜单焦点恢复覆盖，见 [pitfalls/2026-11-02-命令块查找焦点被终端抢回.md](pitfalls/2026-11-02-命令块查找焦点被终端抢回.md)；`TERAX_BLOCKS=1` 只预留块头间隔空行，绝不能隐藏原生提示符；WSL 必须经 `WSLENV` 转发该变量与 `TERAX_TERMINAL`，否则 OSC 133 仍存在但提示符间隔缺失，见 [pitfalls/2026-11-11-WSL丢失块模式环境变量.md](pitfalls/2026-11-11-WSL丢失块模式环境变量.md)；`plain` 表示缺少命令边界上报，不是独立终端类型。
+- 易错点：选区菜单与块菜单必须互斥（INV-013）；Ctrl+R 必须同时受全局分发和设置保存两层保护（INV-014）；全文与块内查找必须共享 SearchInline（INV-016），独立输入框会被菜单焦点恢复覆盖，见 [pitfalls/2026-11-02-命令块查找焦点被终端抢回.md](pitfalls/2026-11-02-命令块查找焦点被终端抢回.md)；`TERAX_BLOCKS=1` 只预留块头间隔空行，绝不能隐藏原生提示符；WSL 必须经 `WSLENV` 转发该变量与 `TERAX_TERMINAL`，否则 OSC 133 仍存在但提示符间隔缺失，见 [pitfalls/2026-11-11-WSL丢失块模式环境变量.md](pitfalls/2026-11-11-WSL丢失块模式环境变量.md)；Bash 命令归因必须通过提示符历史基线确认，不能直接使用 PS0 的 `BASH_COMMAND` 或单独比较 `HISTCMD`，见 [pitfalls/2026-11-13-WSL-Bash命令块无法复制或重跑.md](pitfalls/2026-11-13-WSL-Bash命令块无法复制或重跑.md)；`plain` 表示缺少命令边界上报，不是独立终端类型。
 
 ### 终端光标与 AI 焦点交接  `src/modules/terminal/ghostty/`、`src/modules/ai/lib/composer.tsx`
 - 职责：让终端光标只在真实输入焦点存在时显示并按设置闪烁，AI 面板打开和关闭时完成键盘焦点交接。

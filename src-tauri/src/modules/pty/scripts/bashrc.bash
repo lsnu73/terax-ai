@@ -48,6 +48,36 @@ if [ -z "$__TERAX_HOOKS_LOADED" ]; then
     done
   }
 
+  _terax_history_sync() {
+    local entry
+    entry="$(HISTTIMEFORMAT= builtin history 1)"
+    entry="${entry#"${entry%%[![:space:]]*}"}"
+    _terax_history_id="${entry%%[[:space:]]*}"
+    _terax_history_id="${_terax_history_id%\*}"
+    case "$_terax_history_id" in
+      ''|*[!0-9]*) _terax_history_id=0 ;;
+    esac
+  }
+
+  _terax_preexec() {
+    local entry number cmd
+    entry="$(HISTTIMEFORMAT= builtin history 1)"
+    entry="${entry#"${entry%%[![:space:]]*}"}"
+    number="${entry%%[[:space:]]*}"
+    number="${number%\*}"
+    case "$number" in
+      ''|*[!0-9]*) return 0 ;;
+    esac
+    # Only a new entry can belong to the accepted input. Without cmdhist,
+    # history 1 may contain just the last line of a multiline command.
+    if shopt -q cmdhist && (( number == _terax_history_id + 1 )); then
+      cmd="${entry#*[[:space:]]}"
+      cmd="${cmd#"${cmd%%[![:space:]]*}"}"
+      cmd="${cmd//[[:cntrl:]]/ }"
+      printf '%s' "${cmd:0:256}"
+    fi
+  }
+
   _terax_precmd() {
     local _terax_ret=$?
     printf '\e]133;D;%s\e\\' "$_terax_ret"
@@ -74,6 +104,10 @@ if [ -z "$__TERAX_HOOKS_LOADED" ]; then
     *":_terax_precmd:"*) ;;
     *) PROMPT_COMMAND="_terax_precmd${PROMPT_COMMAND:+;$PROMPT_COMMAND}" ;;
   esac
+  case ":${PROMPT_COMMAND:-}:" in
+    *":_terax_history_sync:"*) ;;
+    *) PROMPT_COMMAND="${PROMPT_COMMAND:+$PROMPT_COMMAND;}_terax_history_sync" ;;
+  esac
 
   # Pre-exec marker via PS0 (bash 4.4+). PS0 is expanded just before a command
   # runs — cleaner than a DEBUG trap, which would clobber user traps and fire
@@ -81,14 +115,15 @@ if [ -z "$__TERAX_HOOKS_LOADED" ]; then
   if [ "${BASH_VERSINFO[0]:-0}" -gt 4 ] \
      || { [ "${BASH_VERSINFO[0]:-0}" -eq 4 ] && [ "${BASH_VERSINFO[1]:-0}" -ge 4 ]; }; then
     if [ -n "$TERAX_BLOCKS" ]; then
-      # PS0 only expands, never executes: the arithmetic inside the array
-      # subscript sets the seen flag while the unset array expands to nothing.
-      PS0='\[\e]133;C\e\\\]${_terax_noop[$((_terax_block_seen=1))]}'"${PS0:-}"
+      # The arithmetic inside the array subscript sets the seen flag while
+      # the unset array expands to nothing.
+      PS0='\[\e]133;C;$(_terax_preexec)\e\\\]${_terax_noop[$((_terax_block_seen=1))]}'"${PS0:-}"
     else
-      PS0='\[\e]133;C\e\\\]'"${PS0:-}"
+      PS0='\[\e]133;C;$(_terax_preexec)\e\\\]'"${PS0:-}"
     fi
   fi
 
   _terax_precmd
+  _terax_history_sync
 fi
 :
