@@ -103,16 +103,16 @@ describe("buildComposerMessage", () => {
     expect(usePlanStore.getState().active).toBe(true);
   });
 
-  it("keeps the command marker when expanding init", () => {
+  it("keeps the command marker when expanding a send-prompt command", () => {
     const result = buildComposerMessage(
-      submission({ text: "/init", commands: [] }),
+      submission({ text: "/claude-code fix the login bug", commands: [] }),
       [],
     );
     if (result.kind !== "send") throw new Error("expected a message");
     expect(result.parts).toHaveLength(1);
     expect(result.parts[0]).toMatchObject({
       type: "text",
-      text: expect.stringMatching(/^<terax-command name="init" \/>/),
+      text: expect.stringMatching(/^<terax-command name="claude-code" \/>/),
     });
   });
 

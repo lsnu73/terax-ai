@@ -5,7 +5,7 @@ export const settingsAgentsZh: typeof settingsAgents = {
   header: {
     title: "AI 行为",
     description:
-      "AI 的基础系统提示词、角色与片段。在输入栏切换角色。最终 system = 基础提示词(full/lite,模型级) + TERAX.md 记忆 + 激活的角色 + 用户自定义指令。",
+      "AI 的基础系统提示词、角色与片段。在输入栏切换角色。最终 system = 基础提示词(full/lite,模型级) + 激活的角色 + 用户自定义指令。",
   },
   prompts: {
     label: "系统提示词管理",

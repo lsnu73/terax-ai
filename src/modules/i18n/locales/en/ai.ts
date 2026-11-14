@@ -308,7 +308,6 @@ export const ai = {
     unsupportedProtocol: "Unsupported provider protocol: {{protocol}}",
   },
   slashCommands: {
-    init: "Initialize workspace",
     plan: "Plan mode",
     claudeCode: "Delegate to Claude Code",
   },

@@ -1,7 +1,7 @@
 import {
   CheckListIcon,
   ClaudeIcon,
-  SparklesIcon,
+  type SparklesIcon,
 } from "@hugeicons/core-free-icons";
 import { usePlanStore } from "../store/planStore";
 
@@ -31,16 +31,6 @@ You are the orchestrator, not the implementer. Do not write the code yourself.
 Sharpen vague requests into precise engineering instructions; keep each agent prompt focused on one coherent unit of work.`;
 }
 
-const INIT_PROMPT = `Scan this workspace and produce TERAX.md at the workspace root with:
-
-- One-paragraph project description.
-- Build / test / dev commands.
-- Architecture overview (subsystems, data flow, key dirs).
-- Conventions worth knowing (naming, patterns, gotchas).
-- Paths to entry points.
-
-Use grep/glob/list_directory/read_file to explore. Cap TERAX.md under 200 lines. Use write_file to create it (will go through normal approval).`;
-
 export type SlashCommandMeta = {
   name: string;
   invocation: string;
@@ -50,12 +40,6 @@ export type SlashCommandMeta = {
 };
 
 export const SLASH_COMMANDS: Record<string, SlashCommandMeta> = {
-  init: {
-    name: "init",
-    invocation: "/init",
-    labelKey: "ai.slashCommands.init",
-    icon: SparklesIcon,
-  },
   plan: {
     name: "plan",
     invocation: "/plan",
@@ -93,13 +77,6 @@ export function tryRunSlashCommand(input: string): SlashOutcome {
       return {
         kind: "handled",
         toast: nowActive ? "Plan mode on" : "Plan mode off",
-      };
-    }
-    case "init": {
-      return {
-        kind: "send-prompt",
-        prompt: INIT_PROMPT,
-        commandName: "init",
       };
     }
     case "claude-code": {

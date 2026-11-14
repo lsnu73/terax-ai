@@ -6,38 +6,6 @@ import { native, type ShellDescription } from "./native";
 import type { ToolContext } from "../tools/tools";
 import { currentWorkspaceEnv } from "@/modules/workspace";
 
-const TERAX_MD_MAX_BYTES = 32 * 1024;
-type MemoryCacheEntry = { content: string | null; mtime: number };
-const projectMemoryCache = new Map<string, MemoryCacheEntry>();
-
-async function readTeraxMd(
-  workspaceRoot: string | null,
-): Promise<string | null> {
-  if (!workspaceRoot) return null;
-  const path = `${workspaceRoot.replace(/\/$/, "")}/TERAX.md`;
-  const cached = projectMemoryCache.get(workspaceRoot);
-  if (cached && Date.now() - cached.mtime < 30_000) return cached.content;
-  try {
-    const r = await native.readFile(path);
-    if (r.kind !== "text") {
-      projectMemoryCache.set(workspaceRoot, {
-        content: null,
-        mtime: Date.now(),
-      });
-      return null;
-    }
-    const content =
-      r.content.length > TERAX_MD_MAX_BYTES
-        ? r.content.slice(0, TERAX_MD_MAX_BYTES)
-        : r.content;
-    projectMemoryCache.set(workspaceRoot, { content, mtime: Date.now() });
-    return content;
-  } catch {
-    projectMemoryCache.set(workspaceRoot, { content: null, mtime: Date.now() });
-    return null;
-  }
-}
-
 type LiveSnapshot = {
   cwd: string | null;
   terminalPrivate: boolean;
@@ -74,10 +42,7 @@ export function createContextAwareTransport(deps: Deps) {
   const run = async (options: SendOptions) => {
     const live = deps.getLive();
     const workspace = currentWorkspaceEnv();
-    const [projectMemory, shell] = await Promise.all([
-      readTeraxMd(live.workspaceRoot),
-      native.shellDescribe(workspace),
-    ]);
+    const shell = await native.shellDescribe(workspace);
     const envBlock = formatEnvBlock(live, shell);
     const messagesForRun = envBlock
       ? injectEnvIntoLastUser(options.messages, envBlock)
@@ -95,7 +60,6 @@ export function createContextAwareTransport(deps: Deps) {
       onCompact: deps.onCompact,
       onFinishMeta: deps.onFinishMeta,
       planMode: deps.getPlanMode?.(),
-      projectMemory,
       uiMessages: messagesForRun,
       abortSignal: options.abortSignal,
     });

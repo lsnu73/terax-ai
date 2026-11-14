@@ -1,6 +1,6 @@
 # AI 命令执行
 
-- 最后校验：2026-11-12
+- 最后校验：2026-11-14
 - 状态：已覆盖
 - 设计原因：[AI 命令方言在执行前注入](../../lore/decisions/2026-11-12-AI命令方言在执行前注入.md)
 
@@ -12,10 +12,10 @@ AI 可以通过 `bash_run` 执行短命令，通过 `bash_background` 启动开�
 
 ## 2. 入口与调用链
 
-- 请求上下文：`src/modules/ai/lib/transport.ts:73` 的 `createContextAwareTransport` 每次发送捕获当前 `WorkspaceEnv`，调用 `native.shellDescribe`。
+- 请求上下文：`src/modules/ai/lib/transport.ts:41` 的 `createContextAwareTransport` 每次发送捕获当前 `WorkspaceEnv`，调用 `native.shellDescribe`。
 - 原生描述：`src/modules/ai/lib/native.ts:209` 调用 `shell_describe`；Rust 入口位于 `src-tauri/src/modules/shell/mod.rs:468`。
 - 唯一解析器：`src-tauri/src/modules/shell/mod.rs:358` 的 `resolve_oneshot_shell` 同时供元数据与真实命令构造使用。
-- 首轮提示：`src/modules/ai/lib/transport.ts:146` 的 `formatEnvBlock` 注入 `shell` 和 `command_dialect`；`runAgentStream` 将同一描述传给 `buildTools`。
+- 首轮提示：`src/modules/ai/lib/transport.ts:110` 的 `formatEnvBlock` 注入 `shell` 和 `command_dialect`；`runAgentStream` 将同一描述传给 `buildTools`。
 - 动态工具：`src/modules/ai/tools/shell.ts:73` 的 `buildShellTools` 为前台和后台工具生成方言约束。
 - 执行：`src/modules/ai/tools/shell.ts` 在每次调用时捕获一个工作区快照，贯穿 describe、session open/run 或 background spawn；最终由 `build_oneshot_command` 使用同一个 Rust 解析器构造进程参数。
 
@@ -51,7 +51,7 @@ AI 发送消息
 | Windows WSL | `sh` | `posix` | `wsl.exe ... --exec sh -lc` |
 | macOS / Linux Local | `sh` | `posix` | `/bin/sh -c` |
 
-1. 动态信息放在每轮用户消息的 `<env>` 和工具定义中，不放进 stable system prompt，因此 full、lite、custom 与用户覆盖提示词都能生效，也不改变稳定提示词缓存边界。
+1. 动态信息放在每轮用户消息的 `<env>` 和工具定义中，不放进 stable system prompt，因此 full、lite、custom 与用户覆盖提示词都能生效，也不改变稳定提示词缓存边界。每轮提示词只注入 shell 环境块，不读取项目目录的任何记忆文件（原 TERAX.md 项目记忆注入已于 2026-11-14 移除：终端场景不需要项目上下文）。
 2. 工具描述明确 PowerShell、cmd 或 POSIX sh 方言；模型不需要先调用探测工具。
 3. 每次工具执行重新读取当前工作区，避免 Local/WSL 切换后沿用旧环境；会话键继续包含工作区 scope。
 4. `bash_run` 的非零退出、超时或执行异常，以及 `bash_background` 的启动异常，保留原结果并增加 `shell`、`command_dialect`、`hint`。
@@ -74,3 +74,4 @@ AI 发送消息
 ## 7. 变更记录
 
 - 2026-11-12：新增 Shell 描述 IPC、首轮 `<env>` 方言注入、动态前台/后台工具描述、执行工作区快照和失败修正提示；元数据与真实 argv 统一由 Rust `OneShotShell` 解析。
+- 2026-11-14：移除每轮提示词的 TERAX.md 项目记忆注入（`src/modules/ai/lib/transport.ts` 的 `readTeraxMd`、`src/modules/ai/lib/agent.ts` 的 `memoryBlock`），每轮只剩 `<env>` shell 环境块。

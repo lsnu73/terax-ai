@@ -290,7 +290,6 @@ export const aiZh: typeof ai = {
     unsupportedProtocol: "不支持的厂商协议：{{protocol}}",
   },
   slashCommands: {
-    init: "初始化工作区",
     plan: "计划模式",
     claudeCode: "委派给 Claude Code",
   },

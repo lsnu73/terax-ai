@@ -3,7 +3,7 @@ export const settingsAgents = {
   header: {
     title: "AI Behavior",
     description:
-      "Base system prompt, roles and snippets the AI uses. Switch roles from the input bar. Final system = base prompt (full/lite, model-level) + TERAX.md memory + active role + custom instructions.",
+      "Base system prompt, roles and snippets the AI uses. Switch roles from the input bar. Final system = base prompt (full/lite, model-level) + active role + custom instructions.",
   },
   prompts: {
     label: "System prompt management",
