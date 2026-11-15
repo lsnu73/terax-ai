@@ -3,7 +3,7 @@
 > 只收录有业务含义的源文件。自动生成文件、测试、构建脚本和纯配置不在此列。
 > 一个文件涉及多个功能时，第二列登记主归属，其余登记在第三列。
 > 表格是唯一数据源；目录树由 project-atlas 的 render-file-map-tree.sh 生成，不要手改。
-> 最后校验：2026-11-12
+> 最后校验：2026-11-16
 
 ## 按目录浏览
 
@@ -200,6 +200,9 @@ src/
 │   │   │   │   └── GhosttyInputController.ts — [终端光标与焦点] 上报终端 textarea 真实 focus/blur，保留 focus reporting、IME 与按键状态处理（次：终端输入）
 │   │   │   ├── search/
 │   │   │   │   └── GhosttyBlockSearchController.ts — [终端命令与结果块] 把异步块扫描、取消和匹配导航适配为 TerminalSearchController（次：标签内搜索）
+│   │   │   ├── selection/
+│   │   │   │   ├── TerminalSelectionController.ts — [终端双击选词] 指针多击状态机（500ms/±1 列）、容器阶梯层级解析、拖拽扩展与自动滚动（次：终端会话与渲染）
+│   │   │   │   └── wordSelection.ts — [终端双击选词] 纯函数分词核心：逐列分类（宽字符 spacer 继承、冒号归并）、token 化与引号/括号容器阶梯
 │   │   │   ├── useGhosttyTerminalSession.ts — [终端链接打开] 分流链接并初始化块会话；同步逻辑窗格焦点，把终端输入 focus/blur 接到 surface（次：终端命令与结果块、终端光标与焦点、终端会话与渲染）
 │   │   │   └── webgl/
 │   │   │       └── WebGlTerminalSurface.ts — [终端链接打开] WebGL 链接点击、修饰键透传与输入法锚点同步；按三层焦点传递光标可见性并控制闪烁和重绘（次：终端输入法候选框定位、终端光标与焦点、终端渲染回退）
@@ -315,6 +318,8 @@ src/
 | `src/modules/terminal/ghostty/GhosttyBlocks.ts` | [终端命令与结果块](features/终端命令与结果块.md) | Ghostty model 适配 | OSC 133 块边界、读取、局部文本/正则搜索、右键命中、时间线/定位与块头/块尾跳转 |
 | `src/modules/terminal/ghostty/search/GhosttyBlockSearchController.ts` | [终端命令与结果块](features/终端命令与结果块.md) | 标签内搜索 | 把异步块扫描、取消和匹配导航适配为 TerminalSearchController |
 | `src/modules/terminal/ghostty/GhosttyBlockOverlay.tsx` | [终端命令与结果块](features/终端命令与结果块.md) | 会话桥接 | 连接块控制器与覆盖层，清块时关闭共享搜索 |
+| `src/modules/terminal/ghostty/selection/wordSelection.ts` | [终端双击选词](features/终端双击选词.md) | 无 | 纯函数分词核心：逐列分类（宽字符 spacer 继承、冒号归并）、token 化与引号/括号容器阶梯 |
+| `src/modules/terminal/ghostty/selection/TerminalSelectionController.ts` | [终端双击选词](features/终端双击选词.md) | 终端会话与渲染 | 指针多击状态机（500ms/±1 列）、容器阶梯层级解析、拖拽扩展与自动滚动 |
 | `src-tauri/src/modules/pty/shell_init.rs` | [终端命令与结果块](features/终端命令与结果块.md) | [代理](features/代理.md) | Windows/WSL Shell 启动与终端集成环境；`WSLENV` 合并转发 |
 | `src-tauri/src/modules/pty/scripts/profile.ps1` | [终端命令与结果块](features/终端命令与结果块.md) | PowerShell 集成 | OSC 133 标记、命令行上报与块头间隔空行 |
 | `src-tauri/src/modules/pty/scripts/zshrc.zsh` | [终端命令与结果块](features/终端命令与结果块.md) | zsh 集成 | OSC 133 标记、命令行上报与块头间隔空行 |

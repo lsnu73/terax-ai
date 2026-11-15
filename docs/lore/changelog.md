@@ -32,3 +32,4 @@
 - 2026-11-12 归档模型设置自动保存与离页提示：invariants 新增 1 条（INV-024 离开模型分区必须等待自动保存并如实报告失败）；map 补充 SettingsView、保存协调器与 Provider/已有模型表单的依赖。新增回归测试锁定离页判定与保存等待，无新增决策与坑点。
 - 2026-11-13 归档 WSL Bash 命令归因坑点：pitfalls 新增 1 条（无 OSC 133 C 载荷导致复制与重跑禁用，PS0 的 `BASH_COMMAND` 和单独比较 `HISTCMD` 均不可靠）；map 补充提示符历史基线依赖。无新增约束与决策。
 - 2026-11-15 归档源代码管理远程同步：pitfalls 新增 1 条（无 TTY 下加密 SSH key 被 ssh 静默跳过，报错不可区分）；decisions 新增 2 条（askpass 临时脚本解锁、远程失败改通知展示）；map 新增源代码管理与 git 进程条目（askpass 环境叠加顺序与 WSLENV 转发两条隐性依赖）。无新增 invariants。
+- 2026-11-16 归档终端双击选词重写：decisions 新增 1 条（规则分词与容器/路径双阶梯，冒号点号不可分割单元优先、斜杠断词由用户裁定）；pitfalls 新增 1 条（宽字符 spacer 与空白填充同为空串，只能按前格宽度区分）。无新增 invariants。

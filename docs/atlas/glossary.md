@@ -1,6 +1,6 @@
 # 术语表
 
-> 最后校验：2026-11-15
+> 最后校验：2026-11-16
 
 | 标准术语 | 用户说法（别名） | 代码锚点 | 一句话含义 | 易混淆项 |
 |---|---|---|---|---|
@@ -10,3 +10,4 @@
 | AI Composer 输入框 | 「提示词输入框」 | `src/modules/ai/lib/composer.tsx:87` 的 `focusSignal` effect | AI 面板打开时接收键盘输入的 textarea | 终端隐藏 textarea、模型选择器搜索框 |
 | 块头/块尾跳转 | 「跳转到块头部/尾部」「上分隔线/下分隔线」 | `src/modules/terminal/ghostty/GhosttyBlocks.ts:428` 的 `revealBlockHead`/`revealBlockTail` | 块右键菜单把块的上边界滚到终端上边框、块尾分隔线滚到终端下边框 | 命令时间线点击的 `revealBlock`（会选中块） |
 | SSH key 密码解锁 | 「ssh key 加密了要填密码」「推送要密码」 | `src/modules/source-control/SshPassphraseDialog.tsx:28` 的 `SshPassphraseDialog` | 推送失败形如 Permission denied (publickey) 时弹密码框，重试经 Rust askpass 助手解锁加密私钥 | HTTPS 凭据失败（不弹此框）；ssh-agent 已解锁的 key |
+| 双击选词 | 「双击选词」「双击选中一个词」「双击选中文」 | `src/modules/terminal/ghostty/selection/wordSelection.ts:79` 的 `wordTokenRangeAt`/`pathLadderRangeAt` | 终端里鼠标双击按分词规则选词：连续中文整块、路径/URL/版本号/下划线标识符等粘连单元整体选中，三击起沿引号括号容器递进 | 终端链接打开（Ctrl/Cmd 点击）；编辑器 CodeMirror 双击选词 |
