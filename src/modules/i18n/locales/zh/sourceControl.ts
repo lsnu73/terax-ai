@@ -106,4 +106,18 @@ export const sourceControlZh: typeof sourceControl = {
     noRepoForFolder: "此文件夹不在任何 Git 仓库中。",
     resolveFailed: "无法解析 Git 仓库",
   },
+  remoteActions: {
+    fetchFailed: "从远程获取失败",
+    pullFailed: "拉取失败",
+    pushFailed: "推送失败",
+    autoFetchFailed: "后台获取远程失败",
+  },
+  sshPassphrase: {
+    title: "SSH key 密码",
+    description:
+      "远程使用 SSH 且私钥已加密，输入密码解锁后重试推送；密码仅本次使用，不会被保存。",
+    placeholder: "SSH key 密码",
+    submit: "重试推送",
+    cancel: "取消",
+  },
 };

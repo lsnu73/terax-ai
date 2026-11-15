@@ -3,8 +3,10 @@ import {
   type GitRepoInfo,
   type GitStatusSnapshot,
 } from "@/modules/ai/lib/native";
+import { runtimeToast } from "@/modules/agents/lib/runtimeNotifications";
 import { useWorkspaceEnvStore, workspaceScopeKey } from "@/modules/workspace";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 const AUTO_FETCH_THROTTLE_MS = 5 * 60_000;
 const AUTO_FETCH_LRU_LIMIT = 16;
@@ -15,15 +17,18 @@ const SC_STATUS_TTL_MS = 2000;
 
 type SourceControlRefreshMode = "auto" | "always" | "never";
 type SourceControlRemoteAction = "fetch" | "pull" | "push";
-type SourceControlRemoteActionMode =
-  | "contextual"
-  | SourceControlRemoteAction;
+type SourceControlRemoteActionMode = "contextual" | SourceControlRemoteAction;
 
 type SourceControlRemoteActionResult = {
   ok: boolean;
   action: SourceControlRemoteAction | null;
   error?: string;
   blocked?: "diverged" | "missing-upstream" | "no-repo";
+};
+
+type SourceControlRemoteActionOptions = {
+  /** SSH key passphrase for the push retry from the passphrase dialog. */
+  passphrase?: string;
 };
 
 export type SourceControlSummary = {
@@ -42,11 +47,10 @@ export type SourceControlSummary = {
   applyStatus: (
     updater: (status: GitStatusSnapshot) => GitStatusSnapshot,
   ) => void;
-  refresh: (options?: {
-    remote?: SourceControlRefreshMode;
-  }) => Promise<void>;
+  refresh: (options?: { remote?: SourceControlRefreshMode }) => Promise<void>;
   runRemoteAction: (
     mode?: SourceControlRemoteActionMode,
+    options?: SourceControlRemoteActionOptions,
   ) => Promise<SourceControlRemoteActionResult>;
 };
 
@@ -198,6 +202,25 @@ function getContextualAction(
   return "fetch";
 }
 
+/**
+ * SSH key failures reach the UI as "Permission denied (publickey)" — ssh skips
+ * an encrypted key silently when it cannot prompt (git runs without a TTY).
+ * Matching this shape (plus the explicit decrypt failure) is what triggers the
+ * passphrase dialog for the push retry.
+ */
+export function isSshAuthError(message: string): boolean {
+  return /permission denied \(publickey\)|incorrect passphrase/i.test(message);
+}
+
+function remoteActionFailureTitle(
+  action: SourceControlRemoteAction,
+  t: (key: string) => string,
+): string {
+  if (action === "fetch") return t("sourceControl.remoteActions.fetchFailed");
+  if (action === "pull") return t("sourceControl.remoteActions.pullFailed");
+  return t("sourceControl.remoteActions.pushFailed");
+}
+
 function touchAutoFetch(map: Map<string, number>, key: string): void {
   map.delete(key);
   map.set(key, Date.now());
@@ -222,6 +245,7 @@ export function useSourceControl(
   enabled: boolean = true,
   { live = true }: UseSourceControlOptions = {},
 ): SourceControlSummary {
+  const { t } = useTranslation();
   const workspaceEnv = useWorkspaceEnvStore((s) => s.env);
   const workspaceKey = workspaceScopeKey(workspaceEnv);
   const [state, setState] = useState<SourceControlSummaryState>({
@@ -238,6 +262,12 @@ export function useSourceControl(
   const requestIdRef = useRef(0);
   const inflightRef = useRef<InflightRefresh | null>(null);
   const autoFetchByRepoRef = useRef(new Map<string, number>());
+  // Background auto-fetch runs on a throttle; without this dedupe a broken
+  // remote would raise the same notification every time it fires.
+  const lastAutoFetchErrorRef = useRef<{
+    repoRoot: string;
+    message: string;
+  } | null>(null);
   const enabledRef = useRef(enabled);
   const lastRefreshAtRef = useRef(0);
   const resetWorkspaceKeyRef = useRef(workspaceKey);
@@ -286,10 +316,7 @@ export function useSourceControl(
   const doRefresh = useCallback(
     async (remoteMode: SourceControlRefreshMode): Promise<void> => {
       const refreshContextKey = contextKey;
-      if (
-        !enabledRef.current ||
-        refreshContextKey !== contextKeyRef.current
-      ) {
+      if (!enabledRef.current || refreshContextKey !== contextKeyRef.current) {
         return;
       }
       const requestId = ++requestIdRef.current;
@@ -390,8 +417,7 @@ export function useSourceControl(
           repo.upstream &&
           remoteMode !== "never" &&
           (remoteMode === "always" ||
-            Date.now() -
-              (autoFetchByRepoRef.current.get(repo.repoRoot) ?? 0) >=
+            Date.now() - (autoFetchByRepoRef.current.get(repo.repoRoot) ?? 0) >=
               AUTO_FETCH_THROTTLE_MS);
 
         if (shouldAutoFetch) {
@@ -399,11 +425,26 @@ export function useSourceControl(
             await native.gitFetch(repo.repoRoot);
             touchAutoFetch(autoFetchByRepoRef.current, repo.repoRoot);
             nextRemoteError = null;
+            lastAutoFetchErrorRef.current = null;
             if (!isCurrentRequest()) return;
             status = await native.gitStatus(repo.repoRoot);
             if (!isCurrentRequest()) return;
           } catch (error) {
             nextRemoteError = normalizeError(error);
+            const last = lastAutoFetchErrorRef.current;
+            if (
+              last?.repoRoot !== repo.repoRoot ||
+              last.message !== nextRemoteError
+            ) {
+              lastAutoFetchErrorRef.current = {
+                repoRoot: repo.repoRoot,
+                message: nextRemoteError,
+              };
+              runtimeToast.error(
+                t("sourceControl.remoteActions.autoFetchFailed"),
+                { description: nextRemoteError },
+              );
+            }
           }
         }
 
@@ -433,7 +474,7 @@ export function useSourceControl(
         }
       }
     },
-    [contextKey, contextPath],
+    [contextKey, contextPath, t],
   );
 
   const refresh = useCallback(
@@ -461,6 +502,7 @@ export function useSourceControl(
   const runRemoteAction = useCallback(
     async (
       mode: SourceControlRemoteActionMode = "contextual",
+      options?: SourceControlRemoteActionOptions,
     ): Promise<SourceControlRemoteActionResult> => {
       const { repo, status } = stateRef.current;
       if (!repo || !status) {
@@ -477,8 +519,7 @@ export function useSourceControl(
 
       setState((current) => ({ ...current, busyAction: action }));
       const actionContextKey = contextKeyRef.current;
-      const isCurrentContext = () =>
-        actionContextKey === contextKeyRef.current;
+      const isCurrentContext = () => actionContextKey === contextKeyRef.current;
 
       try {
         if (action === "fetch") {
@@ -489,7 +530,9 @@ export function useSourceControl(
           touchAutoFetch(autoFetchByRepoRef.current, repo.repoRoot);
           await native.gitPullFfOnly(repo.repoRoot);
         } else {
-          await native.gitPush(repo.repoRoot);
+          await native.gitPush(repo.repoRoot, {
+            passphrase: options?.passphrase,
+          });
         }
         if (isCurrentContext()) {
           setState((current) => ({ ...current, lastRemoteError: null }));
@@ -502,12 +545,17 @@ export function useSourceControl(
           setState((current) => ({ ...current, lastRemoteError: message }));
           await refresh({ remote: "never" }).catch(() => {});
         }
+        // Failures surface as notifications; the panel footer stays reserved
+        // for commit-flow feedback.
+        runtimeToast.error(remoteActionFailureTitle(action, t), {
+          description: message,
+        });
         return { ok: false, action, error: message };
       } finally {
         setState((current) => ({ ...current, busyAction: null }));
       }
     },
-    [refresh],
+    [refresh, t],
   );
 
   useEffect(() => {

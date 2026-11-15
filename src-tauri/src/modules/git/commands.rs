@@ -184,11 +184,12 @@ pub async fn git_pull_ff_only(
 pub async fn git_push(
     repo_root: String,
     workspace: Option<WorkspaceEnv>,
+    passphrase: Option<String>,
     app: AppHandle,
 ) -> Result<GitPushResult, String> {
     let workspace = WorkspaceEnv::from_option(workspace);
     blocking(app, move |r| {
-        operations::push(r, &repo_root, &workspace).map_err(Into::into)
+        operations::push(r, &repo_root, &workspace, passphrase.as_deref()).map_err(Into::into)
     })
     .await
 }

@@ -22,7 +22,7 @@ import { t } from "@/modules/i18n";
 import { openSettings } from "@/modules/settings/openSettings";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { SourceControlSummary } from "./useSourceControl";
+import { isSshAuthError, type SourceControlSummary } from "./useSourceControl";
 
 type PanelState = "closed" | "loading" | "no-repo" | "ready" | "error";
 type DiffMode = "+" | "-";
@@ -96,6 +96,9 @@ type SourceControlPanelState = {
   stagedEmptyText: string;
   unstagedEmptyText: string;
   pendingDiscard: PendingDiscard | null;
+  sshPassphrasePrompt: { repoRoot: string } | null;
+  submitSshPassphrase: (passphrase: string) => Promise<void>;
+  cancelSshPassphrase: () => void;
   setCommitMessage: (value: string) => void;
   refresh: () => Promise<void>;
   selectEntry: (entry: SourceControlEntry) => Promise<void>;
@@ -391,6 +394,9 @@ export function useSourceControlPanel(
   const [localActionBusy, setLocalActionBusy] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [sshPassphrasePrompt, setSshPassphrasePrompt] = useState<{
+    repoRoot: string;
+  } | null>(null);
   const [selectionTransition, setSelectionTransition] =
     useState<SelectionTransition>("none");
   const [pendingDiscard, setPendingDiscard] = useState<
@@ -942,10 +948,39 @@ export function useSourceControlPanel(
       );
       return;
     }
-    if (result.error) {
-      setActionError(result.error);
+    // An encrypted SSH key fails the first attempt without asking anything
+    // (git runs without a TTY); offer the passphrase dialog for the retry.
+    if (result.error && isSshAuthError(result.error)) {
+      setSshPassphrasePrompt({ repoRoot: repo.repoRoot });
     }
   }, [repo, status?.upstream, summary]);
+
+  const submitSshPassphrase = useCallback(
+    async (passphrase: string) => {
+      const prompt = sshPassphrasePrompt;
+      if (!prompt) return;
+      setActionMessage(null);
+      setActionError(null);
+      const result = await summary.runRemoteAction("push", { passphrase });
+      if (result.ok) {
+        setSshPassphrasePrompt(null);
+        setActionMessage(
+          status?.upstream
+            ? t("sourceControl.actions.pushedTo", {
+                upstream: status.upstream,
+              })
+            : t("sourceControl.actions.pushCompleted"),
+        );
+      }
+      // On failure the hook has already raised the error notification; the
+      // dialog stays open so the passphrase can be corrected.
+    },
+    [sshPassphrasePrompt, status?.upstream, summary],
+  );
+
+  const cancelSshPassphrase = useCallback(() => {
+    setSshPassphrasePrompt(null);
+  }, []);
 
   const pendingDiscardView = useMemo<PendingDiscard | null>(() => {
     if (!pendingDiscard) return null;
@@ -989,6 +1024,9 @@ export function useSourceControlPanel(
     stagedEmptyText,
     unstagedEmptyText,
     pendingDiscard: pendingDiscardView,
+    sshPassphrasePrompt,
+    submitSshPassphrase,
+    cancelSshPassphrase,
     setCommitMessage,
     refresh,
     selectEntry,

@@ -157,6 +157,18 @@
 - 决策依据：见 decisions/2026-10-30-预览端口预设按稳定标识持久化.md
 - 易错点：`settings/store.ts` 可以引用预览模块的纯数据文件，但 `lib/portPresets.ts` 不得反向引用 settings store；内置项按稳定 ID 合并，改默认值时不要更换已有 ID。
 
+## 源代码管理
+
+### 源代码管理与 git 进程  `src/modules/source-control/`、`src-tauri/src/modules/git/`
+- 职责：侧边栏 Git 面板的仓库状态、暂存/提交与远程同步；远程失败走统一通知。
+- 对外暴露：`useSourceControl` 的 `SourceControlSummary`（含 `runRemoteAction(mode, options?)`）；Tauri 命令 `git_fetch`、`git_pull_ff_only`、`git_push`（可选 passphrase）。git 模块的 status/diff/log 同时服务 git tab、资源管理器装饰与 rail 徽标。
+- 关键依赖：[前端 source-control] →（invoke）→ [git 模块] →（spawn）→ 系统 git/ssh。两条隐性依赖：
+  1. `process.rs` 的 `run_git_uncached` 基线清空 `SSH_ASKPASS`/`SSH_ASKPASS_REQUIRE`/`DISPLAY` 并置 `GIT_TERMINAL_PROMPT=0`；askpass 解锁环境必须在基线**之后**经 `run_git_with_env` 的 `extra_env` 叠加——改基线或调换顺序会把加密 SSH key 的解锁链路一并禁掉。
+  2. WSL 场景 `wsl.exe` 不转发进程环境，askpass 的脚本路径与密码依赖 `WSLENV` token（`SSH_ASKPASS/up` 等）；新增 askpass 相关变量必须同步加 token，同 pitfalls/2026-11-11-WSL丢失块模式环境变量.md 的教训。
+- 代码索引：见 [atlas/features/源代码管理.md](../atlas/features/源代码管理.md)
+- 易错点：见 pitfalls/2026-11-15-无TTY下加密SSH key被静默跳过.md
+- 决策依据：见 decisions/2026-11-15-加密SSH key推送用askpass脚本解锁.md、decisions/2026-11-15-远程操作失败改为通知展示.md
+
 ## 构建与打包
 
 ### 打包链路  `pnpm tauri build`

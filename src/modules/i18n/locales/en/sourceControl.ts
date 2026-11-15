@@ -109,4 +109,20 @@ export const sourceControl = {
     noRepoForFolder: "No Git repository contains this folder.",
     resolveFailed: "Could not resolve Git repository",
   },
+  /** useSourceControl：远程操作失败通知标题。 */
+  remoteActions: {
+    fetchFailed: "Fetch failed",
+    pullFailed: "Pull failed",
+    pushFailed: "Push failed",
+    autoFetchFailed: "Background fetch failed",
+  },
+  /** SshPassphraseDialog：加密 SSH key 的解锁密码。 */
+  sshPassphrase: {
+    title: "SSH key passphrase",
+    description:
+      "The remote uses SSH and the private key looks encrypted. Enter its passphrase to retry the push; it is used once and never stored.",
+    placeholder: "SSH key passphrase",
+    submit: "Retry push",
+    cancel: "Cancel",
+  },
 };

@@ -38,6 +38,7 @@ Terax 是面向开发者的开源桌面开发工作区，以终端为中心，�
 | 改 AI 面板附件展示、附件读取或拖拽附加 | [features/AI面板.md](features/AI面板.md) | `src/modules/ai/lib/composer.tsx`, `src/modules/ai/lib/aiAttachmentDrop.ts`, `src/modules/explorer/lib/useExplorerDnd.ts` |
 | 改 AI 命令执行的 Shell 选择、方言提示或前后台工具 | [features/AI命令执行.md](features/AI命令执行.md) | `src/modules/ai/tools/shell.ts`, `src/modules/ai/lib/transport.ts`, `src-tauri/src/modules/shell/mod.rs` |
 | 改 AI 生成提交信息或其提示词 | [features/AI提交信息生成.md](features/AI提交信息生成.md) | `src/modules/source-control/useSourceControlPanel.ts`, `src/modules/ai/config/prompts.ts` |
+| 改源代码管理面板、远程获取/拉取/推送或 SSH key 密码解锁 | [features/源代码管理.md](features/源代码管理.md) | `src/modules/source-control/SourceControlPanel.tsx`, `src/modules/source-control/useSourceControl.ts`, `src-tauri/src/modules/git/operations.rs` |
 | 改模型请求参数或思考强度档位 | [features/AI模型配置.md](features/AI模型配置.md) | `src/modules/ai/config/params.ts`, `src/settings/sections/models/StructuredFields.tsx` |
 | 改通知铃铛、软件运行消息或通知显示方式 | [features/通知中心.md](features/通知中心.md) | `src/modules/agents/components/NotificationBell.tsx`, `src/modules/agents/lib/runtimeNotifications.ts`, `src/modules/agents/store/agentStore.ts` |
 | 改设置左侧导航、选项搜索、结果分组或结果定位 | [features/设置页.md](features/设置页.md) | `src/settings/SettingsView.tsx`, `src/settings/components/SettingsSearch.tsx`, `src/settings/settingsSearch.ts` |
@@ -56,7 +57,7 @@ Terax 是面向开发者的开源桌面开发工作区，以终端为中心，�
 
 ## 当前覆盖范围
 
-首版采用种子功能法，之后按开发增量补齐。目前完整覆盖「撤销终端窗格拆分」「开发者工具」「终端链接打开」「终端输入法候选框定位」「终端光标与焦点」「终端路径历史」「终端命令与结果块」「标签页管理」「状态栏工作区与路径」「标签内搜索」「关闭窗口与系统托盘」「无边框窗口与边框交互」「预览端口管理」「快捷键提示」「AI 面板」「AI 命令执行」「AI 模型配置」「命令面板」「AI 提交信息生成」「设置-关于」「代理」「设置页」「通知中心」「文件资源管理器」「应用更新」二十五个功能。其他功能在 [features/_index.md](features/_index.md) 中登记为未覆盖，后续随开发补齐，不以目录名推测实现。
+首版采用种子功能法，之后按开发增量补齐。目前完整覆盖「撤销终端窗格拆分」「开发者工具」「终端链接打开」「终端输入法候选框定位」「终端光标与焦点」「终端路径历史」「终端命令与结果块」「标签页管理」「状态栏工作区与路径」「标签内搜索」「关闭窗口与系统托盘」「无边框窗口与边框交互」「预览端口管理」「快捷键提示」「AI 面板」「AI 命令执行」「AI 模型配置」「命令面板」「AI 提交信息生成」「设置-关于」「代理」「设置页」「通知中心」「文件资源管理器」「应用更新」「源代码管理」二十六个功能。其他功能在 [features/_index.md](features/_index.md) 中登记为未覆盖，后续随开发补齐，不以目录名推测实现。
 
 ## 协作约定
 

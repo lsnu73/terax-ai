@@ -227,7 +227,15 @@ where
     I: IntoIterator<Item = S>,
     S: AsRef<OsStr>,
 {
-    run_git_uncached(workspace, cwd, args, timeout_secs, MAX_OUTPUT_BYTES, false)
+    run_git_uncached(
+        workspace,
+        cwd,
+        args,
+        timeout_secs,
+        MAX_OUTPUT_BYTES,
+        false,
+        &[],
+    )
 }
 
 /// Like `run_git`, but kills git once it has produced `stdout_cap` bytes. For
@@ -243,7 +251,31 @@ where
     I: IntoIterator<Item = S>,
     S: AsRef<OsStr>,
 {
-    run_git_uncached(workspace, cwd, args, timeout_secs, stdout_cap, true)
+    run_git_uncached(workspace, cwd, args, timeout_secs, stdout_cap, true, &[])
+}
+
+/// Like `run_git`, with extra environment entries layered on top. Used to hand
+/// an SSH askpass helper to git for passphrase-protected keys.
+pub fn run_git_with_env<I, S>(
+    workspace: &WorkspaceEnv,
+    cwd: Option<&str>,
+    args: I,
+    timeout_secs: u64,
+    extra_env: &[(String, String)],
+) -> Result<GitOutput>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<OsStr>,
+{
+    run_git_uncached(
+        workspace,
+        cwd,
+        args,
+        timeout_secs,
+        MAX_OUTPUT_BYTES,
+        false,
+        extra_env,
+    )
 }
 
 fn run_git_uncached<I, S>(
@@ -253,6 +285,7 @@ fn run_git_uncached<I, S>(
     timeout_secs: u64,
     stdout_cap: usize,
     stop_on_stdout_cap: bool,
+    extra_env: &[(String, String)],
 ) -> Result<GitOutput>
 where
     I: IntoIterator<Item = S>,
@@ -267,6 +300,8 @@ where
     cmd.env("GIT_TERMINAL_PROMPT", "0")
         .env("GIT_ASKPASS", "")
         .env("SSH_ASKPASS", "")
+        .env("SSH_ASKPASS_REQUIRE", "")
+        .env("DISPLAY", "")
         .env("GIT_OPTIONAL_LOCKS", "0")
         .env("GCM_INTERACTIVE", "Never")
         .env("GCM_PROVIDER", "")
@@ -274,6 +309,9 @@ where
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
+    for (key, value) in extra_env {
+        cmd.env(key, value);
+    }
     crate::modules::proc::hide_console(&mut cmd);
 
     let captured = capture::run(

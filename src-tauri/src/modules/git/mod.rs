@@ -1,3 +1,4 @@
+mod askpass;
 pub mod commands;
 pub mod errors;
 pub mod operations;

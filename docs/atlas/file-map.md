@@ -14,6 +14,11 @@ src-tauri/
     ├── lib.rs — [开发者工具] 提供 `open_devtools` 命令；单实例插件最先注册，二次启动文件参数走 macOS「打开方式」同款链路（次：设置窗口、原生 IPC、关闭窗口与系统托盘）
     └── modules/
         ├── file_manager.rs — [终端链接打开] 第三方文件管理器探测与打开命令
+        ├── git/
+        │   ├── askpass.rs — [源代码管理] SSH askpass 临时脚本与密码环境变量注入，guard drop 清理
+        │   ├── commands.rs — [源代码管理] git Tauri 命令注册；`git_push` 接受可选 passphrase（次：Git 历史与提交差异等）
+        │   ├── operations.rs — [源代码管理] `push` 支持可选 passphrase；status/diff/log/discard 等 git 操作（次：Git 历史与提交差异等）
+        │   └── process.rs — [源代码管理] git 进程封装：禁交互环境基线、`run_git_with_env` 叠加 askpass 环境（次：git 模块共用）
         ├── net/
         │   └── clients.rs — [代理] reqwest 客户端缓存，代理地址纳入缓存键（次：AI 会话）
         ├── proxy.rs — [代理] 代理软件进程检测与启动
@@ -155,7 +160,14 @@ src/
 │   │   │   └── useShortcutTokens.ts — [快捷键提示] 响应式读取用户覆盖并生成紧凑文本（次：全局快捷键分发）
 │   │   └── shortcuts.ts — [快捷键提示] 快捷键 ID、默认绑定、显示令牌、Ctrl+R 保留判定与设置搜索快捷键索引来源（次：撤销终端窗格拆分、开发者工具、终端命令与结果块、设置页）
 │   ├── source-control/
-│   │   └── useSourceControlPanel.ts — [AI提交信息生成] 生成流程编排与 Conventional 校验/修复重试（次：源代码管理）
+│   │   ├── SourceControlPanel.tsx — [源代码管理] 面板 UI：变更列表、提交框、fetch/pull/推送按钮；远程失败走通知，footer 只留提交流程反馈
+│   │   ├── SshPassphraseDialog.tsx — [源代码管理] 加密 SSH key 的密码对话框：密码仅本次重试使用，不存储
+│   │   ├── repositoryTarget.ts — [源代码管理] follow-context / fixed 仓库目标模型与 scope 键
+│   │   ├── statusConsumers.ts — [源代码管理] live 消费者判定：panel/gitTab/explorer 装饰是否保持新鲜
+│   │   ├── useRepositoryTargeting.ts — [源代码管理] per-space 固定仓库目标的读取/设置/清除与解析
+│   │   ├── useSourceControl.ts — [源代码管理] status 刷新计划与节流自动 fetch、`runRemoteAction` 远程操作、失败通知与 SSH 鉴权识别
+│   │   ├── useSourceControlContext.ts — [源代码管理] 汇聚 tab/cwd/侧栏可见性并驱动 `useSourceControl`
+│   │   └── useSourceControlPanel.ts — [源代码管理] 面板流程编排：暂存/提交/推送、SSH 密码对话框状态；提交信息生成复用（次：AI提交信息生成）
 │   ├── statusbar/
 │   │   ├── CwdBreadcrumb.tsx — [状态栏工作区与路径] 路径面包屑、子目录导航与折叠路径受控菜单（次：终端路径历史）
 │   │   ├── StatusBar.tsx — [状态栏工作区与路径] 组装工作区环境、路径导航和状态操作入口（次：代理、AI面板）
@@ -350,7 +362,18 @@ src/
 | `src/modules/terminal/path-history/PathHistoryDialog.tsx` | [终端路径历史](features/终端路径历史.md) | [终端光标与焦点](features/终端光标与焦点.md) | Ctrl+E 最近路径弹窗；关闭时阻止 Radix 自动焦点还原 |
 | `src/modules/command-palette/lib/mode.ts` | [命令面板](features/命令面板.md) | [终端路径历史](features/终端路径历史.md) | `>` 前缀路径模式解析与 `#`/`?` 查询分流 |
 | `src/modules/i18n/locales/zh/settings/models.ts` | [AI模型配置](features/AI模型配置.md) | 中文文案 | 与英文词典同构 |
-| `src/modules/source-control/useSourceControlPanel.ts` | [AI提交信息生成](features/AI提交信息生成.md) | 源代码管理 | 生成流程编排与 Conventional 校验/修复重试 |
+| `src/modules/source-control/useSourceControlPanel.ts` | [源代码管理](features/源代码管理.md) | [AI提交信息生成](features/AI提交信息生成.md) | 面板流程编排：暂存/提交/推送、SSH 密码对话框状态；提交信息生成复用 |
+| `src/modules/source-control/SourceControlPanel.tsx` | [源代码管理](features/源代码管理.md) | 无 | 面板 UI：变更列表、提交框、fetch/pull/推送按钮；远程失败走通知，footer 只留提交流程反馈 |
+| `src/modules/source-control/useSourceControl.ts` | [源代码管理](features/源代码管理.md) | 无 | status 刷新计划与节流自动 fetch、`runRemoteAction` 远程操作、失败通知与 SSH 鉴权识别 |
+| `src/modules/source-control/SshPassphraseDialog.tsx` | [源代码管理](features/源代码管理.md) | 无 | 加密 SSH key 的密码对话框：密码仅本次重试使用，不存储 |
+| `src/modules/source-control/repositoryTarget.ts` | [源代码管理](features/源代码管理.md) | 无 | follow-context / fixed 仓库目标模型与 scope 键 |
+| `src/modules/source-control/useRepositoryTargeting.ts` | [源代码管理](features/源代码管理.md) | 无 | per-space 固定仓库目标的读取/设置/清除与解析 |
+| `src/modules/source-control/useSourceControlContext.ts` | [源代码管理](features/源代码管理.md) | 无 | 汇聚 tab/cwd/侧栏可见性并驱动 `useSourceControl` |
+| `src/modules/source-control/statusConsumers.ts` | [源代码管理](features/源代码管理.md) | 无 | live 消费者判定：panel/gitTab/explorer 装饰是否保持新鲜 |
+| `src-tauri/src/modules/git/askpass.rs` | [源代码管理](features/源代码管理.md) | 无 | SSH askpass 临时脚本与密码环境变量注入，guard drop 清理 |
+| `src-tauri/src/modules/git/process.rs` | [源代码管理](features/源代码管理.md) | git 模块共用 | git 进程封装：禁交互环境基线、`run_git_with_env` 叠加 askpass 环境 |
+| `src-tauri/src/modules/git/operations.rs` | [源代码管理](features/源代码管理.md) | Git 历史与提交差异等 | `push` 支持可选 passphrase；status/diff/log/discard 等 git 操作 |
+| `src-tauri/src/modules/git/commands.rs` | [源代码管理](features/源代码管理.md) | Git 历史与提交差异等 | git Tauri 命令注册；`git_push` 接受可选 passphrase |
 | `src/modules/ai/config/prompts.ts` | [AI提交信息生成](features/AI提交信息生成.md) | [AI模型配置](features/AI模型配置.md) | 内置提示词全文与取值（会话 full/lite + 提交信息） |
 | `src/settings/sections/AgentsSection.tsx` | [AI提交信息生成](features/AI提交信息生成.md) | [设置页](features/设置页.md) | AI 行为设置、提示词模块与各区域搜索锚点 |
 | `src/modules/settings/openSettings.ts` | [设置页](features/设置页.md) | [AI面板](features/AI面板.md) | 设置 tab 打开注册表，深层组件经此调用 |

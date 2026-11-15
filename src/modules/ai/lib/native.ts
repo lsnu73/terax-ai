@@ -342,9 +342,10 @@ export const native = {
       repoRoot,
       workspace: currentWorkspaceEnv(),
     }),
-  gitPush: (repoRoot: string) =>
+  gitPush: (repoRoot: string, options?: { passphrase?: string }) =>
     invoke<GitPushResult>("git_push", {
       repoRoot,
+      passphrase: options?.passphrase ?? null,
       workspace: currentWorkspaceEnv(),
     }),
   gitLog: (

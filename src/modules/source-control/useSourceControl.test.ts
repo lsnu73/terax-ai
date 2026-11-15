@@ -1,9 +1,41 @@
 import { describe, expect, it } from "vitest";
 import {
   beginSourceControlRefresh,
+  isSshAuthError,
   planContextRefresh,
   repositoryContainsContext,
 } from "./useSourceControl";
+
+describe("isSshAuthError", () => {
+  it("matches the shapes ssh produces for an unusable encrypted key", () => {
+    expect(
+      isSshAuthError(
+        "authentication required: git@github.com: Permission denied (publickey).. Configure a credential helper or SSH key.",
+      ),
+    ).toBe(true);
+    expect(
+      isSshAuthError(
+        'Load key "/home/u/.ssh/id_ed25519": incorrect passphrase supplied to decrypt private key',
+      ),
+    ).toBe(true);
+  });
+
+  it("leaves HTTPS auth, network and other failures alone", () => {
+    expect(
+      isSshAuthError(
+        "authentication required: fatal: could not read Username for 'https://github.com': terminal prompts disabled",
+      ),
+    ).toBe(false);
+    expect(
+      isSshAuthError("git fetch failed: Connection timed out"),
+    ).toBe(false);
+    expect(
+      isSshAuthError(
+        "host key verification failed. Run the command once in the terminal to trust the host.",
+      ),
+    ).toBe(false);
+  });
+});
 
 describe("repositoryContainsContext", () => {
   it("matches a repository root and its descendants", () => {

@@ -1,11 +1,12 @@
 use std::ffi::{OsStr, OsString};
 use std::path::Path;
 
+use crate::modules::git::askpass::SshAskpass;
 use crate::modules::git::errors::{GitError, Result};
 use crate::modules::git::parser::parse_porcelain_v2;
 use crate::modules::git::process::{
     ensure_git_available, ensure_success, git_show_text, git_stdout_line_opt, git_stdout_lines,
-    read_text_file, run_git, run_git_capped,
+    read_text_file, run_git, run_git_capped, run_git_with_env,
 };
 use crate::modules::git::types::{
     DiscardEntry, GitBranchEntry, GitBranchListResult, GitCommitFileChange, GitCommitResult,
@@ -471,6 +472,7 @@ pub fn push(
     registry: &WorkspaceRegistry,
     repo_root: &str,
     workspace: &WorkspaceEnv,
+    passphrase: Option<&str>,
 ) -> Result<GitPushResult> {
     let repo_root = authorized_repo_root(registry, repo_root, workspace)?;
     ensure_git_available(&repo_root.workspace)?;
@@ -484,12 +486,28 @@ pub fn push(
         return Err(GitError::NoUpstream);
     }
 
-    let output = run_git(
-        &repo_root.workspace,
-        Some(&repo_root.git_path),
-        ["push"],
-        NETWORK_TIMEOUT_SECS,
-    )?;
+    // A passphrase turns the retry into an askpass-backed push: without it ssh
+    // cannot unlock an encrypted key in a TTY-less spawn and the key is
+    // silently skipped ("Permission denied (publickey)").
+    let askpass = passphrase
+        .filter(|passphrase| !passphrase.is_empty())
+        .map(|passphrase| SshAskpass::create(passphrase, &repo_root.workspace))
+        .transpose()?;
+    let output = match &askpass {
+        Some(askpass) => run_git_with_env(
+            &repo_root.workspace,
+            Some(&repo_root.git_path),
+            ["push"],
+            NETWORK_TIMEOUT_SECS,
+            askpass.envs(),
+        )?,
+        None => run_git(
+            &repo_root.workspace,
+            Some(&repo_root.git_path),
+            ["push"],
+            NETWORK_TIMEOUT_SECS,
+        )?,
+    };
     ensure_success(&output, "git push failed")?;
 
     let upstream = upstream.unwrap();

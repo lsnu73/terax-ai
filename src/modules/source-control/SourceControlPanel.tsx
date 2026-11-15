@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
 import { runtimeToast as toast } from "@/modules/agents/lib/runtimeNotifications";
+import { SshPassphraseDialog } from "./SshPassphraseDialog";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Tooltip,
@@ -477,15 +478,15 @@ export const SourceControlPanel = memo(function SourceControlPanel({
     !scm.actionBusy &&
     !sourceControl.busyAction;
 
+  // Remote failures (fetch/pull/push, explicit or auto-fetch) surface as
+  // notifications instead; the footer only carries commit-flow feedback.
   const footerFeedback = useMemo(() => {
     if (scm.actionError)
       return { tone: "error", message: scm.actionError } as const;
-    if (scm.remoteError)
-      return { tone: "error", message: scm.remoteError } as const;
     if (scm.actionMessage)
       return { tone: "success", message: scm.actionMessage } as const;
     return null;
-  }, [scm.actionError, scm.actionMessage, scm.remoteError]);
+  }, [scm.actionError, scm.actionMessage]);
 
   const handleCommitShortcut = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (
@@ -1072,6 +1073,13 @@ export const SourceControlPanel = memo(function SourceControlPanel({
           </>
         ) : null}
       </aside>
+
+      <SshPassphraseDialog
+        open={scm.sshPassphrasePrompt !== null}
+        busy={scm.actionBusy === "push"}
+        onSubmit={(passphrase) => void scm.submitSshPassphrase(passphrase)}
+        onCancel={scm.cancelSshPassphrase}
+      />
 
       <AlertDialog
         open={scm.pendingDiscard !== null}
