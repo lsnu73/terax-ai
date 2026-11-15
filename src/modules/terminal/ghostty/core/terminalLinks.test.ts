@@ -64,3 +64,31 @@ it("trims trailing punctuation and unbalanced brackets from paths", () => {
     "C:\\work\\a",
   ]);
 });
+
+it("detects bare www. hostnames as https links with correct offsets", () => {
+  const text = "visit www.example.com/docs?q=1, then www.example.org.";
+  const links = detectTerminalLinks(text);
+  expect(links.map((link) => link.uri)).toEqual([
+    "https://www.example.com/docs?q=1",
+    "https://www.example.org",
+  ]);
+  for (const link of links) {
+    expect(text.slice(link.start, link.end)).toBe(link.uri.slice("https://".length));
+  }
+});
+
+it("does not match www. inside words, emails or existing URLs", () => {
+  expect(
+    detectTerminalLinks(
+      "foo.www.example.com awww.example.com user@www.example.com https://www.example.com/x",
+    ),
+  ).toEqual([{ start: 58, end: 83, uri: "https://www.example.com/x" }]);
+});
+
+it("keeps filesystem paths that contain a www segment as paths", () => {
+  const text = "C:\\www.example.com\\file and /var/www.example.com/x";
+  expect(detectTerminalLinks(text).map((link) => link.uri)).toEqual([
+    "C:\\www.example.com\\file",
+    "/var/www.example.com/x",
+  ]);
+});

@@ -9,6 +9,15 @@ const URL_PATTERN = new RegExp(
   `(?:https?:\\/\\/|mailto:)${LINK_STOP}+`,
   "giu",
 );
+/**
+ * Bare "www." hostnames carry no scheme, so they link to their https:// form.
+ * Runs after the path passes: a filesystem path that merely contains a www
+ * segment (C:\www\…, /var/www/…) keeps its path behavior.
+ */
+const WWW_URL_PATTERN = new RegExp(
+  `(?<![\\w@.\\/])www\\.${LINK_STOP}+`,
+  "giu",
+);
 /** Windows drive paths like C:\Users\foo or C:/Users/foo. */
 const WINDOWS_PATH_PATTERN = new RegExp(
   `(?<![\\w~.\\\\/])[A-Za-z]:[\\\\/]${LINK_STOP}+`,
@@ -60,12 +69,16 @@ const MAX_LINKS = 256;
 
 export function detectTerminalLinks(text: string): TerminalTextLink[] {
   const links: TerminalTextLink[] = [];
-  /** Returns false when the scan should stop (limit reached). */
-  const push = (match: RegExpExecArray, uri: string): boolean => {
+  /**
+   * Returns false when the scan should stop (limit reached). `text` defaults
+   * to the uri; pass it explicitly when the uri differs from the matched
+   * text (www. links add the missing https:// scheme).
+   */
+  const push = (match: RegExpExecArray, uri: string, text = uri): boolean => {
     if (!uri) return true;
     const link = {
       start: match.index,
-      end: match.index + uri.length,
+      end: match.index + text.length,
       uri,
     };
     if (overlaps(link, links)) return true;
@@ -103,6 +116,24 @@ export function detectTerminalLinks(text: string): TerminalTextLink[] {
     match = POSIX_PATH_PATTERN.exec(text)
   ) {
     if (!push(match, trimLinkTail(match[0]))) break;
+  }
+
+  for (
+    let match = WWW_URL_PATTERN.exec(text);
+    match;
+    match = WWW_URL_PATTERN.exec(text)
+  ) {
+    const tail = trimLinkTail(match[0]);
+    if (!/^www\./i.test(tail)) continue;
+    const uri = `https://${tail}`;
+    try {
+      const parsed = new URL(uri);
+      if (!parsed.hostname?.includes(".")) continue;
+    } catch {
+      /* Bare tokens that are not valid hosts stay ordinary terminal text. */
+      continue;
+    }
+    if (!push(match, uri, tail)) break;
   }
 
   return links;
