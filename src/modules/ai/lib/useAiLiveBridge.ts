@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useManagedAgentsStore } from "@/modules/agents/store/managedAgentsStore";
 import {
   findLeafCwd,
+  pasteIntoSession,
   type TerminalPaneHandle,
   whenSessionReady,
   writeToSession,
@@ -97,7 +98,12 @@ export function useAiLiveBridge(params: Params) {
         if (t?.kind !== "terminal") return false;
         const term = terminalRefs.current.get(t.activeLeafId);
         if (!term) return false;
-        term.write(text);
+        // AI 生成的多行命令带裸 \n；直写 ConPTY 会被 PSReadLine 逐行接受并
+        // 乱序回显。改走会话粘贴编码（\n 归一为 \r，shell 开启 bracketed
+        // paste 时整体包进粘贴标记），与终端输入框提交同一套路径。
+        if (!pasteIntoSession(t.activeLeafId, text)) {
+          term.write(text);
+        }
         term.focus();
         return true;
       },

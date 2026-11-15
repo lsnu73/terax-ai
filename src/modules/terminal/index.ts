@@ -14,6 +14,7 @@ export {
   disposeSession,
   leafHasForegroundProcess,
   leafIdForPty,
+  pasteIntoSession,
   ptyIdForLeaf,
   restartSession,
   whenSessionReady,
