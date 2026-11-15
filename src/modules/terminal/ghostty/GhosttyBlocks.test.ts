@@ -138,6 +138,30 @@ describe.each(["ghostty-vt", "ghostty-vt-scalar"])(
       }
     });
 
+    it("jumps a block's top and bottom dividers to the viewport edges", () => {
+      const { model, blocks, write, dispose } = create();
+      try {
+        write(
+          `\x1b]133;C;first\x07one\r\n\x1b]133;D;0\x07${"filler\r\n".repeat(20)}\x1b]133;C;second\x07two\r\n\x1b]133;D;0\x07${"tail\r\n".repeat(10)}`,
+        );
+        const [, second] = blocks.timeline().items;
+        // Head: the block top (two rows above the command) pins to the top
+        // edge; the first block clamps instead of scrolling past the buffer.
+        expect(blocks.revealBlockHead("2")).toBe(true);
+        expect(model.viewportOriginLine()).toBe(second.start - 2);
+        expect(blocks.revealBlockHead("1")).toBe(true);
+        expect(model.viewportOriginLine()).toBe(0);
+        // Tail: the divider (two rows below the range end) pins to the
+        // bottom edge.
+        expect(blocks.revealBlockTail("2")).toBe(true);
+        expect(model.viewportOriginLine()).toBe(second.start + 2 - model.rows);
+        expect(blocks.revealBlockHead("999")).toBe(false);
+        expect(blocks.revealBlockTail("999")).toBe(false);
+      } finally {
+        dispose();
+      }
+    });
+
     it("leaves a blank row before the divider without including padding in copied output", () => {
       const { model, blocks, write, dispose } = create();
       try {

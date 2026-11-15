@@ -289,6 +289,12 @@ const GhosttyTerminalPane = memo(
               ),
             );
           }}
+          onJumpToHead={(id) =>
+            ghosttyBlocks(leafId)?.controller?.revealBlockHead(id, true)
+          }
+          onJumpToTail={(id) =>
+            ghosttyBlocks(leafId)?.controller?.revealBlockTail(id, true)
+          }
           onRestoreFocus={session.focus}
         />
       </ContextMenu>

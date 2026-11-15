@@ -421,6 +421,33 @@ export class GhosttyBlocks {
     return true;
   }
 
+  /**
+   * Jump the block's top divider onto the viewport's top edge. Pure scroll —
+   * unlike revealBlock it does not select the block.
+   */
+  revealBlockHead(id: string, smooth = false): boolean {
+    if (this.mode === "alt") return false;
+    const entry = this.entries.find((entry) => entry.id === id);
+    const range = entry && this.range(entry);
+    if (!entry || !range) return false;
+    this.scrollToLine(Math.max(0, range.start - 2), smooth);
+    return true;
+  }
+
+  /**
+   * Jump the block's bottom divider onto the viewport's bottom edge. The
+   * divider is drawn two rows below the range end, so the viewport origin
+   * that pins it to the bottom border is that line minus the row count.
+   */
+  revealBlockTail(id: string, smooth = false): boolean {
+    if (this.mode === "alt") return false;
+    const entry = this.entries.find((entry) => entry.id === id);
+    const range = entry && this.range(entry);
+    if (!entry || !range) return false;
+    this.scrollToLine(range.end + 2 - this.model.rows, smooth);
+    return true;
+  }
+
   async searchBlock(
     id: string,
     query: string,

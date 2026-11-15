@@ -8,6 +8,8 @@ export const terminal = {
     copyCommandAndOutput: "Copy command and output",
     attachToAi: "Attach to AI chat",
     findInBlock: "Find in block",
+    jumpToHead: "Jump to block start",
+    jumpToTail: "Jump to block end",
     commandCopied: "Command copied",
     outputCopied: "Output copied",
     blockCopied: "Block copied",

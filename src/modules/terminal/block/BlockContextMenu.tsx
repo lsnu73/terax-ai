@@ -5,6 +5,8 @@ import {
 import { writeTerminalClipboard } from "@/modules/terminal/lib/terminalClipboard";
 import { prefillAiPanel } from "@/modules/ai/lib/aiPanel";
 import {
+  ArrowDownToLineIcon,
+  ArrowUpToLineIcon,
   ComputerTerminal02Icon,
   Copy01Icon,
   Refresh01Icon,
@@ -22,6 +24,8 @@ type Props = {
   readOutput: (id: string) => string | null;
   onRunAgain: (command: string) => void;
   onSearch: (id: string) => void;
+  onJumpToHead: (id: string) => void;
+  onJumpToTail: (id: string) => void;
   onRestoreFocus: () => void;
 };
 
@@ -30,6 +34,8 @@ export function BlockContextMenu({
   readOutput,
   onRunAgain,
   onSearch,
+  onJumpToHead,
+  onJumpToTail,
   onRestoreFocus,
 }: Props) {
   const { t } = useTranslation();
@@ -98,6 +104,16 @@ export function BlockContextMenu({
         icon={Search01Icon}
         label={t("terminal.block.findInBlock")}
         onClick={() => onSearch(block.id)}
+      />
+      <MenuItem
+        icon={ArrowUpToLineIcon}
+        label={t("terminal.block.jumpToHead")}
+        onClick={() => onJumpToHead(block.id)}
+      />
+      <MenuItem
+        icon={ArrowDownToLineIcon}
+        label={t("terminal.block.jumpToTail")}
+        onClick={() => onJumpToTail(block.id)}
       />
     </ContextMenuContent>
   );

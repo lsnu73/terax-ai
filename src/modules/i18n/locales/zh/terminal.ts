@@ -10,6 +10,8 @@ export const terminalZh: typeof terminal = {
     copyCommandAndOutput: "复制命令和输出",
     attachToAi: "附加到 AI 对话",
     findInBlock: "在命令块中查找",
+    jumpToHead: "跳转到块头部",
+    jumpToTail: "跳转到块尾部",
     commandCopied: "已复制命令",
     outputCopied: "已复制输出",
     blockCopied: "已复制命令块",

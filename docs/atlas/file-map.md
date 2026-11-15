@@ -170,12 +170,12 @@ src/
 │   │   ├── TerminalPane.tsx — [终端命令与结果块] 选区优先、块右键命中，创建局部搜索控制器并打开共享弹窗（次：终端链接打开、终端会话与渲染）
 │   │   ├── TerminalStack.tsx — [终端链接打开] 标签级回调与块搜索回调最新引用（次：标签页管理、终端命令与结果块）
 │   │   ├── block/
-│   │   │   ├── BlockContextMenu.tsx — [终端命令与结果块] 六项块操作右键菜单（次：AI prefill 与剪贴板）
+│   │   │   ├── BlockContextMenu.tsx — [终端命令与结果块] 八项块操作右键菜单（含块头/块尾跳转）（次：AI prefill 与剪贴板）
 │   │   │   ├── BlockOverlay.tsx — [终端命令与结果块] 块尾分隔线、失败退出码、命令时间线；块清空时关闭共享搜索（次：终端块展示）
 │   │   │   └── CommandTimeline.tsx — [终端命令与结果块] 右缘命令时间线：聚拢等距排布、悬停波浪与 Tooltip、点击定位（次：终端块展示）
 │   │   ├── ghostty/
 │   │   │   ├── GhosttyBlockOverlay.tsx — [终端命令与结果块] 连接块控制器与覆盖层，清块时关闭共享搜索（次：会话桥接）
-│   │   │   ├── GhosttyBlocks.ts — [终端命令与结果块] OSC 133 块边界、读取、局部文本/正则搜索、右键命中与时间线/定位（次：Ghostty model 适配）
+│   │   │   ├── GhosttyBlocks.ts — [终端命令与结果块] OSC 133 块边界、读取、局部文本/正则搜索、右键命中、时间线/定位与块头/块尾跳转（次：Ghostty model 适配）
 │   │   │   ├── core/
 │   │   │   │   └── terminalLinks.ts — [终端链接打开] URL 与绝对路径文本检测（次：终端路径历史）
 │   │   │   ├── gpu/
@@ -290,10 +290,10 @@ src/
 | `src/modules/terminal/ghostty/gpu/WebGpuTerminalSurface.ts` | [终端链接打开](features/终端链接打开.md) | [终端输入法候选框定位](features/终端输入法候选框定位.md)、[终端光标与焦点](features/终端光标与焦点.md)、终端渲染 | WebGPU 链接点击、修饰键透传与输入法锚点同步；按三层焦点绘制光标并控制闪烁和重绘 |
 | `src/modules/terminal/ghostty/webgl/WebGlTerminalSurface.ts` | [终端链接打开](features/终端链接打开.md) | [终端输入法候选框定位](features/终端输入法候选框定位.md)、[终端光标与焦点](features/终端光标与焦点.md)、终端渲染回退 | WebGL 链接点击、修饰键透传与输入法锚点同步；按三层焦点传递光标可见性并控制闪烁和重绘 |
 | `src/modules/terminal/TerminalPane.tsx` | [终端命令与结果块](features/终端命令与结果块.md) | [终端链接打开](features/终端链接打开.md)、终端会话与渲染 | 选区优先、块右键命中，创建局部搜索控制器并打开共享弹窗 |
-| `src/modules/terminal/block/BlockContextMenu.tsx` | [终端命令与结果块](features/终端命令与结果块.md) | AI prefill 与剪贴板 | 六项块操作右键菜单 |
+| `src/modules/terminal/block/BlockContextMenu.tsx` | [终端命令与结果块](features/终端命令与结果块.md) | AI prefill 与剪贴板 | 八项块操作右键菜单（含块头/块尾跳转） |
 | `src/modules/terminal/block/BlockOverlay.tsx` | [终端命令与结果块](features/终端命令与结果块.md) | 终端块展示 | 块尾分隔线、失败退出码、命令时间线；块清空时关闭共享搜索 |
 | `src/modules/terminal/block/CommandTimeline.tsx` | [终端命令与结果块](features/终端命令与结果块.md) | 终端块展示 | 右缘命令时间线：聚拢等距排布、悬停波浪与 Tooltip、点击定位 |
-| `src/modules/terminal/ghostty/GhosttyBlocks.ts` | [终端命令与结果块](features/终端命令与结果块.md) | Ghostty model 适配 | OSC 133 块边界、读取、局部文本/正则搜索、右键命中与时间线/定位 |
+| `src/modules/terminal/ghostty/GhosttyBlocks.ts` | [终端命令与结果块](features/终端命令与结果块.md) | Ghostty model 适配 | OSC 133 块边界、读取、局部文本/正则搜索、右键命中、时间线/定位与块头/块尾跳转 |
 | `src/modules/terminal/ghostty/search/GhosttyBlockSearchController.ts` | [终端命令与结果块](features/终端命令与结果块.md) | 标签内搜索 | 把异步块扫描、取消和匹配导航适配为 TerminalSearchController |
 | `src/modules/terminal/ghostty/GhosttyBlockOverlay.tsx` | [终端命令与结果块](features/终端命令与结果块.md) | 会话桥接 | 连接块控制器与覆盖层，清块时关闭共享搜索 |
 | `src-tauri/src/modules/pty/shell_init.rs` | [终端命令与结果块](features/终端命令与结果块.md) | [代理](features/代理.md) | Windows/WSL Shell 启动与终端集成环境；`WSLENV` 合并转发 |
