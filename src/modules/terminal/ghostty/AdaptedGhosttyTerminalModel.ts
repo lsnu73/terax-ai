@@ -1,7 +1,3 @@
-import {
-  detectTerminalLinks,
-  type TerminalTextLink,
-} from "@/modules/terminal/ghostty/core/terminalLinks";
 import type {
   PackedTerminalViewport,
   TerminalCursor,
@@ -10,6 +6,10 @@ import type {
   TerminalModes,
   TerminalRowRange,
 } from "@/modules/terminal/backend/contracts";
+import {
+  detectTerminalLinks,
+  type TerminalTextLink,
+} from "@/modules/terminal/ghostty/core/terminalLinks";
 import type {
   TeraxGhostty,
   TeraxGhosttyGpuRenderState,
@@ -24,12 +24,12 @@ import type {
 } from "@terax/ghostty-core/protocol";
 import { CellFlags } from "@terax/ghostty-core/protocol";
 import { PromptPresentationGate } from "./core/PromptPresentationGate";
-import { ResizePromptHold } from "./core/ResizePromptHold";
 import {
   CELL_STRIDE,
   type Rgb,
   type TerminalCellReader,
 } from "./core/packedCells";
+import { ResizePromptHold } from "./core/ResizePromptHold";
 import { SynchronizedOutputPresentationGate } from "./core/SynchronizedOutputPresentationGate";
 import {
   MIN_SCROLLBACK_BYTES,
@@ -49,6 +49,11 @@ import type {
   TerminalBufferPoint,
   TerminalBufferSelection,
 } from "./GhosttyTerminalModel";
+import {
+  containerLadderRangeAt,
+  pathLadderRangeAt,
+  wordTokenRangeAt,
+} from "./selection/wordSelection";
 
 const MAX_DIMENSION = 4_096;
 const MAX_CELLS = 1_048_576;
@@ -690,21 +695,34 @@ export class AdaptedGhosttyTerminalModel implements GhosttyTerminalModelApi {
     readonly end: number;
   } {
     this.assertLive();
-    const cells = this.readBufferLine(point.line).cells;
-    const column = clampInteger(point.column, 0, this.colsValue - 1);
-    const category = wordCategory(cells[column] ?? "");
-    let start = column;
-    let end = column;
-    while (start > 0 && wordCategory(cells[start - 1] ?? "") === category) {
-      start -= 1;
-    }
-    while (
-      end + 1 < this.colsValue &&
-      wordCategory(cells[end + 1] ?? "") === category
-    ) {
-      end += 1;
-    }
-    return { start, end };
+    return wordTokenRangeAt(
+      this.readBufferLine(point.line).cells,
+      point.column,
+    );
+  }
+
+  containerRangeAt(
+    point: TerminalBufferPoint,
+    step: number,
+  ): { readonly start: number; readonly end: number } | null {
+    this.assertLive();
+    return containerLadderRangeAt(
+      this.readBufferLine(point.line).cells,
+      point.column,
+      step,
+    );
+  }
+
+  pathRangeAt(
+    point: TerminalBufferPoint,
+    step: number,
+  ): { readonly start: number; readonly end: number } | null {
+    this.assertLive();
+    return pathLadderRangeAt(
+      this.readBufferLine(point.line).cells,
+      point.column,
+      step,
+    );
   }
 
   lineEndColumn(line: number): number {
@@ -1302,12 +1320,6 @@ function normalizeBufferSelection(selection: TerminalBufferSelection): {
     left: Math.min(selection.anchor.column, selection.focus.column),
     right: Math.max(selection.anchor.column, selection.focus.column),
   };
-}
-
-function wordCategory(value: string): "space" | "word" | "punctuation" {
-  if (/\s/u.test(value)) return "space";
-  if (/^[\p{Letter}\p{Number}_]$/u.test(value)) return "word";
-  return "punctuation";
 }
 
 function clampInteger(value: number, min: number, max: number): number {

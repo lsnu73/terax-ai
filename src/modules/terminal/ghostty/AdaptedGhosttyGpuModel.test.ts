@@ -1,8 +1,8 @@
 import { readFile } from "node:fs/promises";
 import {
+  decodeGpuCell,
   GPU_CELL_BYTES,
   TeraxGhostty,
-  decodeGpuCell,
 } from "@terax/ghostty-core/adapted";
 import { beforeAll, describe, expect, it } from "vitest";
 import { AdaptedGhosttyTerminalModel } from "./AdaptedGhosttyTerminalModel";
@@ -256,6 +256,26 @@ describe.each(["ghostty-vt", "ghostty-vt-scalar"])(
         expect(model.wordRangeAt({ line: 1, column: 2 })).toEqual({
           start: 0,
           end: 5,
+        });
+        expect(model.wordRangeAt({ line: 0, column: 9 })).toEqual({
+          start: 9,
+          end: 13,
+        });
+        expect(model.pathRangeAt({ line: 0, column: 9 }, 1)).toEqual({
+          start: 9,
+          end: 34,
+        });
+        expect(model.pathRangeAt({ line: 0, column: 21 }, 1)).toEqual({
+          start: 17,
+          end: 29,
+        });
+        expect(model.wordRangeAt({ line: 0, column: 36 })).toEqual({
+          start: 36,
+          end: 39,
+        });
+        expect(model.wordRangeAt({ line: 0, column: 37 })).toEqual({
+          start: 36,
+          end: 39,
         });
         expect(model.lineEndColumn(1)).toBe(5);
         expect(

@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
-import { TeraxGhostty } from "@terax/ghostty-core/adapted";
 import { AdaptedGhosttyTerminalModel } from "@/modules/terminal/ghostty/AdaptedGhosttyTerminalModel";
+import { TeraxGhostty } from "@terax/ghostty-core/adapted";
 import { describe, expect, it, vi } from "vitest";
 import type {
   GhosttyTerminalModelApi,
@@ -12,6 +12,11 @@ import {
   shouldStartTerminalSelection,
   TerminalSelectionController,
 } from "./TerminalSelectionController";
+import {
+  containerLadderRangeAt,
+  pathLadderRangeAt,
+  wordTokenRangeAt,
+} from "./wordSelection";
 
 describe("selection across renderer replacement", () => {
   it("adopts native selection immediately and reconciles pruning without clearing the model", () => {
@@ -366,6 +371,146 @@ function dragFixture(
       ),
   };
 }
+
+describe("terminal selection quote ladder", () => {
+  function ladderFixture(text: string) {
+    const cells: string[] = [];
+    for (const char of text) {
+      cells.push(char);
+      const codePoint = char.codePointAt(0);
+      if (codePoint !== undefined && codePoint >= 0x1100) cells.push("");
+    }
+    const cols = cells.length + 12;
+    while (cells.length < cols) cells.push("");
+    let tracked: TerminalBufferSelection | null = null;
+    let capture: number | null = null;
+    const target = Object.assign(new EventTarget(), {
+      setPointerCapture: (id: number) => {
+        capture = id;
+      },
+      hasPointerCapture: (id: number) => capture === id,
+      releasePointerCapture: () => {
+        capture = null;
+      },
+      getBoundingClientRect: () => ({
+        left: 0,
+        top: 0,
+        right: 800,
+        bottom: 480,
+      }),
+    });
+    const model = {
+      cols,
+      rows: 4,
+      modes: () => ({ mouseTracking: false }),
+      trackedSelection: () => tracked,
+      setSelection: (value: TerminalBufferSelection | null) => {
+        tracked = value;
+      },
+      bufferLineAtViewportRow: (row: number) => row,
+      wordRangeAt: (point: { line: number; column: number }) =>
+        wordTokenRangeAt(cells, point.column),
+      containerRangeAt: (
+        point: { line: number; column: number },
+        step: number,
+      ) => containerLadderRangeAt(cells, point.column, step),
+      pathRangeAt: (point: { line: number; column: number }, step: number) =>
+        pathLadderRangeAt(cells, point.column, step),
+      lineEndColumn: () => cells.length - 1,
+      scrollBy: vi.fn(() => false),
+    } as unknown as GhosttyTerminalModelApi;
+    const controller = new TerminalSelectionController({
+      model,
+      target: target as unknown as HTMLElement,
+      cellSize: () => ({ width: 10, height: 20 }),
+      shouldIgnoreTarget: () => false,
+      onChange: vi.fn(),
+    });
+    const click = (column: number) => {
+      for (const type of ["pointerdown", "pointerup"]) {
+        target.dispatchEvent(
+          Object.assign(new Event(type, { cancelable: true }), {
+            pointerId: 1,
+            button: 0,
+            detail: 1,
+            shiftKey: false,
+            altKey: false,
+            clientX: column * 10 + 5,
+            clientY: 10,
+          }),
+        );
+      }
+    };
+    const range = () => {
+      const selection = tracked;
+      if (!selection) return null;
+      const start = Math.min(selection.anchor.column, selection.focus.column);
+      const end = Math.max(selection.anchor.column, selection.focus.column);
+      return `${start}..${end}`;
+    };
+    return { controller, click, range, dispose: () => controller.dispose() };
+  }
+
+  it("walks word, interiors and delimiters outward across nested pairs", () => {
+    const fixture = ladderFixture("\"name:'tom cat 1'\"");
+    fixture.click(8);
+    expect(fixture.range()).toBeNull();
+    fixture.click(8);
+    expect(fixture.range()).toBe("7..9");
+    fixture.click(8);
+    expect(fixture.range()).toBe("7..15");
+    fixture.click(8);
+    expect(fixture.range()).toBe("6..16");
+    fixture.click(8);
+    expect(fixture.range()).toBe("1..16");
+    fixture.click(8);
+    expect(fixture.range()).toBe("0..17");
+    fixture.click(8);
+    expect(fixture.range()).toBe("0..29");
+    fixture.click(8);
+    expect(fixture.range()).toBe("0..29");
+    fixture.controller.dispose();
+  });
+
+  it("caps plain text at the whole line from the third click", () => {
+    const fixture = ladderFixture("plain words here");
+    fixture.click(7);
+    fixture.click(7);
+    expect(fixture.range()).toBe("6..10");
+    fixture.click(7);
+    expect(fixture.range()).toBe("0..27");
+    fixture.click(7);
+    expect(fixture.range()).toBe("0..27");
+    fixture.controller.dispose();
+  });
+
+  it("walks the path ladder from a segment word to the whole path", () => {
+    const fixture = ladderFixture("docs/atlas/changelog.md");
+    fixture.click(12);
+    expect(fixture.range()).toBeNull();
+    fixture.click(12);
+    expect(fixture.range()).toBe("11..19");
+    fixture.click(12);
+    expect(fixture.range()).toBe("11..22");
+    fixture.click(12);
+    expect(fixture.range()).toBe("0..22");
+    fixture.click(12);
+    expect(fixture.range()).toBe("0..34");
+    fixture.controller.dispose();
+  });
+
+  it("reaches the whole path directly from a bare segment", () => {
+    const fixture = ladderFixture("docs/atlas/changelog.md");
+    fixture.click(6);
+    fixture.click(6);
+    expect(fixture.range()).toBe("5..9");
+    fixture.click(6);
+    expect(fixture.range()).toBe("0..22");
+    fixture.click(6);
+    expect(fixture.range()).toBe("0..34");
+    fixture.controller.dispose();
+  });
+});
 
 describe("terminal selection geometry", () => {
   it("normalizes backward selections", () => {

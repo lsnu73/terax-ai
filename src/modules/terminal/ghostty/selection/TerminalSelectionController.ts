@@ -4,7 +4,7 @@ import type {
   TerminalBufferSelection,
 } from "../GhosttyTerminalModel";
 
-type SelectionMode = "character" | "word" | "line";
+type SelectionMode = "character" | "word" | "line" | "container" | "path";
 
 export type TerminalSelectionBounds = {
   readonly startLine: number;
@@ -40,12 +40,14 @@ export class TerminalSelectionController {
   private lastClientY = 0;
   private autoScrollFrame: number | null = null;
   private disposed = false;
-  // pointerdown 的 detail 在部分 WebView 中恒为 0，多击（双击选词/三击选行）
-  // 只能靠自己按“间隔短、位置相邻”追踪；event.detail 只作下限参考。
+  // pointerdown 的 detail 在部分 WebView 中恒为 0，多击（双击选词/三击选行/
+  // 引号容器阶梯）只能靠自己按“间隔短、位置相邻”追踪；event.detail 只作下限参考。
   private clickCount = 0;
   private lastClickAt = 0;
   private lastClickLine = -1;
   private lastClickColumn = -1;
+  private containerStep = 0;
+  private ladderPoint: TerminalBufferPoint | null = null;
 
   constructor(private readonly options: TerminalSelectionControllerOptions) {
     this.selection = options.model.trackedSelection?.() ?? null;
@@ -160,7 +162,11 @@ export class TerminalSelectionController {
 
     const existingAnchor = event.shiftKey ? this.selection?.anchor : undefined;
     const clicks = this.trackClick(point, event.detail);
-    this.mode = clicks >= 3 ? "line" : clicks === 2 ? "word" : "character";
+    if (clicks === 2) this.ladderPoint = point;
+    if (clicks === 1) this.ladderPoint = null;
+    const level = this.resolveLevel(clicks);
+    this.mode = level.mode;
+    this.containerStep = level.step ?? 0;
     const anchor = existingAnchor ?? point;
     this.anchorRange = this.rangeForPoint(anchor, this.mode);
     const focusRange = this.rangeForPoint(point, this.mode);
@@ -223,6 +229,26 @@ export class TerminalSelectionController {
     this.options.onChange();
   }
 
+  // 双击选词，三击起先在引号/括号容器阶梯上递进（内部 → 含定界符 → 外层容器），
+  // 无容器时走路径阶梯（词 → 路径段 → 整条路径）；阶梯耗尽后回落整行并封顶，
+  // 不再扩展多行块。
+  private resolveLevel(clicks: number): {
+    mode: SelectionMode;
+    step?: number;
+  } {
+    if (clicks <= 1) return { mode: "character" };
+    if (clicks === 2) return { mode: "word" };
+    const step = clicks - 2;
+    const point = this.ladderPoint;
+    if (point) {
+      const container = this.options.model.containerRangeAt?.(point, step);
+      if (container) return { mode: "container", step };
+      const path = this.options.model.pathRangeAt?.(point, step);
+      if (path) return { mode: "path", step };
+    }
+    return { mode: "line" };
+  }
+
   private trackClick(point: TerminalBufferPoint, detail: number): number {
     const now = performance.now();
     if (
@@ -230,7 +256,7 @@ export class TerminalSelectionController {
       point.line === this.lastClickLine &&
       Math.abs(point.column - this.lastClickColumn) <= 1
     ) {
-      this.clickCount = Math.min(this.clickCount + 1, 3);
+      this.clickCount = Math.min(this.clickCount + 1, 64);
     } else {
       this.clickCount = 1;
     }
@@ -243,7 +269,20 @@ export class TerminalSelectionController {
   private rangeForPoint(
     point: TerminalBufferPoint,
     mode: SelectionMode,
-  ): { readonly start: number; readonly end: number } {    if (mode === "word") return this.options.model.wordRangeAt(point);
+  ): { readonly start: number; readonly end: number } {
+    if (mode === "word") return this.options.model.wordRangeAt(point);
+    if (mode === "container") {
+      return (
+        this.options.model.containerRangeAt?.(point, this.containerStep) ??
+        this.options.model.wordRangeAt(point)
+      );
+    }
+    if (mode === "path") {
+      return (
+        this.options.model.pathRangeAt?.(point, this.containerStep) ??
+        this.options.model.wordRangeAt(point)
+      );
+    }
     if (mode === "line") {
       return {
         start: 0,

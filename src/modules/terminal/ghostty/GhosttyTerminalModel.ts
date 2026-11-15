@@ -4,13 +4,13 @@ import type {
   TerminalModel,
   TerminalRowRange,
 } from "@/modules/terminal/backend/contracts";
+import type { TerminalCellReader } from "@/modules/terminal/ghostty/core/packedCells";
 import type { TeraxGhosttyGpuGlyph } from "@terax/ghostty-core/adapted";
 import type {
   GhosttyTerminalConfig,
   GhosttyTerminalEvent,
   KeyEvent,
 } from "@terax/ghostty-core/protocol";
-import type { TerminalCellReader } from "@/modules/terminal/ghostty/core/packedCells";
 
 export type GhosttyTerminalModelOptions = {
   readonly backend: Extract<TerminalBackendKind, `ghostty-${string}`>;
@@ -169,6 +169,14 @@ export interface GhosttyTerminalModelApi extends TerminalModel {
     readonly start: number;
     readonly end: number;
   };
+  containerRangeAt?(
+    point: TerminalBufferPoint,
+    step: number,
+  ): { readonly start: number; readonly end: number } | null;
+  pathRangeAt?(
+    point: TerminalBufferPoint,
+    step: number,
+  ): { readonly start: number; readonly end: number } | null;
   lineEndColumn(line: number): number;
   selectionText(selection: TerminalBufferSelection): string;
   setSelection?(selection: TerminalBufferSelection | null): void;
