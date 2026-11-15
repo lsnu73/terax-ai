@@ -48,6 +48,9 @@ src/
 │       └── appTray.ts — [关闭窗口与系统托盘] 调用 `tray_show` 后隐藏窗口，托盘不可用时回落退出（次：系统托盘）
 ├── components/
 │   ├── WindowControls.tsx — [关闭窗口与系统托盘] 最小化/最大化/关闭按钮；点击区通栏标题栏；关闭仍只调用 `window.close()`（次：无边框窗口与边框交互）
+│   ├── ai-elements/
+│   │   ├── chat-code.tsx — [AI命令运行到终端] AI 回答中的命令代码块卡片与「运行」按钮（RunInTerminalButton）；代码高亮与复制（次：AI 对话）
+│   │   └── tool.tsx — [AI命令运行到终端] 仅 `SuggestCommandCard`（suggest_command 结果的插入按钮）；其余工具渲染属 AI 对话与工具审批（未覆盖）（次：AI 对话与工具审批）
 │   └── ui/
 │       └── resizable.tsx — [AI面板] 分隔线、拖拽热区与常驻六点握把；握把静止/悬停/拖拽三级对比色（次：可调整布局）
 ├── lib/
@@ -93,7 +96,8 @@ src/
 │   │   │   ├── composer.tsx — [AI面板] Composer 挂载及 focus signal 时自动聚焦；附件读取、按 id 去重、批量路径附加与跳过/失败提示；`terax:ai-attach-file` 监听（次：AI 对话、终端光标与焦点）
 │   │   │   ├── composerMessage.ts — [AI面板] Composer 到 AI SDK parts 的纯转换（次：AI 对话）
 │   │   │   ├── native.ts — [AI命令执行] `ShellDescription` 契约、`shell_describe` 封装及 Shell 调用的工作区快照参数（次：原生 IPC）
-│   │   │   └── transport.ts — [AI命令执行] 每轮查询真实 Shell，注入 `<env>` 并把描述传给 Agent（次：AI 对话与工具审批）
+│   │   │   ├── transport.ts — [AI命令执行] 每轮查询真实 Shell，注入 `<env>` 并把描述传给 Agent（次：AI 对话与工具审批）
+│   │   │   └── useAiLiveBridge.ts — [AI命令运行到终端] live 桥：命令注入走会话粘贴编码优先、裸写回退；同一桥承载终端上下文读取、活动标签/路径查询与托管代理注册（次：AI 对话与工具审批、终端光标与焦点）
 │   │   ├── store/
 │   │   │   ├── aiAttachmentDropStore.ts — [AI面板] 拖动进入面板时的高亮状态
 │   │   │   └── aiPanelStore.ts — [AI面板] 面板开关与 prefill 状态
@@ -189,7 +193,7 @@ src/
 │   │   │   ├── GhosttyBlockOverlay.tsx — [终端命令与结果块] 连接块控制器与覆盖层，清块时关闭共享搜索（次：会话桥接）
 │   │   │   ├── GhosttyBlocks.ts — [终端命令与结果块] OSC 133 块边界、读取、局部文本/正则搜索、右键命中、时间线/定位与块头/块尾跳转（次：Ghostty model 适配）
 │   │   │   ├── core/
-│   │   │   │   └── terminalLinks.ts — [终端链接打开] URL 与绝对路径文本检测（次：终端路径历史）
+│   │   │   │   └── terminalLinks.ts — [终端链接打开] URL、裸 www 网址与绝对路径文本检测（次：终端路径历史）
 │   │   │   ├── gpu/
 │   │   │   │   └── WebGpuTerminalSurface.ts — [终端链接打开] WebGPU 链接点击、修饰键透传与输入法锚点同步；按三层焦点绘制光标并控制闪烁和重绘（次：终端输入法候选框定位、终端光标与焦点、终端渲染）
 │   │   │   ├── input/
@@ -240,6 +244,8 @@ src/
 | 文件 | 主归属功能 | 次要归属 | 说明 |
 |---|---|---|---|
 | `src/app/App.tsx` | [开发者工具](features/开发者工具.md) | [撤销终端窗格拆分](features/撤销终端窗格拆分.md)、[终端链接打开](features/终端链接打开.md)、[终端命令与结果块](features/终端命令与结果块.md)、[标签内搜索](features/标签内搜索.md)、[关闭窗口与系统托盘](features/关闭窗口与系统托盘.md)、[无边框窗口与边框交互](features/无边框窗口与边框交互.md)、[AI面板](features/AI面板.md)、[终端光标与焦点](features/终端光标与焦点.md)、[应用更新](features/应用更新.md) | 注册 DevTools 与关闭守卫接线，协调标签页、预览、搜索目标与左右对称布局；组合 AI/终端文件投放目标并触发启动更新检查；提供左右边框拖拽阀控制器；AI 关闭后恢复当前终端焦点 |
+| `src/components/ai-elements/chat-code.tsx` | [AI命令运行到终端](features/AI命令运行到终端.md) | AI 对话 | AI 回答中的命令代码块卡片与「运行」按钮（RunInTerminalButton）；代码高亮与复制 |
+| `src/components/ai-elements/tool.tsx` | [AI命令运行到终端](features/AI命令运行到终端.md) | AI 对话与工具审批 | 仅 `SuggestCommandCard`（suggest_command 结果的插入按钮）；其余工具渲染属 AI 对话与工具审批（未覆盖） |
 | `src/components/ui/resizable.tsx` | [AI面板](features/AI面板.md) | 可调整布局 | 分隔线、拖拽热区与常驻六点握把；握把静止/悬停/拖拽三级对比色 |
 | `src/app/components/WorkspaceSurface.tsx` | [终端链接打开](features/终端链接打开.md) | 工作区渲染、[设置页](features/设置页.md)、[终端命令与结果块](features/终端命令与结果块.md) | 透传预览与块搜索回调，并在工作区层渲染设置页；把设置 tab 可见性传给离页保存提示 |
 | `src/app/hooks/useAppCloseGuard.ts` | [关闭窗口与系统托盘](features/关闭窗口与系统托盘.md) | 会话落盘守卫 | 关闭请求总入口：读取 `closeAction`、选择窗口、托盘隐藏与退出前守卫 |
@@ -287,6 +293,7 @@ src/
 | `src/modules/ai/store/aiPanelStore.ts` | [AI面板](features/AI面板.md) | 无 | 面板开关与 prefill 状态 |
 | `src/modules/ai/lib/aiPanelBridge.ts` | [AI面板](features/AI面板.md) | 无 | prefill 类型契约 |
 | `src/modules/ai/lib/composerMessage.ts` | [AI面板](features/AI面板.md) | AI 对话 | Composer 到 AI SDK parts 的纯转换 |
+| `src/modules/ai/lib/useAiLiveBridge.ts` | [AI命令运行到终端](features/AI命令运行到终端.md) | AI 对话与工具审批、[终端光标与焦点](features/终端光标与焦点.md) | live 桥：命令注入走会话粘贴编码优先、裸写回退；同一桥承载终端上下文读取、活动标签/路径查询与托管代理注册 |
 | `src/modules/explorer/FileExplorer.tsx` | [文件资源管理器](features/文件资源管理器.md) | [快捷键提示](features/快捷键提示.md)、[AI面板](features/AI面板.md) | 普通树与搜索视图容器、文件搜索按钮动态标题；接收组合后的路径投放目标 |
 | `src/modules/explorer/lib/useExplorerDnd.ts` | [文件资源管理器](features/文件资源管理器.md) | [AI面板](features/AI面板.md)、终端路径投放 | 指针拖拽、拖动浮层与多目标链（`combinePathDropTargets`） |
 | `src/modules/explorer/ExplorerSearch.tsx` | [文件资源管理器](features/文件资源管理器.md) | 无 | 模糊查询、搜索树渲染、键盘导航与目录折叠 |
@@ -353,7 +360,7 @@ src/
 | `src/settings/sections/models/StructuredFields.tsx` | [AI模型配置](features/AI模型配置.md) | [设置页](features/设置页.md) | ParamsForm / EffortForm 等结构化表单 |
 | `src/modules/ai/components/ModelPicker.tsx` | [AI模型配置](features/AI模型配置.md) | AI 面板 | 思考强度滑条与模型选择 |
 | `src/modules/i18n/locales/en/settings/models.ts` | [AI模型配置](features/AI模型配置.md) | 英文文案 | Params/Effort 字段与规则文案 |
-| `src/modules/terminal/ghostty/core/terminalLinks.ts` | [终端链接打开](features/终端链接打开.md) | 终端路径历史 | URL 与绝对路径文本检测 |
+| `src/modules/terminal/ghostty/core/terminalLinks.ts` | [终端链接打开](features/终端链接打开.md) | 终端路径历史 | URL、裸 www 网址与绝对路径文本检测 |
 | `src/lib/open-path.ts` | [终端链接打开](features/终端链接打开.md) | 终端路径历史 | 路径识别与文件管理器打开 |
 | `src-tauri/src/modules/file_manager.rs` | [终端链接打开](features/终端链接打开.md) | 无 | 第三方文件管理器探测与打开命令 |
 | `src/modules/terminal/lib/terminalCd.ts` | [终端路径历史](features/终端路径历史.md) | [终端链接打开](features/终端链接打开.md) | cd 命令构造与提交 |
