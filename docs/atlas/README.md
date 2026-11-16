@@ -27,6 +27,7 @@ Terax 是面向开发者的开源桌面开发工作区，以终端为中心，�
 | 改主窗口开发者工具入口 | [features/开发者工具.md](features/开发者工具.md) | `src-tauri/src/lib.rs`, `src/app/App.tsx` |
 | 改终端 URL 的打开方式 | [features/终端链接打开.md](features/终端链接打开.md) | `src/modules/terminal/lib/terminalLinks.ts`, `src/modules/terminal/ghostty/useGhosttyTerminalSession.ts` |
 | 改终端双击选词、词粘连规则或引号递进选择 | [features/终端双击选词.md](features/终端双击选词.md) | `src/modules/terminal/ghostty/selection/wordSelection.ts`, `src/modules/terminal/ghostty/selection/TerminalSelectionController.ts` |
+| 改终端粘贴行为或 WSL 环境下的 Windows 路径自动挂载 | [features/终端粘贴与WSL路径转换.md](features/终端粘贴与WSL路径转换.md) | `src/modules/terminal/lib/pastePathMount.ts`, `src/modules/terminal/ghostty/input/GhosttyInputController.ts` |
 | 改输入法候选窗跟随终端光标的行为 | [features/终端输入法候选框定位.md](features/终端输入法候选框定位.md) | `src/modules/terminal/ghostty/gpu/WebGpuTerminalSurface.ts`, `src/modules/terminal/ghostty/webgl/WebGlTerminalSurface.ts` |
 | 改终端光标焦点、闪烁或 AI 开关后的焦点交接 | [features/终端光标与焦点.md](features/终端光标与焦点.md) | `src/modules/terminal/ghostty/input/GhosttyInputController.ts`, `src/modules/terminal/ghostty/gpu/WebGpuTerminalSurface.ts`, `src/modules/ai/lib/composer.tsx`, `src/app/App.tsx` |
 | 改终端命令块、命令时间线、块右键菜单、块内查找或历史搜索 | [features/终端命令与结果块.md](features/终端命令与结果块.md) | `src/modules/terminal/block/CommandTimeline.tsx`, `src/modules/terminal/TerminalPane.tsx`, `src/modules/terminal/ghostty/GhosttyBlocks.ts` |

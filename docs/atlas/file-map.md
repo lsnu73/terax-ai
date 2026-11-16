@@ -197,7 +197,7 @@ src/
 │   │   │   ├── gpu/
 │   │   │   │   └── WebGpuTerminalSurface.ts — [终端链接打开] WebGPU 链接点击、修饰键透传与输入法锚点同步；按三层焦点绘制光标并控制闪烁和重绘（次：终端输入法候选框定位、终端光标与焦点、终端渲染）
 │   │   │   ├── input/
-│   │   │   │   └── GhosttyInputController.ts — [终端光标与焦点] 上报终端 textarea 真实 focus/blur，保留 focus reporting、IME 与按键状态处理（次：终端输入）
+│   │   │   │   └── GhosttyInputController.ts — [终端光标与焦点] 上报终端 textarea 真实 focus/blur，保留 focus reporting、IME 与按键状态处理；粘贴漏斗接入 WSL 路径转换（次：终端输入、终端粘贴与WSL路径转换）
 │   │   │   ├── search/
 │   │   │   │   └── GhosttyBlockSearchController.ts — [终端命令与结果块] 把异步块扫描、取消和匹配导航适配为 TerminalSearchController（次：标签内搜索）
 │   │   │   ├── selection/
@@ -210,6 +210,7 @@ src/
 │   │   │   ├── blockAnchorProbe.ts — [终端命令与结果块] 检测会话缺失 OSC 133;C 命令锚点（PS 5.1 无 PSReadLine 时提示安装）（次：终端会话与渲染）
 │   │   │   ├── cursorBlink.ts — [终端光标与焦点] 统一用户闪烁开关、原生窗口、活动窗格和真实输入焦点条件
 │   │   │   ├── panes.ts — [撤销终端窗格拆分] 叶节点查询、拆分与移除（次：终端链接打开）
+│   │   │   ├── pastePathMount.ts — [终端粘贴与WSL路径转换] 粘贴时把 Windows 绝对路径改写为 WSL 挂载路径（纯函数 + 工作区环境包装）（次：终端路径历史、终端光标与焦点）
 │   │   │   ├── pathHistory.ts — [终端路径历史] 目录历史记录/封顶/筛选规则与跨工作区路径归一化
 │   │   │   ├── terminalCd.ts — [终端路径历史] cd 命令构造与提交（次：终端链接打开）
 │   │   │   ├── terminalLinks.ts — [终端链接打开] 定义链接修饰键与打开契约（次：终端输入）
@@ -306,7 +307,8 @@ src/
 | `src/modules/terminal/lib/terminalSessionApi.ts` | [撤销终端窗格拆分](features/撤销终端窗格拆分.md) | 终端会话生命周期、[代理](features/代理.md) | 释放被撤销窗格资源；`restartSession`/`restartAllSessions` 刷新终端让新设置生效 |
 | `src/modules/terminal/lib/cursorBlink.ts` | [终端光标与焦点](features/终端光标与焦点.md) | 无 | 统一用户闪烁开关、原生窗口、活动窗格和真实输入焦点条件 |
 | `src/modules/terminal/lib/terminalLinks.ts` | [终端链接打开](features/终端链接打开.md) | 终端输入 | 定义链接修饰键与打开契约 |
-| `src/modules/terminal/ghostty/input/GhosttyInputController.ts` | [终端光标与焦点](features/终端光标与焦点.md) | 终端输入 | 上报终端 textarea 真实 focus/blur，保留 focus reporting、IME 与按键状态处理 |
+| `src/modules/terminal/lib/pastePathMount.ts` | [终端粘贴与WSL路径转换](features/终端粘贴与WSL路径转换.md) | [终端路径历史](features/终端路径历史.md)、[终端光标与焦点](features/终端光标与焦点.md) | 粘贴时把 Windows 绝对路径改写为 WSL 挂载路径（纯函数 + 工作区环境包装） |
+| `src/modules/terminal/ghostty/input/GhosttyInputController.ts` | [终端光标与焦点](features/终端光标与焦点.md) | 终端输入、[终端粘贴与WSL路径转换](features/终端粘贴与WSL路径转换.md) | 上报终端 textarea 真实 focus/blur，保留 focus reporting、IME 与按键状态处理；粘贴漏斗接入 WSL 路径转换 |
 | `src/modules/terminal/ghostty/useGhosttyTerminalSession.ts` | [终端链接打开](features/终端链接打开.md) | [终端命令与结果块](features/终端命令与结果块.md)、[终端光标与焦点](features/终端光标与焦点.md)、终端会话与渲染 | 分流链接并初始化块会话；同步逻辑窗格焦点，把终端输入 focus/blur 接到 surface |
 | `src/modules/terminal/lib/blockAnchorProbe.ts` | [终端命令与结果块](features/终端命令与结果块.md) | 终端会话与渲染 | 检测会话缺失 OSC 133;C 命令锚点（PS 5.1 无 PSReadLine 时提示安装） |
 | `src/modules/terminal/ghostty/gpu/WebGpuTerminalSurface.ts` | [终端链接打开](features/终端链接打开.md) | [终端输入法候选框定位](features/终端输入法候选框定位.md)、[终端光标与焦点](features/终端光标与焦点.md)、终端渲染 | WebGPU 链接点击、修饰键透传与输入法锚点同步；按三层焦点绘制光标并控制闪烁和重绘 |
