@@ -34,3 +34,4 @@
 - 2026-11-15 归档源代码管理远程同步：pitfalls 新增 1 条（无 TTY 下加密 SSH key 被 ssh 静默跳过，报错不可区分）；decisions 新增 2 条（askpass 临时脚本解锁、远程失败改通知展示）；map 新增源代码管理与 git 进程条目（askpass 环境叠加顺序与 WSLENV 转发两条隐性依赖）。无新增 invariants。
 - 2026-11-16 归档终端双击选词重写：decisions 新增 1 条（规则分词与容器/路径双阶梯，冒号点号不可分割单元优先、斜杠断词由用户裁定）；pitfalls 新增 1 条（宽字符 spacer 与空白填充同为空串，只能按前格宽度区分）。无新增 invariants。
 - 2026-11-16 归档 WSL 粘贴路径转换：decisions 新增 1 条（粘贴漏斗单点转换、仅 WSL 环境、异步解析挂载根与失败回退、不自动加引号）。无新增 invariants 与坑点。
+- 2026-11-16 归档块覆盖层层级坑点：pitfalls 新增 1 条（BlockOverlay 根节点 z-10 盖过同窗格拖放遮罩，遮罩无 z-index 且 DOM 更晚）。无新增 decisions 与 invariants。
