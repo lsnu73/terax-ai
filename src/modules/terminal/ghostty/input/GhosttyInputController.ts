@@ -1,16 +1,15 @@
+import { TerminalInputProxy } from "@/modules/terminal/ghostty/input/TerminalInputProxy";
+import { TerminalNativeSelection } from "@/modules/terminal/ghostty/input/TerminalNativeSelection";
 import { terminalReadlineSequence } from "@/modules/terminal/lib/keymap";
 import { readTerminalClipboard } from "@/modules/terminal/lib/terminalClipboard";
 import {
   Key,
   KeyAction,
-  Mods,
   type KeyEvent,
+  Mods,
 } from "@terax/ghostty-core/protocol";
 import type { GhosttyTerminalModelApi } from "../GhosttyTerminalModel";
 import { encodeTerminalPaste } from "./terminalInputEncoding";
-
-import { TerminalInputProxy } from "@/modules/terminal/ghostty/input/TerminalInputProxy";
-import { TerminalNativeSelection } from "@/modules/terminal/ghostty/input/TerminalNativeSelection";
 
 const DUPLICATE_INPUT_WINDOW_MS = 75;
 
@@ -142,6 +141,12 @@ export type GhosttyInputControllerOptions = {
   readonly onCopy: () => boolean;
   readonly getSelection?: () => string | null;
   readonly onPaste?: (text: string) => boolean;
+  /**
+   * Rewrites pasted text before it reaches the prompt (the WSL workspace turns
+   * Windows absolute paths into mount paths); async because the mount root is
+   * read from the distro. All paste sources funnel through it.
+   */
+  readonly convertPaste?: (text: string) => Promise<string>;
   readonly onText?: (text: string) => boolean;
   readonly onKeyDown?: (event: KeyboardEvent) => boolean;
   readonly onFocusChange?: (focused: boolean) => void;
@@ -203,6 +208,19 @@ export class GhosttyInputController {
   paste(text: string): void {
     if (this.disposed || !text) return;
     this.nativeSelection?.reset();
+    const convert = this.options.convertPaste;
+    if (!convert) {
+      this.deliverPaste(text);
+      return;
+    }
+    void Promise.resolve()
+      .then(() => convert(text))
+      .catch(() => text)
+      .then((converted) => this.deliverPaste(converted));
+  }
+
+  private deliverPaste(text: string): void {
+    if (this.disposed || !text) return;
     if (this.options.onPaste?.(text)) return;
     this.emitText(
       encodeTerminalPaste(text, this.options.model.modes().bracketedPaste),

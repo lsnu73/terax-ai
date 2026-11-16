@@ -1,34 +1,35 @@
-import { loadSessionRenderer } from "@/modules/terminal/ghostty/loadSessionRenderer";
-import {
-  ensureGhosttyBlocks,
-  ghosttyBlocks,
-  disposeGhosttyBlocks,
-} from "@/modules/terminal/ghostty/ghosttyBlockSessions";
-import { initializeSessionGeneration as startSessionInitialization } from "@/modules/terminal/ghostty/sessionInitialization";
-import { replaceSessionSurface } from "@/modules/terminal/ghostty/replaceSessionSurface";
 import { openExternalUrl } from "@/lib/external-link";
+import { ensureMonoFontsLoaded, resolveFontFamily } from "@/lib/fonts";
 import { openPathInFileManager, pathFromLink } from "@/lib/open-path";
+import { runtimeToast as toast } from "@/modules/agents/lib/runtimeNotifications";
+import { t } from "@/modules/i18n";
+import { proxyForScenario } from "@/modules/proxy/lib/proxy";
 import {
   forgetLeafSpawnedProxy,
   recordLeafSpawnedProxy,
 } from "@/modules/proxy/lib/terminalProxyRegistry";
-import { proxyForScenario } from "@/modules/proxy/lib/proxy";
-import { ensureMonoFontsLoaded, resolveFontFamily } from "@/lib/fonts";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import type { TerminalBackendKind } from "@/modules/terminal/backend/contracts";
+import {
+  disposeGhosttyBlocks,
+  ensureGhosttyBlocks,
+  ghosttyBlocks,
+} from "@/modules/terminal/ghostty/ghosttyBlockSessions";
+import { loadSessionRenderer } from "@/modules/terminal/ghostty/loadSessionRenderer";
+import { replaceSessionSurface } from "@/modules/terminal/ghostty/replaceSessionSurface";
+import { initializeSessionGeneration as startSessionInitialization } from "@/modules/terminal/ghostty/sessionInitialization";
+import { LatestClipboardWrite } from "@/modules/terminal/lib/LatestClipboardWrite";
+import { convertPastedTextForWorkspace } from "@/modules/terminal/lib/pastePathMount";
 import { setLeafPresentation } from "@/modules/terminal/lib/ptyPresentation";
 import { PtyResizeDelivery } from "@/modules/terminal/lib/ptyResizeDelivery";
-import { useTerminalFont } from "@/modules/terminal/lib/useTerminalFont";
 import { cdTerminalLeafTo } from "@/modules/terminal/lib/terminalCd";
+import { useTerminalFont } from "@/modules/terminal/lib/useTerminalFont";
 import type { TerminalSearchController } from "@/modules/terminal/search/TerminalSearchController";
 import { invoke } from "@tauri-apps/api/core";
-import { t } from "@/modules/i18n";
-import { runtimeToast as toast } from "@/modules/agents/lib/runtimeNotifications";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { openPty, type PtySession } from "../lib/pty-bridge";
 import { BlockCommandAnchorProbe } from "../lib/blockAnchorProbe";
+import { openPty, type PtySession } from "../lib/pty-bridge";
 import { writeTerminalClipboard } from "../lib/terminalClipboard";
-import { LatestClipboardWrite } from "@/modules/terminal/lib/LatestClipboardWrite";
 import { GhosttySemanticEventRouter } from "./core/GhosttySemanticEventRouter";
 import { getGhosttyCoreRuntime } from "./GhosttyCoreRuntime";
 import type { GhosttyTerminalModelApi } from "./GhosttyTerminalModel";
@@ -38,8 +39,10 @@ import {
   rgbToInt,
   type TerminalFontSpec,
 } from "./gpu/terminalVisuals";
-import { getWebGpuTerminalRuntime } from "./gpu/WebGpuTerminalRuntime";
-import { webGpuTerminalRuntimeDiagnostics } from "./gpu/WebGpuTerminalRuntime";
+import {
+  getWebGpuTerminalRuntime,
+  webGpuTerminalRuntimeDiagnostics,
+} from "./gpu/WebGpuTerminalRuntime";
 import { WebGpuTerminalSurface } from "./gpu/WebGpuTerminalSurface";
 import { GhosttyInputController } from "./input/GhosttyInputController";
 import { encodeTerminalSubmission } from "./input/terminalInputEncoding";
@@ -929,6 +932,7 @@ function createGhosttyInput(
     }),
     gridShiftY: () => surface.gridShiftY(),
     onFocusChange: (focused) => surface.setInputFocused(focused),
+    convertPaste: convertPastedTextForWorkspace,
     onData: (bytes) => {
       session.writer.enqueue(bytes);
     },

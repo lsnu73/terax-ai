@@ -1,5 +1,5 @@
-import type { GhosttyTerminalModelApi } from "@/modules/terminal/ghostty/GhosttyTerminalModel";
 import { readFile } from "node:fs/promises";
+import type { GhosttyTerminalModelApi } from "@/modules/terminal/ghostty/GhosttyTerminalModel";
 import { TeraxGhostty } from "@terax/ghostty-core/adapted";
 import { describe, expect, it, vi } from "vitest";
 import { FakeElement, FakeTextArea } from "./fakeTextArea";
@@ -218,6 +218,55 @@ describe("GhosttyInputController", () => {
     expect(new TextDecoder().decode(onData.mock.calls[0][0])).toBe(
       "process input",
     );
+    controller.dispose();
+  });
+
+  it("converts pasted text before the prompt or the PTY sees it", async () => {
+    const onData = vi.fn();
+    const onPaste = vi.fn(() => true);
+    const convertPaste = vi.fn(async (text: string) =>
+      text.replace("C:\\repo", "/mnt/c/repo"),
+    );
+    const controller = new GhosttyInputController({
+      model: inputModel(),
+      input: new FakeTextArea() as unknown as HTMLTextAreaElement,
+      pointerTarget: new FakeElement() as unknown as HTMLElement,
+      cellSize: () => ({ width: 10, height: 20 }),
+      isMac: true,
+      onCopy: () => false,
+      onData,
+      onPaste,
+      convertPaste,
+    });
+    controller.paste("cd C:\\repo");
+    await vi.waitFor(() => expect(onPaste).toHaveBeenCalledOnce());
+    expect(onPaste).toHaveBeenCalledWith("cd /mnt/c/repo");
+    onPaste.mockReturnValue(false);
+    controller.paste("cd C:\\repo");
+    await vi.waitFor(() => expect(onData).toHaveBeenCalledOnce());
+    expect(new TextDecoder().decode(onData.mock.calls[0][0])).toBe(
+      "cd /mnt/c/repo",
+    );
+    controller.dispose();
+  });
+
+  it("keeps the original paste when the conversion rejects", async () => {
+    const onData = vi.fn();
+    const controller = new GhosttyInputController({
+      model: inputModel(),
+      input: new FakeTextArea() as unknown as HTMLTextAreaElement,
+      pointerTarget: new FakeElement() as unknown as HTMLElement,
+      cellSize: () => ({ width: 10, height: 20 }),
+      isMac: true,
+      onCopy: () => false,
+      onData,
+      convertPaste: async () => {
+        throw new Error("mount root unavailable");
+      },
+    });
+    controller.paste("C:\\repo");
+    await vi.waitFor(() => expect(onData).toHaveBeenCalledOnce());
+    expect(new TextDecoder().decode(onData.mock.calls[0][0])).toBe("C:\\repo");
     controller.dispose();
   });
 
