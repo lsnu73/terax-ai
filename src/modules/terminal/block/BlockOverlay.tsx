@@ -95,8 +95,10 @@ export function BlockOverlay(props: Props) {
     return subscribe(() => update(true));
   }, [subscribe, getVisible, getTimeline, onCloseSearch]);
 
+  // No z-index: block chrome shares the terminal content layer so per-pane
+  // masks (the file drop overlay) and chrome above the canvas stay in order.
   return (
-    <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
       {vis.blocks.map((block) => (
         <BlockChrome key={block.id} block={block} />
       ))}
