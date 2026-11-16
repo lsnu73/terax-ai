@@ -13,7 +13,7 @@ Terax 是面向开发者的开源桌面开发工作区，以终端为中心，�
 2. [architecture.md](architecture.md)：技术栈、进程边界与目录职责。
 3. [getting-started.md](getting-started.md)：安装、启动、检查与排障。
 4. [features/_index.md](features/_index.md)：功能清单与文档覆盖度。
-5. [playbook.md](playbook.md)：可复用的通用经验与实现套路。
+5. [playbook.md](playbook.md)：通用经验目录，可跨项目复用的实现经验（一条一文件）。
 5. [file-map.md](file-map.md)：从源文件反查业务功能。
 
 仓库的架构事实来源仍是 [../../TERAX.md](../../TERAX.md)，专题长文从 [../README.md](../README.md) 进入。Atlas 提供定位入口，不替代这些文档。
