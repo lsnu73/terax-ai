@@ -190,13 +190,13 @@ describe("release git safety", () => {
     const root = createFixture();
     initializeGit(root);
 
-    const result = runRelease(root, ["1.2.3", "--commit", "--tag"]);
+    const result = runRelease(root, ["9.9.9", "--commit", "--tag"]);
 
     expect(result.status, result.stderr).toBe(0);
     expect(runGit(root, ["status", "--porcelain"])).toBe("");
-    expect(runGit(root, ["log", "-1", "--pretty=%s"])).toBe("chore(release): v1.2.3");
-    expect(runGit(root, ["rev-parse", "v1.2.3^{commit}"])).toBe(runGit(root, ["rev-parse", "HEAD"]));
-    expect(assertVersionConsistency(readVersionFiles(root))).toBe("1.2.3");
+    expect(runGit(root, ["log", "-1", "--pretty=%s"])).toBe("chore(release): v9.9.9");
+    expect(runGit(root, ["rev-parse", "v9.9.9^{commit}"])).toBe(runGit(root, ["rev-parse", "HEAD"]));
+    expect(assertVersionConsistency(readVersionFiles(root))).toBe("9.9.9");
   });
 
   it("rejects a dirty worktree before changing versions", () => {
@@ -205,7 +205,7 @@ describe("release git safety", () => {
     writeFileSync(join(root, "unrelated.txt"), "do not include\n");
     const before = fileSnapshot(root);
 
-    const result = runRelease(root, ["1.2.3", "--commit"]);
+    const result = runRelease(root, ["9.9.9", "--commit"]);
 
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("worktree must be clean");
@@ -216,13 +216,13 @@ describe("release git safety", () => {
   it("rejects an existing tag before changing versions", () => {
     const root = createFixture();
     initializeGit(root);
-    runGit(root, ["tag", "v1.2.3"]);
+    runGit(root, ["tag", "v9.9.9"]);
     const before = fileSnapshot(root);
 
-    const result = runRelease(root, ["1.2.3", "--commit", "--tag"]);
+    const result = runRelease(root, ["9.9.9", "--commit", "--tag"]);
 
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain("Tag v1.2.3 already exists");
+    expect(result.stderr).toContain("Tag v9.9.9 already exists");
     expect(fileSnapshot(root)).toEqual(before);
   });
 

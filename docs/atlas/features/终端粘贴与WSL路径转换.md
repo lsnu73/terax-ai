@@ -1,17 +1,17 @@
 # 终端粘贴与 WSL 路径转换
 
-- 最后校验：2026-11-16（@ main）
+- 最后校验：2026-11-17（@ main）
 - 状态：可用
 - 关联 lore：[decisions/2026-11-16-WSL粘贴自动挂载Windows路径](../../lore/decisions/2026-11-16-WSL粘贴自动挂载Windows路径.md)
 - 关联文档：[终端光标与焦点](终端光标与焦点.md)（同一输入控制器）、[终端路径历史](终端路径历史.md)（共用挂载前缀与转换助手）
 
 ## 1. 业务需求
 
-WSL 工作环境下，把 Windows 风格的绝对路径粘进终端后应当立即可用：`C:\Users\wang\Coding` 自动变为 `/mnt/c/Users/wang/Coding`，挂载前缀取自该发行版 `/etc/wsl.conf` 的 `[automount] root`（默认 `/mnt/`）。本地（Windows）工作区、非 WSL 环境以及不含 Windows 绝对路径的粘贴保持原样。所有粘贴来源统一生效：剪贴板快捷键、原生粘贴事件、文件拖放、AI 命令注入。
+WSL 工作环境下，把 Windows 风格的绝对路径粘进终端后应当立即可用：`C:\Users\wang\Coding` 自动变为 `/mnt/c/Users/wang/Coding`，挂载前缀取自该发行版 `/etc/wsl.conf` 的 `[automount] root`（默认 `/mnt/`）。本地（Windows）工作区、非 WSL 环境以及不含 Windows 绝对路径的粘贴保持原样。所有粘贴来源统一生效：剪贴板快捷键、原生粘贴事件、文件拖放、AI 命令注入。所有来源的粘贴文本统一去除首尾空白：末尾换行在编码后是回车，会额外执行空命令；纯空白粘贴直接丢弃。
 
 ## 2. 入口与调用链
 
-- 粘贴漏斗：`src/modules/terminal/ghostty/input/GhosttyInputController.ts` 的 `paste`（剪贴板快捷键、原生 `paste` 事件、`beforeinput` 的 `insertFromPaste` 都汇聚于此）。
+- 粘贴漏斗：`src/modules/terminal/ghostty/input/GhosttyInputController.ts` 的 `paste`（剪贴板快捷键、原生 `paste` 事件、`beforeinput` 的 `insertFromPaste` 都汇聚于此），入口先 `trim()` 首尾空白。
 - 转换接线：会话创建处 `src/modules/terminal/ghostty/useGhosttyTerminalSession.ts` 的 `createGhosttyInput` 传入 `convertPaste: convertPastedTextForWorkspace`。
 - 环境与挂载根：`src/modules/terminal/lib/pastePathMount.ts` 的 `convertPastedTextForWorkspace` 读取 `currentWorkspaceEnv()`，WSL 时经 `fetchWslAutomountRoot(distro)`（`src/modules/workspace/automount.ts`，按发行版缓存）取根。
 - 纯转换：同文件的 `mountWindowsPaths`（复用 `src/modules/terminal/lib/pathHistory.ts` 的 `windowsPathToWsl` 与 `WSL_DEFAULT_AUTOMOUNT_ROOT`）。
@@ -22,7 +22,7 @@ WSL 工作环境下，把 Windows 风格的绝对路径粘进终端后应当立�
 
 ```text
 剪贴板/原生粘贴/文件拖放/AI 注入
-  -> GhosttyInputController.paste
+  -> GhosttyInputController.paste (trim 首尾空白，纯空白丢弃)
   -> convertPaste (仅 WSL 环境改写 Windows 绝对路径)
   -> deliverPaste -> encodeTerminalPaste -> session writer
 ```
@@ -39,7 +39,7 @@ WSL 工作环境下，把 Windows 风格的绝对路径粘进终端后应当立�
 
 ## 4. 数据流 / 关键流程
 
-1. 粘贴文本到达 `paste`；先在调用点做选中状态重置，再进入异步转换。
+1. 粘贴文本到达 `paste`；先 `trim()` 首尾空白（纯空白直接丢弃，不重置选区也不写入），再在调用点做选中状态重置，然后进入异步转换。
 2. `convertPastedTextForWorkspace`：本地环境直接返回原文；WSL 环境解析该发行版挂载根（IPC 失败回退 `/mnt/`），调用 `mountWindowsPaths`。
 3. `mountWindowsPaths` 识别规则：
    - 整段文本是单条 Windows 绝对路径（无换行、无引号、仅一个盘符起点）时整体转换，含空格的路径（`C:\Program Files\My App`）保持完整。
@@ -59,6 +59,7 @@ WSL 工作环境下，把 Windows 风格的绝对路径粘进终端后应当立�
 
 ## 7. 已知限制与注意事项
 
+- 只去除首尾空白，内部换行保留：非括号粘贴模式下多行粘贴仍按行依次执行。
 - 带空格且未加引号的 Windows 路径出现在长文本中时只能转换第一个词段（文本无法确定路径终点）；整段粘贴单条带空格路径不受影响。
 - 不做 shell 自动加引号；转换后的带空格路径需要用户自行引号包裹（与转换前一致）。
 - 不处理 UNC（`\\server\share`）与 `file:` 前缀形式。
@@ -67,3 +68,4 @@ WSL 工作环境下，把 Windows 风格的绝对路径粘进终端后应当立�
 ## 8. 变更记录（功能级）
 
 - 2026-11-16 新增终端粘贴 WSL 路径转换：WSL 环境下 Windows 绝对路径自动加挂载前缀（`C:\a\b` → `/mnt/c/a/b`），覆盖剪贴板、拖放与 AI 注入全部粘贴来源。
+- 2026-11-17 粘贴漏斗入口统一 trim 首尾空白：修复末尾带 n 个换行的命令执行后额外执行 n 个空命令（换行编码为回车）；纯空白粘贴丢弃，回归测试锁定。

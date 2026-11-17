@@ -221,6 +221,26 @@ describe("GhosttyInputController", () => {
     controller.dispose();
   });
 
+  it("trims surrounding whitespace so trailing newlines do not submit empty commands", () => {
+    const onData = vi.fn();
+    const controller = new GhosttyInputController({
+      model: inputModel(),
+      input: new FakeTextArea() as unknown as HTMLTextAreaElement,
+      pointerTarget: new FakeElement() as unknown as HTMLElement,
+      cellSize: () => ({ width: 10, height: 20 }),
+      isMac: true,
+      onCopy: () => false,
+      onData,
+    });
+    controller.paste("  echo hi\n\n\n");
+    expect(new TextDecoder().decode(onData.mock.calls[0][0])).toBe("echo hi");
+    controller.paste("one\ntwo");
+    expect(new TextDecoder().decode(onData.mock.calls[1][0])).toBe("one\rtwo");
+    controller.paste("\n \t\r\n");
+    expect(onData).toHaveBeenCalledTimes(2);
+    controller.dispose();
+  });
+
   it("converts pasted text before the prompt or the PTY sees it", async () => {
     const onData = vi.fn();
     const onPaste = vi.fn(() => true);

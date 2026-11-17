@@ -206,16 +206,18 @@ export class GhosttyInputController {
   }
 
   paste(text: string): void {
-    if (this.disposed || !text) return;
+    // Trailing newlines would become extra Enter presses after encoding.
+    const trimmed = text.trim();
+    if (this.disposed || !trimmed) return;
     this.nativeSelection?.reset();
     const convert = this.options.convertPaste;
     if (!convert) {
-      this.deliverPaste(text);
+      this.deliverPaste(trimmed);
       return;
     }
     void Promise.resolve()
-      .then(() => convert(text))
-      .catch(() => text)
+      .then(() => convert(trimmed))
+      .catch(() => trimmed)
       .then((converted) => this.deliverPaste(converted));
   }
 
