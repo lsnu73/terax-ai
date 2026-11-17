@@ -1,8 +1,8 @@
 # AI 模型配置
 
-- 最后校验：2026-11-12
+- 最后校验：2026-11-17
 - 状态：可用
-- 关联约束：[INV-023](../../lore/invariants.md#inv-023)（Provider ID 改名保留钥匙串账户与已有密钥）、[INV-024](../../lore/invariants.md#inv-024)（离开模型页先完成自动保存再提示）；params 与 Effort 的职责分工规则见 §4。
+- 关联约束：[INV-023](../../lore/invariants.md#inv-023)（Provider ID 改名保留钥匙串账户与已有密钥）、[INV-024](../../lore/invariants.md#inv-024)（离开模型页先完成自动保存再提示）；params 与 Effort 的职责分工规则见 §4。通用经验见 [playbook/大模型Provider配置的数据驱动设计与请求参数合并.md](../playbook/大模型Provider配置的数据驱动设计与请求参数合并.md)（层级继承、请求体合并判定矩阵、加载收敛规则的跨项目版本）。
 
 ## 1. 业务需求
 

@@ -40,7 +40,7 @@ Terax 是面向开发者的开源桌面开发工作区，以终端为中心，�
 | 改 AI 面板、对话或 Composer | [features/AI面板.md](features/AI面板.md) | `src/modules/ai/components/AiPanel.tsx`, `src/modules/ai/components/AiChat.tsx`, `src/modules/ai/lib/composer.tsx`, `src/modules/ai/store/aiPanelStore.ts` |
 | 改 AI 面板附件展示、附件读取或拖拽附加 | [features/AI面板.md](features/AI面板.md) | `src/modules/ai/lib/composer.tsx`, `src/modules/ai/lib/aiAttachmentDrop.ts`, `src/modules/explorer/lib/useExplorerDnd.ts` |
 | 改 AI 命令执行的 Shell 选择、方言提示或前后台工具 | [features/AI命令执行.md](features/AI命令执行.md) | `src/modules/ai/tools/shell.ts`, `src/modules/ai/lib/transport.ts`, `src-tauri/src/modules/shell/mod.rs` |
-| 改 AI 命令「运行」按钮或命令注入终端的编码方式 | [features/AI命令运行到终端.md](features/AI命令运行到终端.md) | `src/components/ai-elements/chat-code.tsx`, `src/modules/ai/lib/useAiLiveBridge.ts`, `src/modules/terminal/lib/terminalSessionApi.ts` |
+| 改 AI 命令「运行/插入」按钮、建议卡片展开方式或命令注入终端的编码方式 | [features/AI命令运行到终端.md](features/AI命令运行到终端.md) | `src/components/ai-elements/chat-code.tsx`, `src/components/ai-elements/tool.tsx`, `src/modules/ai/lib/useAiLiveBridge.ts`, `src/modules/terminal/lib/terminalSessionApi.ts` |
 | 改 AI 生成提交信息或其提示词 | [features/AI提交信息生成.md](features/AI提交信息生成.md) | `src/modules/source-control/useSourceControlPanel.ts`, `src/modules/ai/config/prompts.ts` |
 | 改源代码管理面板、远程获取/拉取/推送或 SSH key 密码解锁 | [features/源代码管理.md](features/源代码管理.md) | `src/modules/source-control/SourceControlPanel.tsx`, `src/modules/source-control/useSourceControl.ts`, `src-tauri/src/modules/git/operations.rs` |
 | 改模型请求参数或思考强度档位 | [features/AI模型配置.md](features/AI模型配置.md) | `src/modules/ai/config/params.ts`, `src/settings/sections/models/StructuredFields.tsx` |

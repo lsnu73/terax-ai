@@ -158,14 +158,21 @@ const ToolImpl = ({
   const label = toolLabel(toolName, t);
   const summary = deriveSummary(toolName, input);
   const isError = state === "output-error";
-  const open = defaultOpen ?? isError;
+  // The suggestion card is the product surface: its command and insert button
+  // must not hide behind the card's own toggle, and the raw input repeats what
+  // the card already shows, so it stays behind its own collapsed disclosure.
+  const isSuggestion = toolName === "suggest_command";
+  const open = defaultOpen ?? (isError || isSuggestion);
   const isHeavy = HEAVY_CONTENT_TOOLS.has(toolName);
   // For heavy tools, only show details on error — never the streamed input
   // body, which is huge and re-renders per token.
-  const showInputBody = !isHeavy && Boolean(input);
+  const showInputBody = !isHeavy && !isSuggestion && Boolean(input);
   const showOutputBody = !isHeavy && output !== undefined;
   const hasDetails =
-    showInputBody || showOutputBody || Boolean(errorText);
+    showInputBody ||
+    showOutputBody ||
+    Boolean(errorText) ||
+    (isSuggestion && input != null);
 
   return (
     <Collapsible
@@ -222,6 +229,9 @@ const ToolImpl = ({
                 errorText={errorText}
               />
             ) : null}
+            {isSuggestion && input != null ? (
+              <RawToolInput input={input} />
+            ) : null}
           </div>
         </CollapsibleContent>
       )}
@@ -243,6 +253,40 @@ export const Tool = memo(ToolImpl, (a, b) => {
   }
   return a.input === b.input;
 });
+
+// The raw tool payload is debug-grade detail. For the suggestion card it
+// repeats the command the card already renders, so it opens from its own
+// collapsed disclosure instead of sitting under the card by default.
+function RawToolInput({ input }: { input: unknown }) {
+  const { t } = useTranslation();
+  if (input == null) return null;
+  const code =
+    typeof input === "string" ? input : JSON.stringify(input, null, 2);
+  return (
+    <Collapsible className="group/raw">
+      <CollapsibleTrigger
+        className={cn(
+          "flex items-center gap-1 rounded px-1 py-0.5 text-[10px] font-medium",
+          "text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground",
+          "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+        )}
+      >
+        <HugeiconsIcon
+          icon={ArrowRight01Icon}
+          size={10}
+          strokeWidth={2}
+          className="shrink-0 transition-transform group-data-[state=open]/raw:rotate-90"
+        />
+        {t("aiElements.tool.input")}
+      </CollapsibleTrigger>
+      <CollapsibleContent className="terax-collapsible-content">
+        <div className="mt-1">
+          <CodeBlockMini code={code} language="json" />
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
 
 function ToolInput({ toolName, input }: { toolName: string; input: unknown }) {
   const { t } = useTranslation();

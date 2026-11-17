@@ -1,6 +1,6 @@
 # 术语表
 
-> 最后校验：2026-11-16
+> 最后校验：2026-11-17
 
 | 标准术语 | 用户说法（别名） | 代码锚点 | 一句话含义 | 易混淆项 |
 |---|---|---|---|---|
@@ -12,3 +12,4 @@
 | SSH key 密码解锁 | 「ssh key 加密了要填密码」「推送要密码」 | `src/modules/source-control/SshPassphraseDialog.tsx:28` 的 `SshPassphraseDialog` | 推送失败形如 Permission denied (publickey) 时弹密码框，重试经 Rust askpass 助手解锁加密私钥 | HTTPS 凭据失败（不弹此框）；ssh-agent 已解锁的 key |
 | 双击选词 | 「双击选词」「双击选中一个词」「双击选中文」 | `src/modules/terminal/ghostty/selection/wordSelection.ts:79` 的 `wordTokenRangeAt`/`pathLadderRangeAt` | 终端里鼠标双击按分词规则选词：连续中文整块、路径/URL/版本号/下划线标识符等粘连单元整体选中，三击起沿引号括号容器递进 | 终端链接打开（Ctrl/Cmd 点击）；编辑器 CodeMirror 双击选词 |
 | WSL 挂载前缀（automount root） | 「挂载盘符」「/mnt 前缀」「mnt 那个路径」 | `src/modules/workspace/automount.ts:7` 的 `fetchWslAutomountRoot`；Rust `wsl_automount_root` | WSL 把 Windows 盘符挂载到的目录前缀，默认 `/mnt/`，可由 `/etc/wsl.conf` 的 `[automount] root` 改写 | 发行版根目录 `/`；WSL 登录 HOME |
+| 建议命令卡片 | 「建议命令」「AI 建议的命令」 | `src/components/ai-elements/tool.tsx:780` 的 `SuggestCommandCard` | `suggest_command` 工具结果的卡片：默认展开，展示命令与「插入」按钮，单击只把命令粘贴到活动终端提示符处、不执行；原始 input JSON 收在默认折叠的「输入」项里 | AI 命令执行（`bash_run`，AI 自己跑）；shell 代码块的「运行」按钮（`chat-code.tsx`） |

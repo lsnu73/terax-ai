@@ -1,12 +1,14 @@
 # AI 命令运行到终端
 
-- 最后校验：2026-11-15
+- 最后校验：2026-11-17
 - 状态：已覆盖
 - 关联文档：[AI命令执行](AI命令执行.md)（AI 自己跑命令的 `bash_run` 工具，不经过终端提示符）、[终端命令与结果块](终端命令与结果块.md)（注入后命令在终端中的块归因与交互）
 
 ## 1. 业务需求
 
 AI 回答中的 shell 代码块和 `suggest_command` 工具结果提供「运行」按钮（悬停文案「在活动终端中运行」）：把命令文本注入当前活动终端的提示符处，等价于用户手动粘贴，**不自动执行**（用户自行回车）。点击后按钮短暂变为「已发送」。多行命令必须保持行序与 AI 输出一致；活动标签不是终端时按钮无效果。
+
+`suggest_command` 的建议卡片是用户要操作的产物：卡片默认展开，命令与「插入」按钮直接可见；工具的原始 `input` JSON 与卡片内容重复，收在卡片内的「输入」折叠项里，默认折叠（2026-11-17 修复）。
 
 ## 2. 入口与调用链
 
@@ -34,7 +36,7 @@ AI 回答中的 shell 代码块和 `suggest_command` 工具结果提供「运行
 | 文件 | 角色 | 备注 |
 |---|---|---|
 | `src/components/ai-elements/chat-code.tsx` | 命令代码块卡片 | `CommandCard` + `RunInTerminalButton`；区分 shell 语言与非 shell 代码块 |
-| `src/components/ai-elements/tool.tsx` | suggest_command 卡片 | `SuggestCommandCard` 复用同一注入通道；该文件其余工具渲染属「AI 对话与工具审批」（未覆盖） |
+| `src/components/ai-elements/tool.tsx` | suggest_command 卡片 | `SuggestCommandCard` 复用同一注入通道；该卡片默认展开，原始 input 收在默认折叠的「输入」项里；该文件其余工具渲染属「AI 对话与工具审批」（未覆盖） |
 | `src/modules/ai/store/chatStore.ts` | live 通道契约 | `injectIntoActivePty` 声明与默认 false 实现 |
 | `src/modules/ai/store/chatRuntime.ts` | 工具层转发 | 工具上下文经此调用同一通道 |
 | `src/modules/ai/lib/useAiLiveBridge.ts` | live 桥实现 | 注入走粘贴编码优先、裸写回退；同一桥还承载终端上下文读取与托管代理 |
@@ -64,3 +66,4 @@ AI 回答中的 shell 代码块和 `suggest_command` 工具结果提供「运行
 ## 7. 变更记录
 
 - 2026-11-15：新建；登记 `injectIntoActivePty` 从裸 `term.write` 改为会话粘贴编码优先，修复多行命令在 PSReadLine 中乱序回显。
+- 2026-11-17：建议卡片默认展开，命令与「插入」按钮不再藏在工具卡片折叠后面；原始 input JSON 改为卡片内默认折叠的「输入」项，避免展开建议时先看到重复的原始形态。
