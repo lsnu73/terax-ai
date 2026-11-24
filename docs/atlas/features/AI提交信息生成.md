@@ -1,6 +1,6 @@
 # AI 提交信息生成
 
-- 最后校验：2026-11-03
+- 最后校验：2026-11-24
 - 状态：可用
 - 关联 lore：暂无（若沉淀「为什么只允许覆盖 system 提示词」的取舍理由，应进 lore）
 
@@ -26,7 +26,6 @@
 | `src/modules/ai/config/persist.ts` | 配置持久化 | 读写 `commitMessagePrompt`，恢复默认时删除旧覆盖 |
 | `src/modules/ai/config/persist.test.ts` | 持久化回归测试 | 验证保存后重读与恢复默认 |
 | `src/settings/sections/AgentsSection.tsx` | 设置页模块 | `CommitPromptBlock`（编辑/保存/恢复默认） |
-| `docs/ai-models.schema.json` | 配置文件 schema | `commitMessagePrompt` 属性 |
 
 ## 4. 数据流 / 关键流程
 

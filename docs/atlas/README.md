@@ -1,7 +1,7 @@
 # Terax 项目地图
 
 > 本目录回答「代码做了什么、在哪里」。设计理由、硬约束与历史坑点见 [../lore/](../lore/)。
-> 最后校验：2026-11-16
+> 最后校验：2026-11-24
 
 ## 一句话
 
@@ -54,7 +54,7 @@ Terax 是面向开发者的开源桌面开发工作区，以终端为中心，�
 | 改启动自动检查更新、更新提示消息或关于页一键更新 | [features/应用更新.md](features/应用更新.md) | `src/modules/updater/useUpdater.ts`, `src/app/App.tsx`, `src/settings/sections/AboutSection.tsx`, `src/settings/sections/GeneralSection.tsx` |
 | 改代理设置或三场景代理生效 | [features/代理.md](features/代理.md) | `src/settings/sections/ProxySection.tsx`, `src/modules/proxy/lib/proxy.ts`, `src/modules/proxy/lib/terminalProxyRegistry.ts` |
 | 改终端链接打开方式（URL/路径） | [features/终端链接打开.md](features/终端链接打开.md) | `src/modules/terminal/ghostty/useGhosttyTerminalSession.ts`, `src/lib/open-path.ts` |
-| 改最近路径弹窗或目录历史 | [features/终端路径历史.md](features/终端路径历史.md) | `src/modules/terminal/path-history/PathHistoryDialog.tsx`, `src/modules/terminal/lib/pathHistory.ts` |
+| 改最近路径弹窗、目录历史或长路径压缩 | [features/终端路径历史.md](features/终端路径历史.md) | `src/modules/terminal/path-history/PathHistoryDialog.tsx`, `src/modules/terminal/lib/pathHistory.ts`, `src/lib/pathDisplay.ts` |
 | 项目跑不起来 | [getting-started.md](getting-started.md) | `package.json`, `src-tauri/tauri.conf.json` |
 | 不知道某文件干嘛的 | [file-map.md](file-map.md) | 无 |
 | 查设计理由或硬约束 | [../lore/README.md](../lore/README.md) | 无 |

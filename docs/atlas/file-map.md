@@ -3,7 +3,7 @@
 > 只收录有业务含义的源文件。自动生成文件、测试、构建脚本和纯配置不在此列。
 > 一个文件涉及多个功能时，第二列登记主归属，其余登记在第三列。
 > 表格是唯一数据源；目录树由 project-atlas 的 render-file-map-tree.sh 生成，不要手改。
-> 最后校验：2026-11-16
+> 最后校验：2026-11-24
 
 ## 按目录浏览
 
@@ -57,6 +57,7 @@ src/
 │   ├── external-link.ts — [终端链接打开] Ctrl 或 Cmd 分支调用系统浏览器（次：外部链接）
 │   ├── maximizedChrome.ts — [无边框窗口与边框交互] 窗口最大化状态订阅：`<html data-maximized>` 镜像与 `useWindowMaximized` hook
 │   ├── open-path.ts — [终端链接打开] 路径识别与文件管理器打开（次：终端路径历史）
+│   ├── pathDisplay.ts — [终端路径历史] `compactPath` 按注入的视觉宽度测量压缩路径，保留前缀与末级开头（次：通用路径展示）
 │   └── useCaptureOutsideDismiss.ts — [标签页管理] 受控浮层的 document 捕获阶段外部指针关闭与监听清理（次：状态栏工作区与路径）
 ├── main.tsx — [无边框窗口与边框交互] 应用引导：`data-chrome="borderless"` 标记、最大化状态镜像、窗口延迟显示
 ├── modules/
@@ -217,7 +218,7 @@ src/
 │   │   │   ├── terminalSessionApi.ts — [撤销终端窗格拆分] 释放被撤销窗格资源；`restartSession`/`restartAllSessions` 刷新终端让新设置生效（次：终端会话生命周期、代理）
 │   │   │   └── useVisiblePathHistory.ts — [终端路径历史] 组合工作区环境与 automount root，产出当前视图可见历史（次：状态栏工作区与路径）
 │   │   └── path-history/
-│   │       └── PathHistoryDialog.tsx — [终端路径历史] Ctrl+E 最近路径弹窗；关闭时阻止 Radix 自动焦点还原（次：终端光标与焦点）
+│   │       └── PathHistoryDialog.tsx — [终端路径历史] Ctrl+E 最近路径弹窗；长路径按 Canvas 视觉宽度压缩，原始路径继续用于选择；关闭时阻止 Radix 自动焦点还原（次：终端光标与焦点）
 │   └── updater/
 │       └── useUpdater.ts — [应用更新] 全局更新状态机、启动自动检查、通知消息与下载安装；检查/下载遵循更新场景代理（次：设置-关于、代理）
 └── settings/
@@ -369,11 +370,12 @@ src/
 | `src/modules/i18n/locales/en/settings/models.ts` | [AI模型配置](features/AI模型配置.md) | 英文文案 | Params/Effort 字段与规则文案 |
 | `src/modules/terminal/ghostty/core/terminalLinks.ts` | [终端链接打开](features/终端链接打开.md) | 终端路径历史 | URL、裸 www 网址与绝对路径文本检测 |
 | `src/lib/open-path.ts` | [终端链接打开](features/终端链接打开.md) | 终端路径历史 | 路径识别与文件管理器打开 |
+| `src/lib/pathDisplay.ts` | [终端路径历史](features/终端路径历史.md) | 通用路径展示 | `compactPath` 按注入的视觉宽度测量压缩路径，保留前缀与末级开头 |
 | `src-tauri/src/modules/file_manager.rs` | [终端链接打开](features/终端链接打开.md) | 无 | 第三方文件管理器探测与打开命令 |
 | `src/modules/terminal/lib/terminalCd.ts` | [终端路径历史](features/终端路径历史.md) | [终端链接打开](features/终端链接打开.md) | cd 命令构造与提交 |
 | `src/modules/terminal/lib/pathHistory.ts` | [终端路径历史](features/终端路径历史.md) | 无 | 目录历史记录/封顶/筛选规则与跨工作区路径归一化 |
 | `src/modules/terminal/lib/useVisiblePathHistory.ts` | [终端路径历史](features/终端路径历史.md) | [状态栏工作区与路径](features/状态栏工作区与路径.md) | 组合工作区环境与 automount root，产出当前视图可见历史 |
-| `src/modules/terminal/path-history/PathHistoryDialog.tsx` | [终端路径历史](features/终端路径历史.md) | [终端光标与焦点](features/终端光标与焦点.md) | Ctrl+E 最近路径弹窗；关闭时阻止 Radix 自动焦点还原 |
+| `src/modules/terminal/path-history/PathHistoryDialog.tsx` | [终端路径历史](features/终端路径历史.md) | [终端光标与焦点](features/终端光标与焦点.md) | Ctrl+E 最近路径弹窗；长路径按 Canvas 视觉宽度压缩，原始路径继续用于选择；关闭时阻止 Radix 自动焦点还原 |
 | `src/modules/command-palette/lib/mode.ts` | [命令面板](features/命令面板.md) | [终端路径历史](features/终端路径历史.md) | `>` 前缀路径模式解析与 `#`/`?` 查询分流 |
 | `src/modules/i18n/locales/zh/settings/models.ts` | [AI模型配置](features/AI模型配置.md) | 中文文案 | 与英文词典同构 |
 | `src/modules/source-control/useSourceControlPanel.ts` | [源代码管理](features/源代码管理.md) | [AI提交信息生成](features/AI提交信息生成.md) | 面板流程编排：暂存/提交/推送、SSH 密码对话框状态；提交信息生成复用 |
