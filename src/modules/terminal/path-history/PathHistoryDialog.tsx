@@ -7,13 +7,18 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { compactPath } from "@/lib/pathDisplay";
 import { cn } from "@/lib/utils";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import { filterPathHistory } from "@/modules/terminal/lib/pathHistory";
 import { useVisiblePathHistory } from "@/modules/terminal/lib/useVisiblePathHistory";
-import { Clock01Icon, FolderOpenIcon, Search01Icon } from "@hugeicons/core-free-icons";
+import {
+  Clock01Icon,
+  FolderOpenIcon,
+  Search01Icon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 type Props = {
@@ -99,16 +104,14 @@ export function PathHistoryDialog({
       >
         <DialogHeader className="sr-only">
           <DialogTitle>{t("terminal.pathHistory.title")}</DialogTitle>
-          <DialogDescription>{t("terminal.pathHistory.title")}</DialogDescription>
+          <DialogDescription>
+            {t("terminal.pathHistory.title")}
+          </DialogDescription>
         </DialogHeader>
-        <div className="flex flex-col outline-none">
+        <div className="flex min-w-0 flex-col outline-none">
           <div className="flex items-center gap-1.5 p-2.5 pb-1.5">
             <span className="flex shrink-0 items-center gap-1.5 pl-1 text-[12px] font-medium text-muted-foreground">
-              <HugeiconsIcon
-                icon={Clock01Icon}
-                size={13}
-                strokeWidth={1.75}
-              />
+              <HugeiconsIcon icon={Clock01Icon} size={13} strokeWidth={1.75} />
               {t("terminal.pathHistory.title")}
             </span>
             <Input
@@ -135,7 +138,7 @@ export function PathHistoryDialog({
           </div>
           <div
             ref={listRef}
-            className="max-h-80 min-h-0 overflow-y-auto overscroll-contain p-1.5 pt-0.5"
+            className="max-h-80 min-h-0 min-w-0 overflow-y-auto overscroll-contain p-1.5 pt-0.5"
           >
             {disabledReasonKey ? (
               <EmptyRow label={t(disabledReasonKey)} />
@@ -143,29 +146,14 @@ export function PathHistoryDialog({
               <EmptyRow label={t("terminal.pathHistory.empty")} />
             ) : (
               filtered.map((path, i) => (
-                <button
+                <PathHistoryRow
                   key={path}
-                  type="button"
-                  data-index={i}
+                  path={path}
+                  index={i}
+                  selected={i === index}
                   onMouseEnter={() => setIndex(i)}
                   onClick={() => pick(path)}
-                  className={cn(
-                    "flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left",
-                    i === index
-                      ? "bg-accent text-foreground"
-                      : "text-foreground/85",
-                  )}
-                >
-                  <HugeiconsIcon
-                    icon={FolderOpenIcon}
-                    size={13}
-                    strokeWidth={1.75}
-                    className="shrink-0 text-muted-foreground"
-                  />
-                  <span className="min-w-0 flex-1 truncate font-mono text-[12px]">
-                    {path}
-                  </span>
-                </button>
+                />
               ))
             )}
           </div>
@@ -177,6 +165,89 @@ export function PathHistoryDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+type PathHistoryRowProps = {
+  path: string;
+  index: number;
+  selected: boolean;
+  onMouseEnter: () => void;
+  onClick: () => void;
+};
+
+function PathHistoryRow({
+  path,
+  index,
+  selected,
+  onMouseEnter,
+  onClick,
+}: PathHistoryRowProps) {
+  const { textRef, displayPath } = useCompactPath(path);
+
+  return (
+    <button
+      type="button"
+      data-index={index}
+      onMouseEnter={onMouseEnter}
+      onClick={onClick}
+      aria-label={path}
+      className={cn(
+        "flex w-full min-w-0 items-center gap-2 rounded-lg px-2.5 py-1.5 text-left",
+        selected ? "bg-accent text-foreground" : "text-foreground/85",
+      )}
+    >
+      <HugeiconsIcon
+        icon={FolderOpenIcon}
+        size={13}
+        strokeWidth={1.75}
+        className="shrink-0 text-muted-foreground"
+      />
+      <span
+        ref={textRef}
+        title={path}
+        className="block min-w-0 flex-1 truncate font-mono text-[12px]"
+      >
+        {displayPath}
+      </span>
+    </button>
+  );
+}
+
+function useCompactPath(path: string) {
+  const textRef = useRef<HTMLSpanElement>(null);
+  const [displayPath, setDisplayPath] = useState(path);
+
+  useLayoutEffect(() => {
+    const element = textRef.current;
+    if (!element) return;
+    const context = document.createElement("canvas").getContext("2d");
+    if (!context) return;
+
+    let active = true;
+    const update = () => {
+      if (!active) return;
+      const style = getComputedStyle(element);
+      context.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+      setDisplayPath(
+        compactPath(
+          path,
+          Math.max(0, element.clientWidth - 1),
+          (text) => context.measureText(text).width,
+        ),
+      );
+    };
+
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    void document.fonts.ready.then(update);
+    return () => {
+      active = false;
+      observer.disconnect();
+    };
+  }, [path]);
+
+  return { textRef, displayPath };
 }
 
 function EmptyRow({ label }: { label: string }) {
