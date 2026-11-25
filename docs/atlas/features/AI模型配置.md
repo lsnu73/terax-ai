@@ -1,8 +1,8 @@
 # AI 模型配置
 
-- 最后校验：2026-11-17
+- 最后校验：2026-11-25
 - 状态：可用
-- 关联约束：[INV-023](../../lore/invariants.md#inv-023)（Provider ID 改名保留钥匙串账户与已有密钥）、[INV-024](../../lore/invariants.md#inv-024)（离开模型页先完成自动保存再提示）；params 与 Effort 的职责分工规则见 §4。通用经验见 [playbook/大模型Provider配置的数据驱动设计与请求参数合并.md](../playbook/大模型Provider配置的数据驱动设计与请求参数合并.md)（层级继承、请求体合并判定矩阵、加载收敛规则的跨项目版本）。
+- 关联约束：[INV-023](../../lore/invariants.md#inv-023)（Provider ID 改名保留钥匙串账户与已有密钥）、[INV-024](../../lore/invariants.md#inv-024)（离开模型页先完成自动保存再提示）；params 与 Effort 的职责分工规则见 §4。通用经验见 [playbook/大模型多厂商接入的配置驱动与请求参数合并.md](../playbook/大模型多厂商接入的配置驱动与请求参数合并.md)（作用域继承、请求体合并顺序、`null` 分层语义、受保护键、加载收敛与无损迁移的跨项目版本）。
 
 ## 1. 业务需求
 
@@ -28,7 +28,7 @@ Provider 高级表单和已有模型的编辑表单不再提供底部保存按�
 - 表单：`src/settings/sections/models/StructuredFields.tsx:521` 的 `ParamsForm`、`:667` 的 `EffortForm`、`:302` 的 `parseEffort`；校验在 `src/settings/sections/ModelsSection.tsx:130` 的 `validateEffortConfig`。
 - 配置持久化：`src/modules/ai/config/persist.ts`（写入应用数据目录下的 terax-ai-models.json，密钥不入文件，存 OS 钥匙串）。
 - 归一化与旧格式迁移：`src/modules/ai/config/normalize.ts:97` 的 `normalizeParam`、`:163` 的 `migrateLegacyThinking`。
-- 请求参数引擎：`src/modules/ai/config/params.ts:158` 的 `resolveRequestParams`（纯函数，UI 与传输层共用）。
+- 请求参数引擎：`src/modules/ai/config/params.ts:158` 的 `resolveRequestParams`（纯函数，传输层在构建模型前调用；界面可复用同一函数做预览）。
 - 传输层注入：`src/modules/ai/lib/agent.ts:110` 的 `withRequestParams` 包装 fetch；`:194` 的 `buildLanguageModel` 接收 `effortLevelId`。
 - 用户档位滑条：`src/modules/ai/components/ModelPicker.tsx:109`（`effortLevels`），选择写入偏好。
 
@@ -66,7 +66,7 @@ chatRuntime.getEffortLevelId -> runAgentStream(effortLevelId)
 ## 4. 数据流与关键规则
 
 1. 合并顺序（后者覆盖前者）：Provider `params` → Model `params`（同 key 整体替换）→ 当前 Effort 档位值写入 `EffortConfig.path` → 模型 `extra` 原始覆盖。
-2. `null` 取值表示从请求体中删除该键——厂商不接受某取值、只能靠省略参数关闭思考时使用。
+2. `null` 分层语义：静态参数与 Effort 档位中的 `null` 表示本层不写入，不执行删除动作（模型用同键覆盖时，厂商定义已在定义合并阶段被整条替换）；只有模型 `extra` 中的 `null` 表示从请求体删除该键。厂商不接受某取值、只能靠省略参数关闭思考时，用档位 `null` 实现。
 3. `PROTECTED_BODY_KEYS`（`messages`/`model`/`stream`/`tools`/`tool_choice`/`input`）禁止被 params、effort、extra 覆盖，越界即跳过并产生 warning。
 4. Effort 兜底：模型未声明时取 Provider 的 `effort`；档位 id 记入偏好，按模型隔离。
 5. 旧配置迁移（`src/modules/ai/config/normalize.ts`）：旧 `thinking` 档位若全部档位恰好共用一个参数键则迁移为该键的取值阶梯；引用多个参数键的旧配置无法无损迁移，丢弃并返回 warning。旧 `ParamDef` 只保留 body 位置且有取值的条目。
@@ -78,6 +78,7 @@ chatRuntime.getEffortLevelId -> runAgentStream(effortLevelId)
 
 - 用户接口：设置 → 模型（Provider 卡片「高级」折叠区、模型行编辑器）、Ctrl+I 模型选择窗底部思考强度滑条。
 - 数据契约：`src/modules/ai/config/types.ts`（`AiConfig` / `ProviderEntry` / `ModelEntry` / `ParamDef` / `EffortConfig`；`AiConfig.commitMessagePrompt` 为提交信息提示词覆盖，见 [AI提交信息生成](AI提交信息生成.md)）。
+- 第三方厂商契约：[interfaces.md](../interfaces.md)（内置 11 个厂商的端点、密钥控制台、模型列表能力与已知怪癖；便携快照见 [playbook §0.1](../playbook/大模型多厂商接入的配置驱动与请求参数合并.md)）。
 - 偏好键：`effortLevelByModel`（存储键名为历史遗留的 `thinkingLevelByModel`）。
 
 ## 6. 已知限制与注意事项
@@ -95,3 +96,5 @@ chatRuntime.getEffortLevelId -> runAgentStream(effortLevelId)
 - 2026-11-12：Provider 展开区新增可编辑稳定 ID；拒绝空值和重名，改名保留钥匙串账户、模型与 API Key，并迁移自动补全偏好和页面密钥快照。新增 `src/modules/ai/config/providerRename.test.ts` 回归测试。
 - 2026-11-12：Provider 高级表单移除底部保存按钮，改为防抖自动保存并显示保存状态；离开模型分区、切换标签或关闭设置页时等待保存完成并提示结果。Provider 写入改为串行队列，避免多个卡片的自动保存互相覆盖。
 - 2026-11-12：已有模型的编辑表单同样改为防抖自动保存并移除保存按钮，复用离页等待与保存协调器；Provider 与模型写入统一走同一串行队列，新增模型仍显式创建。
+- 2026-11-25：校正 §4 中 `null` 的表述为分层语义（静态参数与 Effort 档位表示本层不写入，模型 `extra` 才表示删除）；同步通用经验文档链接与最后校验日期，未改变行为。
+- 2026-11-25：§5 增加第三方厂商契约链接，指向新建的 [interfaces.md](../interfaces.md)；未改变行为。

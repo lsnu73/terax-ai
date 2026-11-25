@@ -1,7 +1,7 @@
 # Terax 项目地图
 
 > 本目录回答「代码做了什么、在哪里」。设计理由、硬约束与历史坑点见 [../lore/](../lore/)。
-> 最后校验：2026-11-24
+> 最后校验：2026-11-25
 
 ## 一句话
 
@@ -13,8 +13,9 @@ Terax 是面向开发者的开源桌面开发工作区，以终端为中心，�
 2. [architecture.md](architecture.md)：技术栈、进程边界与目录职责。
 3. [getting-started.md](getting-started.md)：安装、启动、检查与排障。
 4. [features/_index.md](features/_index.md)：功能清单与文档覆盖度。
-5. [playbook/playbook.md](playbook/playbook.md)：通用经验目录，可跨项目复用的实现经验（一条一文件）。
-5. [file-map.md](file-map.md)：从源文件反查业务功能。
+5. [playbook/playbook.md](playbook/playbook.md)：通用经验目录，可跨项目复用的实现经验与已验证的外部事实（一条一文件）。
+6. [interfaces.md](interfaces.md)：对外接口契约、内置厂商端点、密钥控制台与已知怪癖。
+7. [file-map.md](file-map.md)：从源文件反查业务功能。
 
 仓库的架构事实来源仍是 [../../TERAX.md](../../TERAX.md)，专题长文从 [../README.md](../README.md) 进入。Atlas 提供定位入口，不替代这些文档。
 
@@ -44,10 +45,11 @@ Terax 是面向开发者的开源桌面开发工作区，以终端为中心，�
 | 改 AI 生成提交信息或其提示词 | [features/AI提交信息生成.md](features/AI提交信息生成.md) | `src/modules/source-control/useSourceControlPanel.ts`, `src/modules/ai/config/prompts.ts` |
 | 改源代码管理面板、远程获取/拉取/推送或 SSH key 密码解锁 | [features/源代码管理.md](features/源代码管理.md) | `src/modules/source-control/SourceControlPanel.tsx`, `src/modules/source-control/useSourceControl.ts`, `src-tauri/src/modules/git/operations.rs` |
 | 改模型请求参数或思考强度档位 | [features/AI模型配置.md](features/AI模型配置.md) | `src/modules/ai/config/params.ts`, `src/settings/sections/models/StructuredFields.tsx` |
+| 查 AI 厂商端点、密钥控制台或模型列表能力 | [interfaces.md](interfaces.md) | `src/modules/ai/config/defaults.ts` |
 | 改通知铃铛、软件运行消息或通知显示方式 | [features/通知中心.md](features/通知中心.md) | `src/modules/agents/components/NotificationBell.tsx`, `src/modules/agents/lib/runtimeNotifications.ts`, `src/modules/agents/store/agentStore.ts` |
 | 改设置左侧导航、选项搜索、结果分组或结果定位 | [features/设置页.md](features/设置页.md) | `src/settings/SettingsView.tsx`, `src/settings/components/SettingsSearch.tsx`, `src/settings/settingsSearch.ts` |
 | 改 Ctrl+F 的归属、设置页搜索聚焦或预览页查找 | [features/标签内搜索.md](features/标签内搜索.md) | `src/app/App.tsx`, `src/modules/header/SearchInline.tsx`, `src/settings/settingsSearchFocus.ts` |
-| 改关闭按钮行为、退出确认、系统托盘或二次启动唤回 | [features/关闭窗口与系统托盘.md](features/关闭窗口与系统托盘.md) | `src/app/hooks/useAppCloseGuard.ts`, `src-tauri/src/modules/tray.rs`, `src-tauri/src/modules/single_instance.rs`, `src/app/components/CloseDialogs.tsx` |
+| 改关闭按钮行为、退出确认、启动时常驻系统托盘或二次启动唤回 | [features/关闭窗口与系统托盘.md](features/关闭窗口与系统托盘.md) | `src/app/hooks/useAppCloseGuard.ts`, `src-tauri/src/modules/tray.rs`, `src-tauri/src/modules/single_instance.rs`, `src/app/components/CloseDialogs.tsx` |
 | 改窗口圆角/最大化直角、窗口控制按钮点击区或左右边框拖拽阀 | [features/无边框窗口与边框交互.md](features/无边框窗口与边框交互.md) | `src/app/components/WindowEdgeValves.tsx`, `src/lib/maximizedChrome.ts`, `src/styles/globals.css`, `src/components/WindowControls.tsx` |
 | 改关于页的文件/注册表痕迹清单 | [features/设置-关于.md](features/设置-关于.md) | `src-tauri/src/modules/traces.rs`, `src/settings/sections/AboutSection.tsx` |
 | 改关于页链接、检查更新入口、版本同步或标签发布 | [features/设置-关于.md](features/设置-关于.md) | `src/settings/sections/AboutSection.tsx`, `src/modules/updater/useUpdater.ts`, `scripts/release-version.mjs` |

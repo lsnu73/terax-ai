@@ -3,7 +3,7 @@
 > 只收录有业务含义的源文件。自动生成文件、测试、构建脚本和纯配置不在此列。
 > 一个文件涉及多个功能时，第二列登记主归属，其余登记在第三列。
 > 表格是唯一数据源；目录树由 project-atlas 的 render-file-map-tree.sh 生成，不要手改。
-> 最后校验：2026-11-24
+> 最后校验：2026-11-25
 
 ## 按目录浏览
 
@@ -33,7 +33,7 @@ src-tauri/
         │   └── mod.rs — [AI命令执行] Shell 元数据与真实 argv 共用 `OneShotShell`；提供 describe、前台 session 与后台进程 IPC（次：代理）
         ├── single_instance.rs — [关闭窗口与系统托盘] 单实例插件封装：二次启动转发 argv、唤回主窗口后新进程退出
         ├── traces.rs — [设置-关于] `app_traces`：安装、配置、数据、缓存、日志、注册表与凭据痕迹
-        └── tray.rs — [关闭窗口与系统托盘] 托盘图标、左键恢复窗口、右键菜单（打开/关闭程序）；`reveal_main_window` 供托盘、二次启动与 Dock 共用
+        └── tray.rs — [关闭窗口与系统托盘] 启动时创建并保留托盘图标；左键恢复窗口、右键菜单打开/关闭程序；`reveal_main_window` 供托盘、二次启动与 Dock 共用
 
 src/
 ├── app/
@@ -45,7 +45,7 @@ src/
 │   ├── hooks/
 │   │   └── useAppCloseGuard.ts — [关闭窗口与系统托盘] 关闭请求总入口：读取 `closeAction`、选择窗口、托盘隐藏与退出前守卫（次：会话落盘守卫）
 │   └── lib/
-│       └── appTray.ts — [关闭窗口与系统托盘] 调用 `tray_show` 后隐藏窗口，托盘不可用时回落退出（次：系统托盘）
+│       └── appTray.ts — [关闭窗口与系统托盘] `ensureTray` 创建或复用常驻托盘；`minimizeToTray` 确认托盘可用后隐藏窗口，失败回落退出（次：系统托盘）
 ├── components/
 │   ├── WindowControls.tsx — [关闭窗口与系统托盘] 最小化/最大化/关闭按钮；点击区通栏标题栏；关闭仍只调用 `window.close()`（次：无边框窗口与边框交互）
 │   ├── ai-elements/
@@ -59,7 +59,7 @@ src/
 │   ├── open-path.ts — [终端链接打开] 路径识别与文件管理器打开（次：终端路径历史）
 │   ├── pathDisplay.ts — [终端路径历史] `compactPath` 按注入的视觉宽度测量压缩路径，保留前缀与末级开头（次：通用路径展示）
 │   └── useCaptureOutsideDismiss.ts — [标签页管理] 受控浮层的 document 捕获阶段外部指针关闭与监听清理（次：状态栏工作区与路径）
-├── main.tsx — [无边框窗口与边框交互] 应用引导：`data-chrome="borderless"` 标记、最大化状态镜像、窗口延迟显示
+├── main.tsx — [无边框窗口与边框交互] 应用引导：`data-chrome="borderless"` 标记、最大化状态镜像、窗口延迟显示；i18n 就绪后创建常驻托盘（次：关闭窗口与系统托盘）
 ├── modules/
 │   ├── agents/
 │   │   ├── components/
@@ -254,14 +254,14 @@ src/
 | `src/components/ui/resizable.tsx` | [AI面板](features/AI面板.md) | 可调整布局 | 分隔线、拖拽热区与常驻六点握把；握把静止/悬停/拖拽三级对比色 |
 | `src/app/components/WorkspaceSurface.tsx` | [终端链接打开](features/终端链接打开.md) | 工作区渲染、[设置页](features/设置页.md)、[终端命令与结果块](features/终端命令与结果块.md) | 透传预览与块搜索回调，并在工作区层渲染设置页；把设置 tab 可见性传给离页保存提示 |
 | `src/app/hooks/useAppCloseGuard.ts` | [关闭窗口与系统托盘](features/关闭窗口与系统托盘.md) | 会话落盘守卫 | 关闭请求总入口：读取 `closeAction`、选择窗口、托盘隐藏与退出前守卫 |
-| `src/app/lib/appTray.ts` | [关闭窗口与系统托盘](features/关闭窗口与系统托盘.md) | 系统托盘 | 调用 `tray_show` 后隐藏窗口，托盘不可用时回落退出 |
+| `src/app/lib/appTray.ts` | [关闭窗口与系统托盘](features/关闭窗口与系统托盘.md) | 系统托盘 | `ensureTray` 创建或复用常驻托盘；`minimizeToTray` 确认托盘可用后隐藏窗口，失败回落退出 |
 | `src/app/components/CloseDialogs.tsx` | [关闭窗口与系统托盘](features/关闭窗口与系统托盘.md) | 标签关闭确认 | 退出/缩小到托盘选择窗口与「记住我的选择」 |
 | `src/components/WindowControls.tsx` | [关闭窗口与系统托盘](features/关闭窗口与系统托盘.md) | [无边框窗口与边框交互](features/无边框窗口与边框交互.md) | 最小化/最大化/关闭按钮；点击区通栏标题栏；关闭仍只调用 `window.close()` |
 | `src/lib/maximizedChrome.ts` | [无边框窗口与边框交互](features/无边框窗口与边框交互.md) | 无 | 窗口最大化状态订阅：`<html data-maximized>` 镜像与 `useWindowMaximized` hook |
 | `src/lib/useCaptureOutsideDismiss.ts` | [标签页管理](features/标签页管理.md) | [状态栏工作区与路径](features/状态栏工作区与路径.md) | 受控浮层的 document 捕获阶段外部指针关闭与监听清理 |
 | `src/app/components/WindowEdgeValves.tsx` | [无边框窗口与边框交互](features/无边框窗口与边框交互.md) | [AI面板](features/AI面板.md)、[文件资源管理器](features/文件资源管理器.md) | 左右边框拖拽阀：阀段开关/拖动侧栏与 AI 面板，其余边框区域交系统原生 resize |
-| `src/main.tsx` | [无边框窗口与边框交互](features/无边框窗口与边框交互.md) | 无 | 应用引导：`data-chrome="borderless"` 标记、最大化状态镜像、窗口延迟显示 |
-| `src-tauri/src/modules/tray.rs` | [关闭窗口与系统托盘](features/关闭窗口与系统托盘.md) | 无 | 托盘图标、左键恢复窗口、右键菜单（打开/关闭程序）；`reveal_main_window` 供托盘、二次启动与 Dock 共用 |
+| `src/main.tsx` | [无边框窗口与边框交互](features/无边框窗口与边框交互.md) | [关闭窗口与系统托盘](features/关闭窗口与系统托盘.md) | 应用引导：`data-chrome="borderless"` 标记、最大化状态镜像、窗口延迟显示；i18n 就绪后创建常驻托盘 |
+| `src-tauri/src/modules/tray.rs` | [关闭窗口与系统托盘](features/关闭窗口与系统托盘.md) | 无 | 启动时创建并保留托盘图标；左键恢复窗口、右键菜单打开/关闭程序；`reveal_main_window` 供托盘、二次启动与 Dock 共用 |
 | `src-tauri/src/modules/single_instance.rs` | [关闭窗口与系统托盘](features/关闭窗口与系统托盘.md) | 无 | 单实例插件封装：二次启动转发 argv、唤回主窗口后新进程退出 |
 | `src-tauri/src/lib.rs` | [开发者工具](features/开发者工具.md) | 设置窗口、原生 IPC、关闭窗口与系统托盘 | 提供 `open_devtools` 命令；单实例插件最先注册，二次启动文件参数走 macOS「打开方式」同款链路 |
 | `src/modules/shortcuts/shortcuts.ts` | [快捷键提示](features/快捷键提示.md) | [撤销终端窗格拆分](features/撤销终端窗格拆分.md)、[开发者工具](features/开发者工具.md)、[终端命令与结果块](features/终端命令与结果块.md)、[设置页](features/设置页.md) | 快捷键 ID、默认绑定、显示令牌、Ctrl+R 保留判定与设置搜索快捷键索引来源 |

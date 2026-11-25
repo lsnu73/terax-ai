@@ -1,6 +1,6 @@
 # 术语表
 
-> 最后校验：2026-11-24
+> 最后校验：2026-11-25
 
 | 标准术语 | 用户说法（别名） | 代码锚点 | 一句话含义 | 易混淆项 |
 |---|---|---|---|---|
@@ -13,5 +13,6 @@
 | 双击选词 | 「双击选词」「双击选中一个词」「双击选中文」 | `src/modules/terminal/ghostty/selection/wordSelection.ts:79` 的 `wordTokenRangeAt`/`pathLadderRangeAt` | 终端里鼠标双击按分词规则选词：连续中文整块、路径/URL/版本号/下划线标识符等粘连单元整体选中，三击起沿引号括号容器递进 | 终端链接打开（Ctrl/Cmd 点击）；编辑器 CodeMirror 双击选词 |
 | WSL 挂载前缀（automount root） | 「挂载盘符」「/mnt 前缀」「mnt 那个路径」 | `src/modules/workspace/automount.ts:7` 的 `fetchWslAutomountRoot`；Rust `wsl_automount_root` | WSL 把 Windows 盘符挂载到的目录前缀，默认 `/mnt/`，可由 `/etc/wsl.conf` 的 `[automount] root` 改写 | 发行版根目录 `/`；WSL 登录 HOME |
 | 建议命令卡片 | 「建议命令」「AI 建议的命令」 | `src/components/ai-elements/tool.tsx:780` 的 `SuggestCommandCard` | `suggest_command` 工具结果的卡片：默认展开，展示命令与「插入」按钮，单击只把命令粘贴到活动终端提示符处、不执行；原始 input JSON 收在默认折叠的「输入」项里 | AI 命令执行（`bash_run`，AI 自己跑）；shell 代码块的「运行」按钮（`src/components/ai-elements/chat-code.tsx`） |
+| 系统托盘 | 「托盘」「托盘图标」 | `src/app/lib/appTray.ts:5` 的 `ensureTray` | Windows/macOS 通知区域中启动即创建、可恢复窗口或退出程序的常驻图标 | 任务栏上的应用窗口按钮 |
 | 路径压缩 | 「隐藏部分路径」「路径省略」「长路径缩短」 | `src/lib/pathDisplay.ts:48` 的 `compactPath` | 按调用方提供的视觉宽度测量省略中间目录或截断末级，同时保留路径前缀与末级开头 | CSS `text-overflow: ellipsis`；终端命令提示符路径压缩（未实现） |
 | 粘贴漏斗 | 「粘贴的命令」「粘贴进去的东西」「粘贴后多出空命令」 | `src/modules/terminal/ghostty/input/GhosttyInputController.ts:208` 的 `paste` | 剪贴板、原生粘贴、文件拖放、AI 注入的统一粘贴入口：先 trim 首尾空白，再经 WSL 路径转换与粘贴编码写入会话 | AI 命令执行（不经终端提示符）；`encodeTerminalSubmission`（提交编码，自带结尾回车） |
