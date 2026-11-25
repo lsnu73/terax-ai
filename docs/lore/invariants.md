@@ -124,3 +124,8 @@
   - 违反代价：用户刚修改字段就切走时会看到未落盘的旧配置；多个展开卡片和模型编辑器的并行写入会互相覆盖；校验失败却提示成功会让用户误以为配置已生效。
   - 强制点：`src/settings/modelSettingsAutosave.ts` 的 `isLeavingModelsSettings` 与 `settleModelAutosave`；`src/settings/SettingsView.tsx` 统一处理分区切换、标签可见性和卸载；`src/settings/sections/ModelsSection.tsx` 的配置写入队列与 Provider/模型表单 flush 注册；`src/settings/modelSettingsAutosave.test.ts` 覆盖离开判定、失败汇总与进行中保存等待。
   - 代码索引：见 [atlas/features/AI模型配置.md](../atlas/features/AI模型配置.md)、[atlas/features/设置页.md](../atlas/features/设置页.md)。
+
+- **INV-025** Windows/macOS 的系统托盘必须在 i18n 初始化后、React 首次渲染前创建，并保留到进程结束；关闭或隐藏主窗口不得销毁托盘，也不得恢复 `tray_hide` 或等价的销毁接口。
+  - 违反代价：主窗口可见时无法从托盘直接恢复或退出；若在 i18n 就绪前创建，原生菜单会使用错误语言的标签；若窗口隐藏时销毁托盘，窗口隐藏后用户将失去图形控制入口。
+  - 强制点：`src/main.tsx` 在初始化完成后调用 `ensureTray()`；`src/app/lib/appTray.ts` 的 `minimizeToTray()` 只确认托盘存在后隐藏窗口；`src-tauri/src/modules/tray.rs` 仅暴露幂等的 `tray_show`，不再注册销毁命令；`src/app/lib/appTray.test.ts` 锁定创建先于隐藏及隐藏失败不销毁托盘。
+  - 代码索引：见 [atlas/features/关闭窗口与系统托盘.md](../atlas/features/关闭窗口与系统托盘.md)；决策依据见 [decisions/2026-11-25-系统托盘启动时常驻.md](decisions/2026-11-25-系统托盘启动时常驻.md)。
