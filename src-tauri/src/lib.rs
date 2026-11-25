@@ -336,7 +336,6 @@ pub fn run() {
             vibrancy::window_backdrop_kind,
             vibrancy::window_set_backdrop,
             modules::tray::tray_show,
-            modules::tray::tray_hide,
             modules::traces::app_traces,
             modules::window_presentation::window_presentation_state,
             #[cfg(feature = "bench")]

@@ -1,9 +1,9 @@
-//! Tray icon for the hidden main window.
+//! Resident tray icon for the running application.
 //!
-//! Created the first time the window hides to the tray and kept for the rest
-//! of the session: left click brings the window back, right click offers
-//! "open" and "quit". Linux has no tray backend in this build, so the
-//! frontend falls back to quitting when creation fails.
+//! Created at startup and kept for the rest of the session: left click brings
+//! the window back, right click offers "open" and "quit". Linux has no tray
+//! backend in this build, so the frontend falls back to quitting when creation
+//! fails.
 
 use tauri::{AppHandle, Manager};
 
@@ -62,10 +62,6 @@ mod platform {
         builder.build(app).map(|_| ()).map_err(|e| e.to_string())
     }
 
-    pub fn hide(app: &AppHandle) {
-        app.remove_tray_by_id(TRAY_ID);
-    }
-
     fn reveal(app: &AppHandle) {
         reveal_main_window(app);
     }
@@ -78,20 +74,9 @@ mod platform {
     pub fn show(_app: &AppHandle, _open_label: &str, _quit_label: &str) -> Result<(), String> {
         Err("the tray is unavailable on this platform".into())
     }
-
-    pub fn hide(_app: &AppHandle) {}
 }
 
 #[tauri::command]
-pub fn tray_show(
-    app: AppHandle,
-    open_label: String,
-    quit_label: String,
-) -> Result<(), String> {
+pub fn tray_show(app: AppHandle, open_label: String, quit_label: String) -> Result<(), String> {
     platform::show(&app, &open_label, &quit_label)
-}
-
-#[tauri::command]
-pub fn tray_hide(app: AppHandle) {
-    platform::hide(&app);
 }

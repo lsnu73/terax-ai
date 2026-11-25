@@ -1,15 +1,16 @@
 import "./styles/globals.css";
 
+import { terminalDiagnosticsEnabled } from "@/modules/terminal/lib/terminalDiagnosticsEnabled";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import ReactDOM from "react-dom/client";
 import App from "./app/App";
+import { ensureTray } from "./app/lib/appTray";
 import { disableNativeContextMenu } from "./lib/disableNativeContextMenu";
 import { initLaunchDir } from "./lib/launchDir";
 import { trackMaximizedChrome } from "./lib/maximizedChrome";
-import { USE_CUSTOM_WINDOW_CONTROLS } from "./lib/platform";
+import { IS_LINUX, USE_CUSTOM_WINDOW_CONTROLS } from "./lib/platform";
 import { initI18n } from "./modules/i18n";
-import { terminalDiagnosticsEnabled } from "@/modules/terminal/lib/terminalDiagnosticsEnabled";
 
 if (USE_CUSTOM_WINDOW_CONTROLS) {
   document.documentElement.dataset.chrome = "borderless";
@@ -39,6 +40,14 @@ await Promise.all([
   initLaunchDir(),
   initI18n(),
 ]);
+
+if (!IS_LINUX) {
+  try {
+    await ensureTray();
+  } catch (error) {
+    console.error("tray initialization failed:", error);
+  }
+}
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <App />,
