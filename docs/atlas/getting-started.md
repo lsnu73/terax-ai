@@ -98,7 +98,7 @@ git push origin main
 git push origin v0.9.1
 ```
 
-推送 `v*` 标签后，GitHub Actions 先校验 tag 与全部版本文件一致，再构建 Windows NSIS 安装包、签名和 latest.json。校验失败会阻止发布。安装包发布后，工作流根据合并 PR 自动生成分类发行版说明并写回 Release，无需手动编辑；分类规则见 `.github/release.yml`，PR 可使用 `enhancement`、`bug`、`performance`、`documentation` 等标签，标记 `ignore-for-release` 的 PR 不会进入说明。
+推送 `v*` 标签后，GitHub Actions 先通过 `git ls-remote` 查询 origin 上的稳定 `vX.Y.Z` 标签并按数值版本比较，只让最高版本继续；同时推送多个标签时，较低版本任务会成功跳过，不安装依赖、不编译、不创建 Release。最高版本任务再校验 tag 与全部版本文件一致，随后构建 Windows NSIS 安装包、签名和 latest.json。校验失败或远端标签查询失败会阻止发布。安装包发布后，工作流根据合并 PR 自动生成分类发行版说明并写回 Release，无需手动编辑；分类规则见 `.github/release.yml`，PR 可使用 `enhancement`、`bug`、`performance`、`documentation` 等标签，标记 `ignore-for-release` 的 PR 不会进入说明。
 
 ## 环境问题排查
 
